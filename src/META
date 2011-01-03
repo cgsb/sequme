@@ -1,5 +1,5 @@
 description = "NYU Bioinformatics Library"
-requires = "batteries biocaml"
+requires = "netstring batteries biocaml"
 version = "0.0"
 archive(byte) = "sequme.cma"
 archive(native) = "sequme.cmxa"
