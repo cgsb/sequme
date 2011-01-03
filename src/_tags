@@ -1,0 +1,9 @@
+<sequme>: include
+
+<**/*.{ml,mli,byte,native}>: pkg_batteries, pkg_calendar, pkg_netstring
+
+<sequme/*.cmx>: for-pack(Sequme)
+
+<app/*.{ml,byte,native}>: pkg_getopt
+
+true: debug
