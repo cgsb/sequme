@@ -10,7 +10,7 @@ type headers = string list
 type data_rows = string list list
 type table = headers * data_rows
 
-type libid
+type libid = string
 
 val get_status_html : string -> status_html
   (** [get_status_html passwd] returns the contents of

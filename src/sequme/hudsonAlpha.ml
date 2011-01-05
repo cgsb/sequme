@@ -118,9 +118,9 @@ let print_short_info depth content =
 let get_status_html passwd =
   let cookie_file = Filename.temp_file "hudsonalpha" "cookie.txt" in
   let status_file = Filename.temp_file "hudsonalpha" "status.html" in
-  sprintf "curl -i --cookie-jar %s http://hts.hudsonalpha.org/status/ > /dev/null" cookie_file |> Sys.command |> ignore;
-  sprintf "curl -i --cookie %s --cookie-jar %s --data \"username=LittmanLab&password=%s&this_is_the_login_form=1&post_data=\" http://hts.hudsonalpha.org/status/ > /dev/null" cookie_file cookie_file passwd |> Sys.command |> ignore;
-  sprintf "curl --cookie %s --cookie-jar %s http://hts.hudsonalpha.org/status/ > %s" cookie_file cookie_file status_file |> Sys.command |> ignore;
+  sprintf "curl -i --cookie-jar %s http://hts.hudsonalpha.org/status/ > /dev/null 2> /dev/null" cookie_file |> Sys.command |> ignore;
+  sprintf "curl -i --cookie %s --cookie-jar %s --data \"username=LittmanLab&password=%s&this_is_the_login_form=1&post_data=\" http://hts.hudsonalpha.org/status/ > /dev/null 2> /dev/null" cookie_file cookie_file passwd |> Sys.command |> ignore;
+  sprintf "curl --cookie %s --cookie-jar %s http://hts.hudsonalpha.org/status/ 2> /dev/null > %s" cookie_file cookie_file status_file |> Sys.command |> ignore;
   let cin = open_in status_file in
   let ans = IO.read_all cin in
   close_in cin;
@@ -128,8 +128,8 @@ let get_status_html passwd =
   Unix.unlink status_file;
   ans
 
-let get_marias_table file : table =
-  let doc = file |> open_in |> Lexing.from_channel
+let get_marias_table status_html =
+  let doc = status_html |> IO.input_string |> Lexing.from_channel
     |> Nethtml.parse_document |> (flip List.nth 1)
   in
   let snd_table = match Nethtml.get_nth_element_with_name 2 "table" doc with
