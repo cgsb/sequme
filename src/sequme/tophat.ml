@@ -2,8 +2,9 @@
 
 open Batteries_uni;; open Printf
 
-(** Tophat expression. *)
-type expr = {
+(** Tophat command. *)
+type cmd = {
+  exec : string;
   min_anchor_length : int option;
   solexa1_3_quals : bool;
   num_threads : int option;
@@ -13,7 +14,8 @@ type expr = {
   butterfly_search : bool;
 }
 
-let make_expr
+let make_cmd
+    ?(exec="tophat")
     ?min_anchor_length
     ?(solexa1_3_quals=false)
     ?num_threads
@@ -24,6 +26,7 @@ let make_expr
     ()
     =
   {
+    exec;
     min_anchor_length;
     solexa1_3_quals;
     num_threads;
@@ -33,15 +36,15 @@ let make_expr
     butterfly_search
   }
 
-(** [to_string e] returns the string that can be typed directly on the
+(** [to_string cmd] returns the string that can be typed directly on the
     command line to run tophat. *)
-let cmd_string e = List.fold_left (^) "" [
-  "tophat";
-  (match e.min_anchor_length with None -> "" | Some x -> sprintf " -a %d" x);
-  (if e.solexa1_3_quals then " --solexa1.3-quals" else "");
-  (match e.num_threads with None -> "" | Some x -> sprintf " -p %d" x);
-  (match e.max_multihits with None -> "" | Some x -> sprintf " -g %d" x);
-  (if e.no_coverage_search then " --no-coverage-search" else "");
-  (if e.coverage_search then " --coverage-search" else "");
-  (if e.butterfly_search then " --butterfly-search" else "")
+let cmd_string cmd = List.fold_left (^) "" [
+  cmd.exec;
+  (match cmd.min_anchor_length with None -> "" | Some x -> sprintf " -a %d" x);
+  (if cmd.solexa1_3_quals then " --solexa1.3-quals" else "");
+  (match cmd.num_threads with None -> "" | Some x -> sprintf " -p %d" x);
+  (match cmd.max_multihits with None -> "" | Some x -> sprintf " -g %d" x);
+  (if cmd.no_coverage_search then " --no-coverage-search" else "");
+  (if cmd.coverage_search then " --coverage-search" else "");
+  (if cmd.butterfly_search then " --butterfly-search" else "")
 ]
