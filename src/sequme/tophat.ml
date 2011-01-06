@@ -13,6 +13,26 @@ type expr = {
   butterfly_search : bool;
 }
 
+let make_expr
+    ?min_anchor_length
+    ?(solexa1_3_quals=false)
+    ?num_threads
+    ?max_multihits
+    ?(no_coverage_search=false)
+    ?(coverage_search=false)
+    ?(butterfly_search=false)
+    ()
+    =
+  {
+    min_anchor_length;
+    solexa1_3_quals;
+    num_threads;
+    max_multihits;
+    no_coverage_search;
+    coverage_search;
+    butterfly_search
+  }
+
 (** [to_string e] returns the string that can be typed directly on the
     command line to run tophat. *)
 let cmd_string e = List.fold_left (^) "" [
