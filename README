@@ -1,0 +1,56 @@
+Sequme - NYU Bioinformatics Software
+
+This README is *under construction*.
+
+
+----------------
+Below is Francis Kirigin's README for the curate_peaks.py and
+RefGeneDB.py scripts.
+
+Code Design
+===========
+curate_peaks.py
+o Main driver script.
+
+RefGeneDB.py
+o Main logic pieces.
+o Worker functions are:
+  - resolve_dups()
+  - lookup_chr(...)
+
+These handle the per peak introspection along the reference genome, to
+curate a given peak by genomic value and importance.  Some of this has
+gone through many stages of revision (and still under debate), so if
+you have any insight or ideas, please do not be shy.
+
+
+Peak Processing
+===============
+Each peak is considered sequentially, without knowledge of other
+peaks; each peak considers all genes falling within their region or
+domain of interest.
+
+
+Sample Input/Output files
+=======================
+Sample input is taken from the peak-calling software, MACS; the
+associated output from the run above being:
+
+    http://wongburger.bio.nyu.edu/~fkirigin/th17/results/ChIP-Seq/multi/RORg-ko-STAT3-98/macs/
+
+MACS generates a number of files, I almost always process the file
+ending in: *_peaks.xls,
+
+The input file used for annotation analysis being:
+
+    http://wongburger.bio.nyu.edu/~fkirigin/th17/results/ChIP-Seq/multi/RORg-ko-STAT3-98/macs/RORg-ko-STAT3-98-20101105-0222_peaks.xls
+
+
+Example
+=======
+    $ curate_peaks.py RORg-ko-STAT3-98-20101105-0222_peaks.xls > RORg-ko-STAT3-98-20101105-0222_peaks.xls
+
+This generates a number of files, which have been generated and placed
+in the dir below:
+
+    http://wongburger.bio.nyu.edu/~fkirigin/th17/results/ChIP-Seq/multi/RORg-ko-STAT3-98/
