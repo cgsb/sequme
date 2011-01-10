@@ -10,7 +10,7 @@ let download url out_file =
   pipeline # add get_call;
   pipeline # run()
 
-let get conf url =
+let get conf ?short_name url =
   let sequme_root = Map.StringMap.find "sequme_root" conf in
   let temp_dir = Filename.concat sequme_root "tmp" in
   let temp_file = Filename.temp_file ~temp_dir "" "" in
@@ -24,7 +24,30 @@ let get conf url =
   sprintf "mv %s %s" temp_file dest_file |> Sys.command |> ignore;
   
   (* add entry in database *)
-  let stmt = sprintf "INSERT INTO cache (md5sum, url) values ('%s', '%s')" md5sum url in
+  let stmt = match short_name with
+    | None -> sprintf "INSERT INTO cache (md5sum, url) values ('%s', '%s')" md5sum url
+    | Some short_name -> sprintf "INSERT INTO cache (md5sum, url, short_name) values ('%s', '%s', '%s')" md5sum url short_name
+  in
+  Conf.sqlite_exec conf stmt
+
+
+let add conf ?description file =
+  let sequme_root = Map.StringMap.find "sequme_root" conf in
+  let md5sum = Digest.file file |> Digest.to_hex in
+  let dest_file = List.fold_left Filename.concat sequme_root ["db"; "cache"; md5sum] in
+  sprintf "cp %s %s" file dest_file |> Sys.command |> ignore;
+
+  let timestamp =
+    let open Unix in
+    (stat file).st_mtime |> gmtime |> Util.tm_to_string
+  in
+
+  let short_name = Filename.basename file in
+
+  let stmt = match description with
+    | None -> sprintf "INSERT INTO cache (md5sum,timestamp,short_name) values ('%s', '%s', '%s')" md5sum timestamp short_name
+    | Some description -> sprintf "INSERT INTO cache (md5sum,timestamp,short_name,description) values ('%s', '%s', '%s', '%s')" md5sum timestamp short_name description
+  in
   Conf.sqlite_exec conf stmt
 
 
