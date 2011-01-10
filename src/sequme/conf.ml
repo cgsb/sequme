@@ -45,3 +45,22 @@ let get_dbconf t =
           db_port=""
         }
     | _ -> raise (Invalid (sprintf "%s: unsupported database engine" engine))
+
+let sqlite_exec conf ?cb stmt =
+  let dbconf = get_dbconf conf in
+  let open Sqlite3 in
+  let db = match dbconf.db_engine with
+    | "sqlite" -> db_open dbconf.db_name
+    | _ -> Invalid (sprintf "%s: configuration does not include sqlite database" (StringMap.find "sequme_root" conf)) |> raise
+  in
+  match cb with
+    | None ->
+        (match exec db stmt with
+          | Rc.OK -> ()
+          | x -> Invalid (sprintf "sqlite error: %s" (Rc.to_string x)) |> raise
+        )
+    | Some cb ->
+        (match exec db ~cb stmt with
+          | Rc.OK -> ()
+          | x -> Invalid (sprintf "sqlite error: %s" (Rc.to_string x)) |> raise
+        )
