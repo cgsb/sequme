@@ -1,6 +1,6 @@
 <sequme>: include
 
-<**/*.{ml,mli,byte,native}>: pkg_batteries, pkg_calendar, pkg_netstring
+<**/*.{ml,mli,byte,native}>: pkg_batteries, pkg_calendar, pkg_netstring, pkg_netclient, pkg_shell, pkg_sqlite3
 
 <sequme/*.cmx>: for-pack(Sequme)
 
