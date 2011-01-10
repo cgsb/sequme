@@ -14,3 +14,9 @@ let unquote ?(quote='\"') (x : string) : string =
   else if x.[0] = '\"' && x.[n-1] = '\"' then
     String.slice ~first:1 ~last:(n-1) x
   else x
+
+(** [tm_to_string tm] prints [tm] in the format "YYYY-MM-DD
+    HH-MM-SS". *)
+let tm_to_string (tm : Unix.tm) : string =
+  let open Unix in
+  sprintf "%04d-%02d-%02d %02d:%02d:%02d" (1900 + tm.tm_year) (1+tm.tm_mon) tm.tm_mday tm.tm_hour tm.tm_min tm.tm_sec
