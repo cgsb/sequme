@@ -6,10 +6,15 @@ open Batteries_uni
 
 exception Invalid of string
 
-val get : Conf.t -> string -> unit
+val get : Conf.t -> ?short_name:string -> string -> unit
   (** [get conf url] downloads the file at [url] and adds it to the
       cache dictated by [conf]. TO DO: inspect http header, and do not
       re-download if unnecessary. *)
+
+val add : Conf.t -> ?description:string -> string -> unit
+  (** [add conf file] adds local [file] to the cache. The short_name
+      will be set to [file], timestamp is determined from the file's
+      last modification time, and md5sum is computed automatically. *)
 
 val query_short_name : Conf.t -> string -> string
   (** [query_short_name conf short_name] searches the cache specified by
