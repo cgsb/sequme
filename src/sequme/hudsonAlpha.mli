@@ -1,6 +1,7 @@
-(** Download data from HudsonAlpha. *)
-
+(** HudsonAlpha datasets. *)
 open Batteries_uni
+
+(** {6 Download from hudsonalpha.org} *)
 
 type status_html = string
     (** Contents of http://hts.hudsonalpha.org/status/ as a
@@ -31,3 +32,10 @@ val cmp_libid : libid -> libid -> int
 val download_fastq : string -> libid -> unit
   (** [download_fastq dir libid] will download the fastq file for data
       set [libid] to [dir]. *)
+
+
+(** {6 Local Datasets} *)
+
+val fastq_path_of_libid : Conf.t -> libid -> string
+  (** Return absolute path to fastq file for given [libid]. Raise
+      [Not_found] if fastq file not available for [libid]. *)

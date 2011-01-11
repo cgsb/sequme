@@ -155,6 +155,12 @@ let download_fastq dir id =
   let url = sprintf "http://mendel.hudsonalpha.org/qnU5XmtUBMtS/%s/%s.fastq.gz" id id in
   sprintf "mkdir -p %s; cd %s; wget %s" dir dir url |> Sys.command |> ignore
 
+let fastq_path_of_libid conf libid =
+  let sequme_root = Map.StringMap.find "sequme_root" conf in
+  let path = List.fold_left (^) "" [sequme_root; "db"; "hudsonalpha"; libid; sprintf "%s.fastq" libid] in
+  if Sys.file_exists path then path
+  else raise Not_found
+
 (* Create a PBS script to download a dataset. DEPRECATED. *)
 let pbs_run id =
   let url = sprintf "http://mendel.hudsonalpha.org/qnU5XmtUBMtS/%s/%s.fastq.gz" id id in
