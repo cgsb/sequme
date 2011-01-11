@@ -1,0 +1,41 @@
+open Batteries_uni;; open Printf;; open Sequme
+
+let run conf outdir dataset =
+  let cmd = TopHat.make_cmd
+    ~min_anchor_length:10
+    ~solexa1_3_quals:true
+    ~num_threads:8
+    ~max_multihits:20
+    ~coverage_search:true
+    ~butterfly_search:true
+    ~gtf:(Cache.path_of_short_name conf "mm9_knownGene_ncRNA_merged.gtf")
+    ~no_novel_juncs:true
+    ~output_dir:(Filename.concat outdir "tophat_out")
+    (Bowtie.path_of_index conf "mm9")
+    [Sequme.HudsonAlpha.fastq_path_of_libid conf dataset]
+    []
+  in
+  
+  let pbs_outdir = Filename.concat outdir "pbs_out" in
+  let script = Pbs.make_script
+    ~mail_options:[Pbs.JobAborted; Pbs.JobBegun; Pbs.JobEnded]
+    ~resource_list:"nodes=1:ppn=1"
+    ~job_name:(sprintf "tophat_%s" dataset)
+    ~stdout_path:(Filename.concat pbs_outdir "stdout.txt")
+    ~stderr_path:(Filename.concat pbs_outdir "stderr.txt")
+    ~export_qsub_env:true
+    ~rerunable:false
+    [TopHat.cmd_to_string cmd]
+  in
+  let script_file = Filename.concat pbs_outdir "script.pbs" in
+  
+  Unix.mkdir outdir 0o750;
+  Unix.mkdir pbs_outdir 0o750;
+  Pbs.script_to_file script script_file;
+  sprintf "qsub %s" script_file |> Sys.command |> ignore
+
+;;  
+let dataset = "SL3501"
+let conf = Conf.read "/data/sequme"
+let outdir = sprintf "/data/sequme/log/2011-01-11_tophat_%s/" dataset
+let _ = run conf outdir dataset
