@@ -16,8 +16,8 @@ val add : Conf.t -> ?description:string -> string -> unit
       will be set to [file], timestamp is determined from the file's
       last modification time, and md5sum is computed automatically. *)
 
-val query_short_name : Conf.t -> string -> string
-  (** [query_short_name conf short_name] searches the cache specified by
+val path_of_short_name : Conf.t -> string -> string
+  (** [path_of_short_name conf short_name] searches the cache specified by
       [conf] for a file with given [short_name]. Returns absolute path
       to the cached file. Raise [Not_found] if no such file, or
       [Invalid] in case of other errors. *)

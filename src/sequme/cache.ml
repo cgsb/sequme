@@ -51,7 +51,7 @@ let add conf ?description file =
   Conf.sqlite_exec conf stmt
 
 
-let query_short_name conf short_name =
+let path_of_short_name conf short_name =
   let stmt = sprintf "SELECT md5sum FROM cache where short_name='%s'" short_name in
   let md5sums = ref [] in
   let cb row _ = match row with
