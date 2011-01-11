@@ -1,10 +1,10 @@
-(** Tophat support. See the {{:http://tophat.cbcb.umd.edu}Tophat
+(** TopHat support. See the {{:http://tophat.cbcb.umd.edu}TopHat
     website} for details. *)
 open Batteries_uni
 
 exception Error of string
 
-(** Tophat command. *)
+(** TopHat command. *)
 type cmd = private {
   exec : string;
   min_anchor_length : int option;
@@ -34,7 +34,7 @@ val make_cmd : ?exec:string -> ?min_anchor_length:int -> ?solexa1_3_quals:bool
       The last three arguments are mandatory and correspond to the
       index base, reads1 files, and reads2 files. This follows the
       tophat command line format; see the
-      {{:http://tophat.cbcb.umd.edu/manual.html}Tophat Manual} for
+      {{:http://tophat.cbcb.umd.edu/manual.html}TopHat Manual} for
       details.
 
       Raise [Error] if given arguments do not specify a
