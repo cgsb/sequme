@@ -19,6 +19,7 @@ let run conf outdir dataset =
   let pbs_outdir = Filename.concat outdir "pbs_out" in
   let script = Pbs.make_script
     ~mail_options:[Pbs.JobAborted; Pbs.JobBegun; Pbs.JobEnded]
+    ~user_list:["ashish.agarwal@nyu.edu"]
     ~resource_list:"nodes=1:ppn=1"
     ~job_name:(sprintf "tophat_%s" dataset)
     ~stdout_path:(Filename.concat pbs_outdir "stdout.txt")
