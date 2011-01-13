@@ -1,8 +1,14 @@
 (** Utility functions. A place to quickly place functions that don't
     obviously fit into another module, or don't justify defining a new
     module. *)
-
 open Batteries_uni;; open Printf
+
+exception ErrorPos of exn * int
+  (** An exception with a position number describing where the error
+      occurred. Exact nature of the position depends on the function
+      raising this exception. For example, it might be the line number
+      within a file; the element number of an enum, list, or array;
+      etc. *)
 
 (** [unquote ~quote x] unquotes string [x] treating [quote] as the
     quotation character (default = '\"'. Returns original string, not
@@ -20,3 +26,21 @@ let unquote ?(quote='\"') (x : string) : string =
 let tm_to_string (tm : Unix.tm) : string =
   let open Unix in
   sprintf "%04d-%02d-%02d %02d:%02d:%02d" (1900 + tm.tm_year) (1+tm.tm_mon) tm.tm_mday tm.tm_hour tm.tm_min tm.tm_sec
+
+(** [enum_errpos e] returns a new enum [e'] that behaves as [e].
+    However, whenever [e] would have raised any exception [exn], [e']
+    will raise [ErrorPos (exn,n)], where [n] is the element number at
+    which the exception was raised. It is okay to use [e'] after an
+    exception is raised, but the element number is reset to 0. *)
+let enum_errpos (e : 'a Enum.t) : 'a Enum.t =
+  let n = ref (-1) in
+  Enum.make
+    ~next:(fun () ->
+      incr n;
+      let x = try Enum.get e with exn -> raise (ErrorPos(exn, !n)) in
+      match x with
+        | None -> raise Enum.No_more_elements
+        | Some x -> x
+    )
+    ~count:(fun () -> Enum.count e)
+    ~clone:(fun () -> Enum.clone e)
