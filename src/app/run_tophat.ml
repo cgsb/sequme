@@ -6,9 +6,7 @@ let run conf outdir dataset =
     ~solexa1_3_quals:true
     ~num_threads:8
     ~max_multihits:20
-    ~coverage_search:true
-    ~butterfly_search:true
-    ~gtf:(Cache.path_of_short_name conf "mm9_knownGene_ncRNA_merged.gtf")
+    ~gtf:(Cache.path_of_short_name conf "refGeneAnnot.gtf")
     ~no_novel_juncs:true
     ~output_dir:(Filename.concat outdir "tophat_out")
     (Bowtie.path_of_index conf "mm9")
@@ -30,13 +28,15 @@ let run conf outdir dataset =
   in
   let script_file = Filename.concat pbs_outdir "script.pbs" in
   
-  Unix.mkdir outdir 0o750;
-  Unix.mkdir pbs_outdir 0o750;
-  Pbs.script_to_file script script_file;
+  Unix.mkdir outdir 0o755;
+  Unix.mkdir pbs_outdir 0o755;
+  Pbs.script_to_file script ~perm:(File.unix_perm 0o644) script_file;
   sprintf "qsub %s" script_file |> Sys.command |> ignore
 
-;;  
-let dataset = "SL3501"
-let conf = Conf.read "/data/sequme"
-let outdir = sprintf "/data/sequme/log/2011-01-11_tophat_%s/" dataset
-let _ = run conf outdir dataset
+;;
+let conf = Conf.read "/data/sequme" in
+let outdir = "/data/sequme/log/2011-01-14_tophat/" in
+Unix.mkdir outdir 0o755;
+for i = 1 to Array.length Sys.argv - 1 do
+  run conf (Filename.concat outdir Sys.argv.(i)) Sys.argv.(i)
+done;
