@@ -69,7 +69,11 @@ let script_to_string x =
   in
   header ^ "\n\n" ^ (String.concat "\n" x.commands)
 
-let script_to_file script string : unit =
-  let cout = open_out string in
-  fprintf cout "%s\n" (script_to_string script);
-  close_out cout
+let script_to_file script ?mode ?perm file : unit =
+  let cout = match mode,perm with
+    | None, None -> open_out file
+    | Some mode, None -> open_out ~mode file
+    | None, Some perm -> open_out ~perm file
+    | Some mode, Some perm -> open_out ~mode ~perm file
+  in
+  finally (fun () -> close_out cout) (fun cout -> fprintf cout "%s\n" (script_to_string script)) cout
