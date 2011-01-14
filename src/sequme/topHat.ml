@@ -33,7 +33,9 @@ let make_cmd
     ?output_dir
     index_base reads1 reads2
     =
-  {
+  if List.length reads1 = 0 then
+    Error "must provide input reads1" |> raise
+  else {
     exec;
     min_anchor_length;
     solexa1_3_quals;
