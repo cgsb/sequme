@@ -4,6 +4,6 @@
 
 <sequme/*.cmx>: for-pack(Sequme)
 
-<app/*.{ml,byte,native}>: pkg_getopt
+<app/*.{ml,byte,native}>: pkg_getopt, pkg_biocaml
 
 true: debug
