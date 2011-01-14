@@ -52,19 +52,22 @@ let make_cmd
     reads2
   }
 
-let cmd_to_string cmd = List.fold_left (^) "" [
-  cmd.exec;
-  (match cmd.min_anchor_length with None -> "" | Some x -> sprintf " -a %d" x);
-  if cmd.solexa1_3_quals then " --solexa1.3-quals" else "";
-  (match cmd.num_threads with None -> "" | Some x -> sprintf " -p %d" x);
-  (match cmd.max_multihits with None -> "" | Some x -> sprintf " -g %d" x);
-  if cmd.no_coverage_search then " --no-coverage-search" else "";
-  if cmd.coverage_search then " --coverage-search" else "";
-  if cmd.butterfly_search then " --butterfly-search" else "";
-  (match cmd.gtf with None -> "" | Some x -> sprintf " -G %s" x);
-  if cmd.no_novel_juncs then " --no-novel-juncs" else "";
-  (match cmd.output_dir with None -> "" | Some x -> sprintf " -o %s" x);
-  sprintf " %s" cmd.index_base;
-  sprintf " %s" (String.concat "," cmd.reads1);
-  if List.length cmd.reads2 > 0 then sprintf " %s" (String.concat "," cmd.reads2) else ""
+let cmd_to_string cmd =
+  let s opt x = match x with None -> "" | Some x -> sprintf " -%c %s" opt x in
+  let i opt x = match x with None -> "" | Some x -> sprintf " -%c %d" opt x in
+  String.concat "" [
+    cmd.exec;
+    i 'a' cmd.min_anchor_length;
+    if cmd.solexa1_3_quals then " --solexa1.3-quals" else "";
+    i 'p' cmd.num_threads;
+    i 'g' cmd.max_multihits;
+    if cmd.no_coverage_search then " --no-coverage-search" else "";
+    if cmd.coverage_search then " --coverage-search" else "";
+    if cmd.butterfly_search then " --butterfly-search" else "";
+    s 'G' cmd.gtf;
+    if cmd.no_novel_juncs then " --no-novel-juncs" else "";
+    s 'o' cmd.output_dir;
+    sprintf " %s" cmd.index_base;
+    sprintf " %s" (String.concat "," cmd.reads1);
+    if List.length cmd.reads2 > 0 then sprintf " %s" (String.concat "," cmd.reads2) else ""
 ]
