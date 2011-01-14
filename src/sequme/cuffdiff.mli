@@ -1,5 +1,5 @@
 (** Cuffdiff support. See the
-    {{:http://cufflinks.cbcb.umd.edu}Cufflinks} website for details. *)
+    {{:http://cufflinks.cbcb.umd.edu}Cuffdiff website} for details. *)
 open Batteries_uni
 
 exception Error of string
@@ -19,7 +19,7 @@ val make_cmd : ?exec:string -> ?output_dir:string -> ?num_threads:int
   -> ?mask_file:string -> ?quartile_normalization:bool
   -> string -> string list list -> cmd
   (** Construct cuffdiff command. See the
-      {{:http://cufflinks.cbcb.umd.edu/manual.html}Cuffdiff manual for
-      details. *)
+      {{:http://cufflinks.cbcb.umd.edu/manual.html#cuffdiff}Cuffdiff
+      manual} for details. *)
 
 val cmd_to_string : cmd -> string
