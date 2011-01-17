@@ -159,7 +159,7 @@ let fastq_path_of_libid conf libid =
   let sequme_root = Map.StringMap.find "sequme_root" conf in
   let path = List.fold_left Filename.concat "" [sequme_root; "db"; "hudsonalpha"; libid; sprintf "%s.fastq" libid] in
   if Sys.file_exists path then path
-  else raise Not_found
+  else Failure (sprintf "%s: file does not exist" path) |> raise
 
 (* Create a PBS script to download a dataset. DEPRECATED. *)
 let pbs_run id =

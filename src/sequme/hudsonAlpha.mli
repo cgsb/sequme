@@ -38,4 +38,4 @@ val download_fastq : string -> libid -> unit
 
 val fastq_path_of_libid : Conf.t -> libid -> string
   (** Return absolute path to fastq file for given [libid]. Raise
-      [Not_found] if fastq file not available for [libid]. *)
+      [Failure] if fastq file not available for [libid]. *)
