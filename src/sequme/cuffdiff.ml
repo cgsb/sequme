@@ -7,6 +7,7 @@ type cmd = {
   output_dir : string option;
   num_threads : int option;
   mask_file : string option;
+  time_series : bool;
   quartile_normalization : bool;
   gtf : string;
   samples : string list list
@@ -17,6 +18,7 @@ let make_cmd
     ?output_dir
     ?num_threads
     ?mask_file
+    ?(time_series=false)
     ?(quartile_normalization=false)
     gtf samples
     =
@@ -27,6 +29,7 @@ let make_cmd
     output_dir;
     num_threads;
     mask_file;
+    time_series;
     quartile_normalization;
     gtf;
     samples
@@ -40,6 +43,7 @@ let cmd_to_string cmd =
     s 'o' cmd.output_dir;
     i 'p' cmd.num_threads;
     s 'M' cmd.mask_file;
+    if cmd.time_series then " -T" else "";
     if cmd.quartile_normalization then " -N" else "";
     sprintf " %s" cmd.gtf;
     cmd.samples |> List.map (String.concat ",") |> String.concat " " |> sprintf " %s"
