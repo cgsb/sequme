@@ -48,27 +48,30 @@ let make_script ?(mail_options=[]) ?(user_list=[]) ?resource_list ?job_name
   }
 
 let script_to_string x =
+  let e opt = sprintf "#PBS %s\n" opt in
+  let s opt x = sprintf "#PBS %s %s\n" opt x in
+  let i opt x = sprintf "#PBS %s %d\n" opt x in
   let header = String.concat "" [
     (match x.mail_options with
       | [] -> ""
       | x ->
           let x = List.map (mail_option_to_char |- string_of_char) x in
-          sprintf "#PBS -m %s\n" (String.concat "" x)
+          s "-m" (String.concat "" x)
     );
     (match x.user_list with
       | [] -> ""
-      | x -> sprintf "#PBS -M %s\n" (String.concat "," x)
+      | x -> s "-M" (String.concat "," x)
     );
-    if x.export_qsub_env then "#PBS -V\n" else "";
+    if x.export_qsub_env then e "-V" else "";
     (match x.rerunable with
       | None -> ""
-      | Some x -> if x then "#PBS -r y\n" else "\n#PBS -r n\n"
+      | Some x -> s "-r" (if x then "y" else "n")
     );
-    (match x.resource_list with None -> "" | Some x -> sprintf "#PBS -l %s\n" x);
-    (match x.priority with None -> "" | Some x -> sprintf "#PBS -p %d\n" x);
-    (match x.stdout_path with None -> "" | Some x -> sprintf "#PBS -o %s\n" x);
-    (match x.stderr_path with None -> "" | Some x -> sprintf "#PBS -e %s\n" x);
-    (match x.job_name with None -> "" | Some x -> sprintf "#PBS -N %s\n" x);
+    (match x.resource_list with None -> "" | Some x -> s "-l" x);
+    (match x.priority with None -> "" | Some x -> i "-p" x);
+    (match x.stdout_path with None -> "" | Some x -> s "-o" x);
+    (match x.stderr_path with None -> "" | Some x -> s "-e" x);
+    (match x.job_name with None -> "" | Some x -> s "-N" x);
   ]
   in
   header ^ "\n" ^ (String.concat "\n" x.commands)
