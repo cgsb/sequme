@@ -53,25 +53,25 @@ let script_to_string x =
       | [] -> ""
       | x ->
           let x = List.map (mail_option_to_char |- string_of_char) x in
-          sprintf "#PBS -m %s" (String.concat "" x)
+          sprintf "#PBS -m %s\n" (String.concat "" x)
     );
     (match x.user_list with
       | [] -> ""
-      | x -> sprintf "\n#PBS -M %s" (String.concat "," x)
+      | x -> sprintf "#PBS -M %s\n" (String.concat "," x)
     );
-    if x.export_qsub_env then "\n#PBS -V" else "";
+    if x.export_qsub_env then "#PBS -V\n" else "";
     (match x.rerunable with
       | None -> ""
-      | Some x -> if x then "\n#PBS -r y" else "\n#PBS -r n"
+      | Some x -> if x then "#PBS -r y\n" else "\n#PBS -r n\n"
     );
-    (match x.resource_list with None -> "" | Some x -> sprintf "\n#PBS -l %s" x);
-    (match x.priority with None -> "" | Some x -> sprintf "\n#PBS -p %d" x);
-    (match x.stdout_path with None -> "" | Some x -> sprintf "\n#PBS -o %s" x);
-    (match x.stderr_path with None -> "" | Some x -> sprintf "\n#PBS -e %s" x);
-    (match x.job_name with None -> "" | Some x -> sprintf "\n#PBS -N %s" x);
+    (match x.resource_list with None -> "" | Some x -> sprintf "#PBS -l %s\n" x);
+    (match x.priority with None -> "" | Some x -> sprintf "#PBS -p %d\n" x);
+    (match x.stdout_path with None -> "" | Some x -> sprintf "#PBS -o %s\n" x);
+    (match x.stderr_path with None -> "" | Some x -> sprintf "#PBS -e %s\n" x);
+    (match x.job_name with None -> "" | Some x -> sprintf "#PBS -N %s\n" x);
   ]
   in
-  header ^ "\n\n" ^ (String.concat "\n" x.commands)
+  header ^ "\n" ^ (String.concat "\n" x.commands)
 
 let script_to_file script ?mode ?perm file : unit =
   let cout = match mode,perm with
