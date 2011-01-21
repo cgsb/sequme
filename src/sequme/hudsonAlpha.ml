@@ -1,4 +1,4 @@
-open Batteries_uni;; open Printf
+open Batteries_uni;; open Biocaml;; open Printf
 
 type status_html = string
 type headers = string list
@@ -160,6 +160,12 @@ let fastq_path_of_libid conf libid =
   let path = List.fold_left Filename.concat "" [sequme_root; "db"; "hudsonalpha"; libid; sprintf "%s.fastq" libid] in
   if Sys.file_exists path then path
   else Failure (sprintf "%s: file does not exist" path) |> raise
+
+let is_single_end conf libid =
+  let cin = fastq_path_of_libid conf libid |> open_in in
+  let f = Fastq.enum_input |- Enum.get |- Option.get |- (fun (_,seq,_,_) -> String.length seq = 36) in
+  finally (fun () -> close_in cin) f cin
+
 
 (* Create a PBS script to download a dataset. DEPRECATED. *)
 let pbs_run id =

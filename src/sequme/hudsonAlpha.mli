@@ -39,3 +39,6 @@ val download_fastq : string -> libid -> unit
 val fastq_path_of_libid : Conf.t -> libid -> string
   (** Return absolute path to fastq file for given [libid]. Raise
       [Failure] if fastq file not available for [libid]. *)
+
+val is_single_end : Conf.t -> libid -> bool
+  (** Return true if [libid] is for single end data. *)
