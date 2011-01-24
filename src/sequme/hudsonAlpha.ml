@@ -1,9 +1,7 @@
 open Batteries_uni;; open Biocaml;; open Printf
 
+exception Error of string
 type status_html = string
-type headers = string list
-type data_rows = string list list
-type table = headers * data_rows
 type libid = string
 
 module Nethtml = struct
@@ -74,8 +72,9 @@ module Nethtml = struct
     match get_nth_data 1 doc with
       | Bad msg -> ""
       | Ok data -> data
-          
-  let get_table doc : table =
+
+  (* returns column names and list of rows *)
+  let get_table doc : (string list * string list list) =
     match doc with
       | Data _ ->
           failwith "get_table_data applied to Data node"
@@ -136,16 +135,23 @@ let get_marias_table status_html =
     | Ok x -> x
     | Bad msg -> failwith msg
   in
-  Nethtml.get_table snd_table
+  let columns,rows = Nethtml.get_table snd_table in
+  let expected_cols = [
+    "Exp Type"; "Cell line"; "Conditions"; "Factor"; "Lib Id";
+    "Library Name"; "Status"; "M Reads Aligned"; "Library made by"]
+  in
+  if columns <> expected_cols then
+    Error "column names changed at hudsonalpha.org" |> raise
+  else
+    Table.of_string_list ~itags:"table,header" ~columns rows
 
-let get_sequenced_libids (headers,data) =
-  let libid_idx = 4 in
-  let status_idx = 6 in
-  assert (List.nth headers libid_idx = "Lib Id");
-  assert (List.nth headers status_idx = "Status");
-  let pred row = List.nth row status_idx = "Sequenced" in
-  let sequenced_rows = List.filter pred data in
-  List.map (flip List.nth libid_idx) sequenced_rows
+let get_sequenced_libids (_,_,get,e) =
+  e |> Enum.filter_map (fun row ->
+    if get row "Status" = "Sequenced" then
+      Some (get row "Lib Id")
+    else
+      None
+  ) |> List.of_enum
 
 let cmp_libid x y =
   let f = flip String.split "L" |- snd |- int_of_string in

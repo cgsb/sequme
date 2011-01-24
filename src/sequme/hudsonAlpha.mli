@@ -1,5 +1,7 @@
 (** HudsonAlpha datasets. *)
-open Batteries_uni
+open Batteries_uni;; open Biocaml
+
+exception Error of string
 
 (** {6 Download from hudsonalpha.org} *)
 
@@ -7,10 +9,6 @@ type status_html = string
     (** Contents of http://hts.hudsonalpha.org/status/ as a
         string. *)
     
-type headers = string list
-type data_rows = string list list
-type table = headers * data_rows
-
 type libid = string
 
 val get_status_html : string -> status_html
@@ -18,10 +16,11 @@ val get_status_html : string -> status_html
       http://hts.hudsonalpha.org/status/ as a string. Must provide
       password for user "LittmanLab". *)
 
-val get_marias_table : status_html -> table
-  (** Extract Maria's data sets. *)
+val get_marias_table : status_html -> Table.t
+  (** Extract Maria's data sets. Raise [Error] if cannot extract
+      expected table from given [status_html]. *)
 
-val get_sequenced_libids : table -> libid list
+val get_sequenced_libids : Table.t -> libid list
   (** Return the [Lib Id]s of just those data sets whose status is
       "Sequenced" from given table. *)
 
