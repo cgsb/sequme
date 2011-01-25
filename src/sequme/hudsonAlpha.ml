@@ -137,8 +137,8 @@ let get_marias_table status_html =
   in
   let columns,rows = Nethtml.get_table snd_table in
   let expected_cols = [
-    "Exp Type"; "Cell line"; "Conditions"; "Factor"; "Lib Id";
-    "Library Name"; "Status"; "M Reads Aligned"; "Library made by"]
+    "Exp Type"; "Cell line"; "Conditions"; "Factor"; "Lib Id"; "Library Name";
+    "Status"; "M Reads Aligned"; "Library made by"; "Link to Data"]
   in
   if columns <> expected_cols then
     Error "column names changed at hudsonalpha.org" |> raise
@@ -171,6 +171,56 @@ let is_single_end conf libid =
   let cin = fastq_path_of_libid conf libid |> open_in in
   let f = Fastq.enum_input |- Enum.get |- Option.get |- (fun (_,seq,_,_) -> String.length seq = 36) in
   finally (fun () -> close_in cin) f cin
+
+
+let update conf passwd =  
+  let _,remote_columns,get,remote_rows = get_status_html passwd |> get_marias_table in
+
+  let () = (* verify that Lib Id's are not repeated *)
+    let rows = Enum.clone remote_rows in
+    let open Set.StringSet in
+    let f libids row =
+      let libid = get row "Lib Id" in
+      if mem libid libids then
+        Error (sprintf "%s: Lib Id repeated" libid) |> raise
+      else
+        add libid libids
+    in
+    Enum.fold f empty rows |> ignore
+  in
+
+  let already_have db libid : bool =
+    let open Sqlite3 in
+    let stmt = sprintf "SELECT COUNT(*) FROM 'hudsonalpha' WHERE \"Lib Id\" = '%s'" libid |> prepare db in
+    (match step stmt with
+      | Rc.ROW -> ()
+      | x -> Error (sprintf "sqlite error: %s" (Rc.to_string x)) |> raise
+    );
+    assert (data_count stmt = 1);
+    match column stmt 0 with
+      | Data.INT 0L -> false
+      | Data.INT 1L -> true
+      | _ -> Error (sprintf "%s: Lib Id found more than once in local hudsonalpha table" libid) |> raise
+  in
+
+  let db = Sqlite3.db_open (Conf.get_dbconf conf).Conf.db_name in
+  let remote_columns_to_keep = List.filter ((<>) "Link to Data") remote_columns in
+  let remote_cols_str = remote_columns_to_keep |> List.map (sprintf "\"%s\"") |> String.concat ", " in
+  let f ans remote_row =
+    let libid = get remote_row "Lib Id" in
+    let status = get remote_row "Status" in
+    if already_have db libid || status <> "Sequenced" then
+      ans
+    else
+      let values = remote_columns_to_keep |> List.map (get remote_row |- sprintf "'%s'") |> String.concat ", " in
+      let stmt = sprintf "INSERT INTO hudsonalpha (%s) VALUES (%s)" remote_cols_str values in
+      match Sqlite3.exec db stmt with
+        | Sqlite3.Rc.OK -> libid::ans
+        | x -> Error (sprintf "sqlite error: %s" (Sqlite3.Rc.to_string x)) |> raise
+  in
+  let ans = Enum.fold f [] remote_rows |> List.rev in
+  Sqlite3.db_close db |> ignore;
+  ans
 
 
 (* Create a PBS script to download a dataset. DEPRECATED. *)

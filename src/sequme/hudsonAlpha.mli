@@ -41,3 +41,10 @@ val fastq_path_of_libid : Conf.t -> libid -> string
 
 val is_single_end : Conf.t -> libid -> bool
   (** Return true if [libid] is for single end data. *)
+
+val update : Conf.t -> string -> string list
+  (** [update conf passwd] adds to the local database any new
+      "Sequenced" datasets from hudsonalpha.org. Return list of new
+      [libid]s. Raise [Error] if unable to complete update for any
+      reason. Note: previous entries are not updated with potentially
+      new information at remote site. *)
