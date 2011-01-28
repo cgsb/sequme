@@ -64,3 +64,6 @@ let sqlite_exec conf ?cb stmt =
           | Rc.OK -> ()
           | x -> Invalid (sprintf "sqlite error: %s" (Rc.to_string x)) |> raise
         )
+
+let log conf =
+  sprintf "INSERT INTO log (\"msg\") VALUES ('%s')" |- sqlite_exec conf

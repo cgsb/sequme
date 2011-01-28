@@ -27,3 +27,6 @@ val sqlite_exec : t -> ?cb:(Sqlite3.row -> Sqlite3.headers -> unit) -> string ->
   (** [sqlite_exec conf stmt] executes [stmt] on the sqlite database
       specified in [conf]. Raise [Invalid] if [conf] does not specify
       a sqlite database or in case of any other errors. *)
+
+val log : t -> string -> unit
+  (** [log conf msg] inserts [msg] into the log table. *)
