@@ -19,7 +19,7 @@ module User : sig
   }
 
   val of_id : (string,bool) Hashtbl.t PGOCaml.t -> int32 -> t option
-    (** [of_username dbh id] returns the user with given [id], or
+    (** [of_id dbh id] returns the user with given [id], or
         None if no such user exists. *)
 
   val of_username : (string,bool) Hashtbl.t PGOCaml.t -> string -> t option
