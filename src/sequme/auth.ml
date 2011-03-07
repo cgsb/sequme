@@ -42,3 +42,25 @@ module User = struct
       | x::[] -> Some x
       | _ -> assert false
 end
+
+module Group = struct
+  type t = {
+    id : int32;
+    name : string;
+  }
+
+  let of_id dbh id =
+    let xs = PGSQL(dbh) "SELECT id,name FROM auth_group where id=$id"
+    in match xs with
+      | [] -> None
+      | (id,name)::[] -> Some {id;name}
+      | _ -> assert false
+
+  let of_name dbh name =
+    let xs = PGSQL(dbh) "SELECT id,name FROM auth_group where name=$name"
+    in match xs with
+      | [] -> None
+      | (id,name)::[] -> Some {id;name}
+      | _ -> assert false
+
+end

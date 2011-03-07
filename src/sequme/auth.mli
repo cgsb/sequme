@@ -32,3 +32,18 @@ module User : sig
         the id of this unique group for user [username], or None if no
         such user exists. *)
 end
+
+module Group : sig
+  type t = private {
+    id : int32;
+    name : string;
+  }
+
+  val of_id : (string,bool) Hashtbl.t PGOCaml.t -> int32 -> t option
+    (** [of_id dbh id] returns the group with given [id], or
+        None if no such group exists. *)
+
+  val of_name : (string,bool) Hashtbl.t PGOCaml.t -> string -> t option
+    (** [of_name dbh name] returns the group with given [name], or
+        None if no such group exists. *)
+end
