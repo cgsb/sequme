@@ -1,8 +1,39 @@
+(** Authorization features. *)
+
 open Batteries_uni;; open Printf
 
-module User = struct
-  exception Error of string
+module rec User : sig
+  type t = private {
+    id : int32;
+    username : string;
+    first_name : string;
+    last_name : string;
+    email : string;
+    password : string;
+    is_staff : bool;
+    is_active : bool;
+    is_superuser : bool;
+    last_login : PGOCaml.timestamptz;
+    date_joined : PGOCaml.timestamptz;
+  }
 
+  val of_id : (string,bool) Hashtbl.t PGOCaml.t -> int32 -> t option
+    (** [of_id dbh id] returns the user with given [id], or
+        None if no such user exists. *)
+
+  val of_username : (string,bool) Hashtbl.t PGOCaml.t -> string -> t option
+    (** [of_username dbh name] returns the user with given [name], or
+        None if no such user exists. *)
+
+  val group_id_of_username : (string,bool) Hashtbl.t PGOCaml.t -> string -> int32 option
+    (** For every user [x], there is a group of the same name [x], whose
+        sole member is [x]. [group_id_of_username dbh username] returns
+        the id of this unique group for user [username], or None if no
+        such user exists. *)
+
+  val groups : (string,bool) Hashtbl.t PGOCaml.t -> t -> Group.t list
+    (** Get the given user's groups. *)
+end = struct
   type t = {
     id : int32;
     username : string;
@@ -41,9 +72,39 @@ module User = struct
       | [] -> None
       | x::[] -> Some x
       | _ -> assert false
+
+  let groups dbh t =
+    let id = t.id in
+    PGOCaml.begin_work dbh;
+    let ans = PGSQL(dbh)
+      "SELECT auth_group.id
+       FROM auth_user_groups,auth_user,auth_group
+       WHERE auth_user_groups.user_id = auth_user.id
+       AND auth_user_groups.group_id = auth_group.id
+       AND auth_user.id = $id"
+      |> List.map (Group.of_id dbh |- Option.get)
+    in
+    PGOCaml.commit dbh;
+    ans
 end
 
-module Group = struct
+and Group : sig
+  type t = private {
+    id : int32;
+    name : string;
+  }
+
+  val of_id : (string,bool) Hashtbl.t PGOCaml.t -> int32 -> t option
+    (** [of_id dbh id] returns the group with given [id], or
+        None if no such group exists. *)
+
+  val of_name : (string,bool) Hashtbl.t PGOCaml.t -> string -> t option
+    (** [of_name dbh name] returns the group with given [name], or
+        None if no such group exists. *)
+
+  val members : (string,bool) Hashtbl.t PGOCaml.t -> t -> User.t list
+    (** Get the given group's members. *)
+end = struct
   type t = {
     id : int32;
     name : string;
@@ -62,5 +123,15 @@ module Group = struct
       | [] -> None
       | (id,name)::[] -> Some {id;name}
       | _ -> assert false
+
+  let members dbh t =
+    let id = t.id in
+    PGOCaml.begin_work dbh;
+    let ans = PGSQL(dbh)
+      "SELECT user_id FROM auth_user_groups WHERE group_id=$id"
+      |> List.map (User.of_id dbh |- Option.get)
+    in
+    PGOCaml.commit dbh;
+    ans
 
 end
