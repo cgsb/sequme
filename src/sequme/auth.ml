@@ -25,11 +25,10 @@ module rec User : sig
     (** [of_username dbh name] returns the user with given [name], or
         None if no such user exists. *)
 
-  val group_id_of_username : (string,bool) Hashtbl.t PGOCaml.t -> string -> int32 option
-    (** For every user [x], there is a group of the same name [x], whose
-        sole member is [x]. [group_id_of_username dbh username] returns
-        the id of this unique group for user [username], or None if no
-        such user exists. *)
+  val primary_group : (string,bool) Hashtbl.t PGOCaml.t -> t -> Group.t
+    (** Every user [x] has a "primary group", which has the same name
+        as the user and whose sole member is the user. [primary_group
+        dbh user] returns [user]'s primary group. *)
 
   val groups : (string,bool) Hashtbl.t PGOCaml.t -> t -> Group.t list
     (** Get the given user's groups. *)
@@ -80,12 +79,15 @@ end = struct
                 is_superuser;last_login;date_joined}
       | _ -> assert false
 
-  (* assumes there is a group with the same name as username *)
-  let group_id_of_username dbh username =
-    match PGSQL(dbh) "SELECT id FROM auth_group WHERE name=$username" with
-      | [] -> None
-      | x::[] -> Some x
-      | _ -> assert false
+  let primary_group dbh user =
+    let username = user.username in
+    PGOCaml.begin_work dbh;
+    let ans =
+      PGSQL(dbh) "SELECT id FROM auth_group WHERE name=$username"
+      |> List.hd |> Group.of_id dbh |> Option.get
+    in
+    PGOCaml.commit dbh;
+    ans
 
   let groups dbh t =
     let id = t.id in
