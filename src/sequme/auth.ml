@@ -49,26 +49,40 @@ end = struct
   }
 
   let of_id dbh id =
-    let xs = PGSQL(dbh) "SELECT id,username,first_name,last_name,email,password,is_staff,is_active,is_superuser,last_login,date_joined
-                           FROM auth_user where id=$id"
+    let xs = PGSQL(dbh)
+      "SELECT id,username,first_name,last_name,
+              email,password,is_staff,is_active,
+              is_superuser,last_login,date_joined
+       FROM auth_user WHERE id=$id"
     in match xs with
       | [] -> None
-      | (id,username,first_name,last_name,email,password,is_staff,is_active,is_superuser,last_login,date_joined)::[] ->
-          Some {id;username;first_name;last_name;email;password;is_staff;is_active;is_superuser;last_login;date_joined}
+      | (id,username,first_name,last_name,
+        email,password,is_staff,is_active,
+        is_superuser,last_login,date_joined)::[] ->
+          Some {id;username;first_name;last_name;
+                email;password;is_staff;is_active;
+                is_superuser;last_login;date_joined}
       | _ -> assert false
 
   let of_username dbh name =
-    let xs = PGSQL(dbh) "SELECT id,username,first_name,last_name,email,password,is_staff,is_active,is_superuser,last_login,date_joined
-                           FROM auth_user where username=$name"
+    let xs = PGSQL(dbh)
+      "SELECT id,username,first_name,last_name,
+              email,password,is_staff,is_active,
+              is_superuser,last_login,date_joined
+       FROM auth_user WHERE username=$name"
     in match xs with
       | [] -> None
-      | (id,username,first_name,last_name,email,password,is_staff,is_active,is_superuser,last_login,date_joined)::[] ->
-          Some {id;username;first_name;last_name;email;password;is_staff;is_active;is_superuser;last_login;date_joined}
+      | (id,username,first_name,last_name,
+        email,password,is_staff,is_active,
+        is_superuser,last_login,date_joined)::[] ->
+          Some {id;username;first_name;last_name;
+                email;password;is_staff;is_active;
+                is_superuser;last_login;date_joined}
       | _ -> assert false
 
   (* assumes there is a group with the same name as username *)
   let group_id_of_username dbh username =
-    match PGSQL(dbh) "SELECT id FROM auth_group where name=$username" with
+    match PGSQL(dbh) "SELECT id FROM auth_group WHERE name=$username" with
       | [] -> None
       | x::[] -> Some x
       | _ -> assert false
@@ -76,13 +90,10 @@ end = struct
   let groups dbh t =
     let id = t.id in
     PGOCaml.begin_work dbh;
-    let ans = PGSQL(dbh)
-      "SELECT auth_group.id
-       FROM auth_user_groups,auth_user,auth_group
-       WHERE auth_user_groups.user_id = auth_user.id
-       AND auth_user_groups.group_id = auth_group.id
-       AND auth_user.id = $id"
-      |> List.map (Group.of_id dbh |- Option.get)
+    let ans = PGSQL(dbh) "SELECT group_id
+                          FROM auth_user_groups
+                          WHERE user_id=$id"
+    |> List.map (Group.of_id dbh |- Option.get)
     in
     PGOCaml.commit dbh;
     ans
@@ -111,14 +122,14 @@ end = struct
   }
 
   let of_id dbh id =
-    let xs = PGSQL(dbh) "SELECT id,name FROM auth_group where id=$id"
+    let xs = PGSQL(dbh) "SELECT id,name FROM auth_group WHERE id=$id"
     in match xs with
       | [] -> None
       | (id,name)::[] -> Some {id;name}
       | _ -> assert false
 
   let of_name dbh name =
-    let xs = PGSQL(dbh) "SELECT id,name FROM auth_group where name=$name"
+    let xs = PGSQL(dbh) "SELECT id,name FROM auth_group WHERE name=$name"
     in match xs with
       | [] -> None
       | (id,name)::[] -> Some {id;name}
