@@ -1,5 +1,51 @@
 open Batteries_uni;; open Printf
 
+exception Error of string
+
+type cmd = {
+  exec : string;
+  ebwt : string;
+  k : int option;
+  best : bool;
+  sam : bool;
+  threads : int option;
+  reads : string;
+  hit : string option;
+}
+
+let make_cmd
+    ?(exec="bowtie")
+    ~ebwt ?k ?(best=false) ?(sam=false) ?threads
+    ?hit ~reads
+    =
+  {
+    exec;
+    ebwt;
+    k;
+    best;
+    sam;
+    threads;
+    reads;
+    hit
+  }
+
+let cmd_to_string cmd =
+  let i opt x = match x with None -> "" | Some x -> sprintf " -%c %d" opt x in
+  String.concat "" [
+    cmd.exec;
+    
+    (* options *)
+    i 'k' cmd.k;
+    if cmd.best then " --best" else "";
+    if cmd.sam then " --sam" else "";
+    i 'p' cmd.threads;
+
+    (* ebwt, reads, hit *)
+    sprintf " %s" cmd.ebwt;
+    sprintf " %s" cmd.reads;
+    (match cmd.hit with Some hit -> sprintf " %s" hit | None -> "")
+  ]
+
 let path_of_index conf i =
   let sequme_root = Map.StringMap.find "sequme_root" conf in
   let path = List.fold_left Filename.concat "" [sequme_root; "db"; "bowtie"; "indexes"; i] in
