@@ -44,3 +44,34 @@ let enum_errpos (e : 'a Enum.t) : 'a Enum.t =
     )
     ~count:(fun () -> Enum.count e)
     ~clone:(fun () -> Enum.clone e)
+
+
+(** Like [Filename.temp_file] from Standard Library, but for
+    directories. *)
+let temp_dir ?(parent_dir=Filename.temp_dir_name) ?(perm=0o700) prefix suffix =
+  let prng = Random.State.make_self_init () in
+
+  (* Equivalent to [Filename.temp_file_name] from Standard Library, but
+     that library does not expose this function. *)
+  let temp_name parent_dir prefix suffix =
+    let rnd = (Random.State.bits prng) land 0xFFFFFF in
+    Filename.concat parent_dir (Printf.sprintf "%s%06x%s" prefix rnd suffix)
+  in
+
+  let rec try_name counter =
+    let name = temp_name parent_dir prefix suffix in
+    try Unix.mkdir name perm; name
+    with e ->
+      if counter >= 1000 then raise e else try_name (counter + 1)
+  in try_name 0
+
+
+let now () =
+  CalendarLib.Calendar.now (), CalendarLib.Time_Zone.current()
+
+
+let file_last_modified_time file =
+  let open Unix in
+  let open CalendarLib in
+  ((stat file).st_mtime |> localtime |> Calendar.from_unixtm),
+  Time_Zone.Local
