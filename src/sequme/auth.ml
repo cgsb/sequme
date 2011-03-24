@@ -3,6 +3,8 @@
 open Batteries_uni;; open Printf
 
 module rec User : sig
+  exception Error of string
+
   type t = private {
     id : int32;
     username : string;
@@ -25,6 +27,9 @@ module rec User : sig
     (** [of_username dbh name] returns the user with given [name], or
         None if no such user exists. *)
 
+  val of_username_exn : (string,bool) Hashtbl.t PGOCaml.t -> string -> t
+    (** Like [of_username] but raise [Error] if user does not exist. *)
+
   val primary_group : (string,bool) Hashtbl.t PGOCaml.t -> t -> Group.t
     (** Every user [x] has a "primary group", which has the same name
         as the user and whose sole member is the user. [primary_group
@@ -33,6 +38,8 @@ module rec User : sig
   val groups : (string,bool) Hashtbl.t PGOCaml.t -> t -> Group.t list
     (** Get the given user's groups. *)
 end = struct
+  exception Error of string
+
   type t = {
     id : int32;
     username : string;
@@ -63,21 +70,25 @@ end = struct
                 is_superuser;last_login;date_joined}
       | _ -> assert false
 
-  let of_username dbh name =
+  let of_username_exn dbh name =
     let xs = PGSQL(dbh)
       "SELECT id,username,first_name,last_name,
               email,password,is_staff,is_active,
               is_superuser,last_login,date_joined
        FROM auth_user WHERE username=$name"
     in match xs with
-      | [] -> None
+      | [] -> Error (sprintf "unknown user %s" name) |> raise
       | (id,username,first_name,last_name,
         email,password,is_staff,is_active,
         is_superuser,last_login,date_joined)::[] ->
-          Some {id;username;first_name;last_name;
-                email;password;is_staff;is_active;
-                is_superuser;last_login;date_joined}
+          {id;username;first_name;last_name;
+           email;password;is_staff;is_active;
+           is_superuser;last_login;date_joined}
       | _ -> assert false
+
+  let of_username dbh name =
+    try Some (of_username_exn dbh name)
+    with Error _ -> None
 
   let primary_group dbh user =
     let username = user.username in
