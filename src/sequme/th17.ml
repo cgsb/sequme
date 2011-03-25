@@ -204,4 +204,16 @@ module Macs = struct
     let pbs_outdir = Filename.concat outdir "pbs_out" in
     Pbs.make_and_run ~job_name pbs_outdir cmds
 
+
+  let delete conf dbh id =
+    match PGSQL(dbh) "SELECT id FROM th17_macs WHERE id=$id" with
+      | [] -> Error (sprintf "MACS run %ld unknown" id) |> raise
+      | _::_::_ -> assert false
+      | _::[] ->
+          PGSQL(dbh) "DELETE FROM th17_macs WHERE id=$id";
+          let dir = List.reduce Filename.concat
+            [Map.StringMap.find "sequme" conf; "db"; "th17"; "macs"; Int32.to_string id]
+          in
+          sprintf "rm -rf %s" dir |> Sys.command |> ignore
+
 end

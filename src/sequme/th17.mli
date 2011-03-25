@@ -64,4 +64,12 @@ module Macs : sig
         treatment and control samples, specified by their SL IDs. If
         multiple bowtie runs are available for the given sample or
         control, an arbitrary one is chosen. *)
+
+  val delete : Conf.t -> (string, bool) Batteries_uni.Hashtbl.t PGOCaml.t -> int32 -> unit
+    (** [delete conf dbh id] deletes the database record and
+        associated files for MACS run with ID = [id].
+
+        @raise Error if no such run.
+    *)
+
 end
