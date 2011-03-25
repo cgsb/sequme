@@ -84,3 +84,31 @@ let script_to_file script ?mode ?perm file : unit =
     | Some mode, Some perm -> open_out ~mode ~perm file
   in
   finally (fun () -> close_out cout) (fun cout -> fprintf cout "%s\n" (script_to_string script)) cout
+
+
+let make_and_run ?(resource_list="nodes=1:ppn=8,mem=14gb") ~job_name outdir commands =
+  let pbs_stdout_file = Filename.concat outdir "stdout.txt" in
+  let pbs_stderr_file = Filename.concat outdir "stderr.txt" in
+  let pbs_script_file = Filename.concat outdir "script.pbs" in
+  let qsub_out_file = Filename.concat outdir "qsub_out.txt" in
+
+  let script = make_script
+    (* ~mail_options:[JobAborted; JobBegun; JobEnded] *)
+    (* ~user_list:["ashish.agarwal@nyu.edu"] *)
+    ~resource_list
+    (* ~priority:(-1024) *)
+    ~job_name
+    ~stdout_path:pbs_stdout_file
+    ~stderr_path:pbs_stderr_file
+    ~export_qsub_env:true
+    ~rerunable:false
+    commands
+  in
+
+  Unix.mkdir outdir 0o755;
+  script_to_file script ~perm:(File.unix_perm 0o644) pbs_script_file;
+  let cmd = sprintf "qsub %s > %s 2>&1" pbs_script_file qsub_out_file in
+  print_endline cmd;
+  match Sys.command cmd with
+    | 0 -> ()
+    | x -> eprintf "qsub returned exit code %d" x
