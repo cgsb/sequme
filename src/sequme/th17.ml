@@ -107,4 +107,43 @@ module Bowtie = struct
       | 0 -> ()
       | x -> eprintf "qsub returned exit code %d" x
 
+
+  let any_id_of_sl_id dbh sl_id =
+    match PGSQL(dbh)
+      "SELECT bowtie.id
+       FROM th17_sample as sample, th17_lane as lane, th17_bowtie as bowtie
+       WHERE bowtie.lane_id = lane.id
+       AND lane.sample_id = sample.id
+       AND sample.sl_id = $sl_id"
+    with
+      | [] -> Error (sprintf "bowtie run for sample with SL ID %s not found" sl_id) |> raise
+      | x::_ -> x
+
+
+  let delete conf dbh id =
+    match PGSQL(dbh) "SELECT id FROM th17_bowtie WHERE id=$id" with
+      | [] -> Error (sprintf "bowtie run with ID %ld unknown" id) |> raise
+      | _::_::_ -> assert false
+      | _::[] ->
+          PGSQL(dbh) "DELETE FROM th17_bowtie WHERE id=$id";
+          let dir = List.reduce Filename.concat
+            [Map.StringMap.find "sequme" conf; "db"; "th17"; "bowtie"; Int32.to_string id]
+          in
+          sprintf "rm -rf %s" dir |> Sys.command |> ignore
+
+  let sam_file_path_of_id sequme_root id =
+    let dir = List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "bowtie"; Int32.to_string id]
+    in
+
+    let files = dir |> Sys.files_of
+      |> Enum.filter (flip Filename.check_suffix ".sam")
+      |> List.of_enum
+    in
+
+    match files with
+      | [] -> Error (sprintf "SAM file not found for bowtie run %ld" id) |> raise
+      | x::[] -> Filename.concat dir x
+      | _ -> Error (sprintf "multiple SAM files found for bowtie run %ld" id) |> raise
+
 end
