@@ -147,3 +147,50 @@ module Bowtie = struct
       | _ -> Error (sprintf "multiple SAM files found for bowtie run %ld" id) |> raise
 
 end
+
+module Macs = struct
+  let run conf dbh treatment control =
+    let sequme_root = Map.StringMap.find "sequme_root" conf in
+
+    let exec = "/share/apps/python/2.6.6/intel/bin/macs14" in
+    let version = "macs14 1.4.0beta (summer wishes)" in
+    let format = "sam" in
+    let pvalue = "1e-10" in
+    let mfold_low = 15l in
+    let mfold_high = 30l in
+    let tsize = 36l in
+    let gsize = "2.70e9" in
+    let bw = 200l in
+
+    let treatment_bowtie_id = Bowtie.any_id_of_sl_id dbh treatment in
+    let treatment_sam_file = Bowtie.sam_file_path_of_id sequme_root treatment_bowtie_id in
+    let control_bowtie_id = Bowtie.any_id_of_sl_id dbh control in
+    let control_sam_file = Bowtie.sam_file_path_of_id sequme_root control_bowtie_id in
+
+    let status = "in_progress" in
+    let outdir = Util.temp_dir
+      ~parent_dir:(Filename.concat sequme_root "tmp")
+      ~perm:0o755 (sprintf "%s_%s_" treatment control) "_th17_macs"
+    in
+    let note = sprintf "temporary output directory: %s" outdir in
+    let started = Util.now() in
+
+    PGSQL(dbh)
+      "INSERT INTO th17_macs
+       (exec_path,version,started,status,note,format,pvalue,
+        mfold_high,mfold_low,tsize,gsize,bw,control_id,treatment_id)
+       VALUES
+       ($exec,$version,$started,$status,$note,$format,$pvalue,
+        $mfold_high,$mfold_low,$tsize,$gsize,$bw,$control_bowtie_id,$treatment_bowtie_id)"
+    ;
+
+    let cmd = Macs.make_cmd ~exec
+      ~format ~pvalue ~mfold:(mfold_low,mfold_high)
+      ~tsize ~gsize ~bw ~control:control_sam_file ~treatment:treatment_sam_file
+    in
+
+    let job_name = sprintf "macs_%s_%s" treatment control in
+    let pbs_outdir = Filename.concat outdir "pbs_out" in
+    Pbs.make_and_run ~job_name pbs_outdir [Macs.cmd_to_string cmd]
+
+end

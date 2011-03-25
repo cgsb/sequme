@@ -57,3 +57,11 @@ module Bowtie : sig
         @raise Error if bowtie run unknown or if SAM file does not
         exist.  *)
 end
+
+module Macs : sig
+  val run : Conf.t -> (string, bool) Batteries_uni.Hashtbl.t PGOCaml.t -> string -> string -> unit
+    (** [run conf dbh treatment control] runs MACS on the given
+        treatment and control samples, specified by their SL IDs. If
+        multiple bowtie runs are available for the given sample or
+        control, an arbitrary one is chosen. *)
+end
