@@ -2,6 +2,9 @@ open Batteries_uni;; open Printf
 
 exception Error of string
 
+type dbh = (string, bool) Batteries_uni.Hashtbl.t PGOCaml.t
+type timestamptz = CalendarLib.Calendar.t * CalendarLib.Time_Zone.t
+
 module Lane = struct
   let id_of_sl_id dbh sl_id = match PGSQL(dbh)
       "SELECT th17_lane.id FROM th17_sample,th17_lane
@@ -47,24 +50,26 @@ module Bowtie = struct
     let lane_id = Lane.id_of_sl_id dbh sl_id in
     let started = Util.now() in
     let status = "in_progress" in
-    
-    let sequme_root = Map.StringMap.find "sequme_root" conf in
-    let outdir = Util.temp_dir
-      ~parent_dir:(Filename.concat sequme_root "tmp")
-      ~perm:0o755 (sl_id ^ "_") "_th17_bowtie"
-    in
-    let hit_file = Filename.concat outdir (sl_id ^ ".sam") in
+    let note = "" in
 
-    let note = sprintf "temporary output directory: %s" outdir in
-
+    PGOCaml.begin_work dbh;
     PGSQL(dbh)
       "INSERT INTO th17_bowtie
        (exec_path,version,index_base,k,best,sam,num_threads,lane_id,started,status,note)
        VALUES
        ($exec,$version,$index_base,$k,$best,$sam,$num_threads,$lane_id,$started,$status,$note)"
     ;
-
     let bowtie_id = PGOCaml.serial4 dbh "th17_bowtie_id_seq" in
+    PGOCaml.commit dbh;
+
+    let sequme_root = Map.StringMap.find "sequme_root" conf in
+
+    let outdir = List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "bowtie"; Int32.to_string bowtie_id]
+    in
+    Unix.mkdir outdir 0o755;
+
+    let hit_file = Filename.concat outdir (sl_id ^ ".sam") in
 
     let cmd = Bowtie.make_cmd ~exec
       ~ebwt:(Bowtie.path_of_index conf index_base)
@@ -75,37 +80,11 @@ module Bowtie = struct
       ~reads:(Lane.fastq_file_path_of_id sequme_root lane_id)
     in
 
+    let job_name = sprintf "bowtie_%ld" bowtie_id |> flip String.right 15 in
+    let resource_list = "nodes=1:ppn=8,mem=14gb" in
     let pbs_outdir = Filename.concat outdir "pbs_out" in
-    let pbs_stdout_file = Filename.concat pbs_outdir "stdout.txt" in
-    let pbs_stderr_file = Filename.concat pbs_outdir "stderr.txt" in
-    let pbs_script_file = Filename.concat pbs_outdir "script.pbs" in
-    let qsub_out_file = Filename.concat pbs_outdir "qsub_out.txt" in
-
-    let script = Pbs.make_script
-      (* ~mail_options:[Pbs.JobAborted; Pbs.JobBegun; Pbs.JobEnded] *)
-      (* ~user_list:["ashish.agarwal@nyu.edu"] *)
-      ~resource_list:"nodes=1:ppn=8,mem=14gb"
-      (* ~priority:(-1024) *)
-      ~job_name:(sprintf "bowtie_%s" sl_id)
-      ~stdout_path:pbs_stdout_file
-      ~stderr_path:pbs_stderr_file
-      ~export_qsub_env:true
-      ~rerunable:false
-      [
-        "";
-        sprintf "echo %ld > %s" bowtie_id (Filename.concat outdir "th17_bowtie_id");
-        "";
-        Bowtie.cmd_to_string cmd
-      ]
-    in
-
-    Unix.mkdir pbs_outdir 0o755;
-    Pbs.script_to_file script ~perm:(File.unix_perm 0o644) pbs_script_file;
-    let cmd = sprintf "qsub %s > %s 2>&1" pbs_script_file qsub_out_file in
-    print_endline cmd;
-    match Sys.command cmd with
-      | 0 -> ()
-      | x -> eprintf "qsub returned exit code %d" x
+    let cmds = [Bowtie.cmd_to_string cmd] in
+    Pbs.make_and_run ~resource_list ~job_name pbs_outdir cmds
 
 
   let any_id_of_sl_id dbh sl_id =
@@ -153,7 +132,7 @@ module Macs = struct
     let sequme_root = Map.StringMap.find "sequme_root" conf in
 
     let exec = "/home/aa144/local/python/bin/macs14" in
-    let version = "macs14 1.4.0rc2 20110214 (Valentine)" in
+    let version = "macs14 1.4.0rc2 20110214 (Valentine) patched" in
     let format = "sam" in
     let pvalue = "1e-10" in
     let mfold_low = 15l in
@@ -189,7 +168,7 @@ module Macs = struct
     let macs_cmd = Macs.make_cmd ~exec
       ~format ~pvalue ~mfold:(mfold_low,mfold_high)
       ~tsize ~gsize ~bw
-      ~control:control_sam_file ~treatment:treatment_sam_file in
+      ~control:control_sam_file ~treatment:treatment_sam_file () in
 
     let macs_outdir = Filename.concat outdir "macs_out" in
     Unix.mkdir macs_outdir 0o755;
@@ -200,7 +179,7 @@ module Macs = struct
       Macs.cmd_to_string macs_cmd;
     ] in
 
-    let job_name = sprintf "%s_%s" treatment control |> flip String.left 15 in
+    let job_name = sprintf "macs_run_%ld" macs_id |> flip String.right 15 in
     let pbs_outdir = Filename.concat outdir "pbs_out" in
     Pbs.make_and_run ~job_name pbs_outdir cmds
 
@@ -212,8 +191,48 @@ module Macs = struct
       | _::[] ->
           PGSQL(dbh) "DELETE FROM th17_macs WHERE id=$id";
           let dir = List.reduce Filename.concat
-            [Map.StringMap.find "sequme" conf; "db"; "th17"; "macs"; Int32.to_string id]
+            [Map.StringMap.find "sequme_root" conf; "db"; "th17"; "macs"; Int32.to_string id]
           in
           sprintf "rm -rf %s" dir |> Sys.command |> ignore
+
+
+  let last_info_datetime sequme_root id =
+    let stderr_file = List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "macs";
+       Int32.to_string id; "pbs_out"; "stderr.txt"]
+    in
+
+    let get_time prev_time line =
+      match String.starts_with line "INFO" with
+        | false -> prev_time
+        | true ->
+            let open CalendarLib in
+            let datetime =
+              line |> flip String.left 33
+              |> Printer.Calendar.from_fstring "INFO  @ %a, %d %b %Y %H:%M:%S"
+            in
+            Some (datetime, Time_Zone.Local)
+    in
+
+    stderr_file |> File.lines_of
+    |> Enum.fold get_time None
+
+
+  let was_success sequme_root id =
+    let stderr_file = List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "macs";
+       Int32.to_string id; "pbs_out"; "stderr.txt"]
+    in
+    stderr_file |> File.lines_of
+    |> Enum.exists (flip String.exists "Done! Check the output files!")
+
+  let post_process sequme_root dbh id =
+    let status =
+      if was_success sequme_root id then "success" else "failed"
+    in PGSQL(dbh) "UPDATE th17_macs SET status=$status WHERE id=$id";
+
+    match last_info_datetime sequme_root id with
+      | None -> ()
+      | Some x -> PGSQL(dbh) "UPDATE th17_macs SET finished=$x WHERE id=$id"
 
 end
