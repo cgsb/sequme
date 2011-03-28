@@ -20,7 +20,7 @@ type cmd = private {
 val make_cmd : ?exec:string -> ?format:string
   -> ?pvalue:string -> ?mfold:(int32 * int32)
   -> ?tsize:int32 -> ?gsize:string -> ?bw:int32
-  -> control:string -> treatment:string
+  -> control:string -> treatment:string -> unit
   -> cmd
 
 val cmd_to_string : cmd -> string

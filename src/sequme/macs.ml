@@ -17,7 +17,7 @@ type cmd = {
 let make_cmd
     ?(exec="macs")
     ?format ?pvalue ?mfold ?tsize ?gsize ?bw
-    ~control ~treatment
+    ~control ~treatment ()
     =
   {exec; format; pvalue; mfold; tsize; gsize; bw; control; treatment}
 
