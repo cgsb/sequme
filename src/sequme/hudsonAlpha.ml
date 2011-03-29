@@ -159,7 +159,8 @@ let cmp_libid x y =
 
 let download_fastq dir id =
   let url = sprintf "http://mendel.hudsonalpha.org/qnU5XmtUBMtS/%s/%s.fastq.gz" id id in
-  sprintf "mkdir -p %s; cd %s; wget %s" dir dir url |> Sys.command |> ignore
+  let run cmd = print_endline cmd; Sys.command cmd |> ignore in
+  sprintf "mkdir -p %s; cd %s; wget %s" dir dir url |> run
 
 let fastq_path_of_libid conf libid =
   let sequme_root = Map.StringMap.find "sequme_root" conf in
