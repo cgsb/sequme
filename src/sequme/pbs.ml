@@ -111,4 +111,4 @@ let make_and_run ?(resource_list="nodes=1:ppn=8,mem=14gb") ~job_name outdir comm
   print_endline cmd;
   match Sys.command cmd with
     | 0 -> ()
-    | x -> eprintf "qsub returned exit code %d" x
+    | x -> eprintf "qsub returned exit code %d\n" x
