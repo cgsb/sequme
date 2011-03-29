@@ -27,6 +27,12 @@ module Lane : sig
 
         @raise Error if lane is unknown or fastq file does not exist.
     *)
+
+  val not_downloaded_list : string -> dbh -> string list
+    (** [not_downloaded_list password] returns the list of sequenced
+        data sets available at HudsonAlpha but not yet downloaded to
+        sequme database. *)
+
 end
 
 module Bowtie : sig
@@ -59,6 +65,18 @@ module Bowtie : sig
 
         @raise Error if bowtie run unknown or if SAM file does not
         exist.  *)
+
+  val was_success : string -> int32 -> bool
+    (** [was_success sequme_root id] returns true if the Bowtie messages
+        to stderr indicate the run completed successfully. Note this
+        is independent of the status value in the database, although
+        presumably the database will be updated based on this
+        value. *)
+
+  val post_process : string -> dbh -> int32 -> unit
+    (** [post_process sequme_root dbh] does any post processing
+        necessary after a call to {!run}. *)
+
 end
 
 module Macs : sig

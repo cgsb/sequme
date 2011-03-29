@@ -36,6 +36,24 @@ module Lane = struct
       | x::[] -> Filename.concat dir x
       | _ -> Error (sprintf "multiple fastq files found for lane %ld" id) |> raise
 
+  let not_downloaded_list password dbh =
+    let open HudsonAlpha in
+    let module Set = Set.StringSet in
+    let available =
+      get_status_html password
+      |> get_marias_table
+      |> get_sequenced_libids
+      |> List.enum |> Set.of_enum
+    in
+
+    let already_downloaded =
+      PGSQL(dbh) "SELECT sl_id FROM th17_sample"
+      |> List.enum |> Set.of_enum
+    in
+
+    Set.diff available already_downloaded |> Set.enum |> List.of_enum
+
+
 end
 
 module Bowtie = struct
@@ -52,6 +70,9 @@ module Bowtie = struct
     let status = "in_progress" in
     let note = "" in
 
+    let sequme_root = Map.StringMap.find "sequme_root" conf in
+    lane_id |> Lane.fastq_file_path_of_id sequme_root |> ignore;
+
     PGOCaml.begin_work dbh;
     PGSQL(dbh)
       "INSERT INTO th17_bowtie
@@ -61,8 +82,6 @@ module Bowtie = struct
     ;
     let bowtie_id = PGOCaml.serial4 dbh "th17_bowtie_id_seq" in
     PGOCaml.commit dbh;
-
-    let sequme_root = Map.StringMap.find "sequme_root" conf in
 
     let outdir = List.reduce Filename.concat
       [sequme_root; "db"; "th17"; "bowtie"; Int32.to_string bowtie_id]
@@ -83,7 +102,10 @@ module Bowtie = struct
     let job_name = sprintf "bowtie_%ld" bowtie_id |> flip String.right 15 in
     let resource_list = "nodes=1:ppn=8,mem=14gb" in
     let pbs_outdir = Filename.concat outdir "pbs_out" in
-    let cmds = [Bowtie.cmd_to_string cmd] in
+    let cmds = [
+      Bowtie.cmd_to_string cmd;
+    ]
+    in
     Pbs.make_and_run ~resource_list ~job_name pbs_outdir cmds
 
 
@@ -124,6 +146,30 @@ module Bowtie = struct
       | [] -> Error (sprintf "SAM file not found for bowtie run %ld" id) |> raise
       | x::[] -> Filename.concat dir x
       | _ -> Error (sprintf "multiple SAM files found for bowtie run %ld" id) |> raise
+
+  let stderr_file sequme_root id =
+    List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "bowtie";
+       Int32.to_string id; "pbs_out"; "stderr.txt"
+      ]
+
+
+  let was_success sequme_root id =
+    stderr_file sequme_root id
+    |> File.lines_of
+    |> Enum.exists (fun x ->
+         String.exists x "Reported"
+         && String.exists x "alignments to 1 output stream(s)"
+       )
+    
+
+  let post_process sequme_root dbh id =
+    let status =
+      if was_success sequme_root id then "success" else "failed"
+    in PGSQL(dbh) "UPDATE th17_bowtie SET status=$status WHERE id=$id";
+
+    let finished = Util.file_last_modified_time (stderr_file sequme_root id) in
+    PGSQL(dbh) "UPDATE th17_bowtie SET finished=$finished WHERE id=$id"
 
 end
 
