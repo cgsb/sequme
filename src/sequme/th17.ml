@@ -550,7 +550,7 @@ module Macs = struct
       Macs.cmd_to_string macs_cmd;
     ] in
 
-    let job_name = sprintf "macs_run_%ld" macs_id |> flip String.right 15 in
+    let job_name = sprintf "macs_%ld" macs_id |> flip String.right 15 in
     let pbs_outdir = Filename.concat outdir "pbs_out" in
     Pbs.make_and_run ~job_name pbs_outdir cmds
 
