@@ -5,6 +5,38 @@ exception Error of string
 type dbh = (string, bool) Batteries_uni.Hashtbl.t PGOCaml.t
 type timestamptz = CalendarLib.Calendar.t * CalendarLib.Time_Zone.t
 
+module CachedFile = struct
+
+  let id_of_name dbh name =
+    match PGSQL(dbh) "SELECT id FROM th17_cachedfile WHERE name=$name" with
+      | x::[] -> x
+      | _ -> assert false
+
+  let name_of_id dbh id =
+    match PGSQL(dbh) "SELECT name FROM th17_cachedfile WHERE id=$id" with
+      | x::[] -> x
+      | _ -> assert false
+
+  let path_of_id sequme_root dbh id =
+    List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "cachedfile"; name_of_id dbh id]
+
+end
+
+module Sample = struct
+
+  let id_to_sl_id dbh id =
+    match PGSQL(dbh) "SELECT sl_id FROM th17_sample WHERE id=$id" with
+      | x::[] -> x
+      | _ -> assert false
+
+  let sl_id_to_id dbh sl_id =
+    match PGSQL(dbh) "SELECT id FROM th17_sample WHERE sl_id=$sl_id" with
+      | x::[] -> x
+      | _ -> assert false
+
+end
+
 module Lane = struct
   let id_of_sl_id dbh sl_id = match PGSQL(dbh)
       "SELECT th17_lane.id FROM th17_sample,th17_lane
@@ -53,6 +85,128 @@ module Lane = struct
 
     Set.diff available already_downloaded |> Set.enum |> List.of_enum
 
+
+  let no_fastq_file sequme_root dbh =
+    let samples_lanes = PGSQL(dbh)
+      "SELECT s.sl_id, l.id FROM th17_sample as s, th17_lane as l
+       WHERE l.sample_id = s.id"
+    in
+
+    let pred (_,lane_id) =
+      let dir = List.reduce Filename.concat
+        [sequme_root; "db"; "th17"; "lane"; Int32.to_string lane_id]
+      in
+
+      let files =
+        dir |> Sys.files_of
+        |> Enum.filter (flip Filename.check_suffix ".fastq")
+        |> List.of_enum
+      in
+
+      match files with
+        | [] -> false
+        | _ -> true
+    in
+
+    samples_lanes |> List.filter (pred |- not)
+
+
+  let is_paired_end sequme_root id =
+    let inp = open_in (fastq_file_path_of_id sequme_root id) in
+    let ans =
+      inp
+      |> Biocaml.Fastq.enum_input
+      |> Enum.get |> Option.get
+      |> Tuple4.second |> String.length
+      |> ((=) 72)
+    in
+    close_in inp;
+    ans
+
+end
+
+module TopHat = struct
+
+  let run conf dbh sl_id =
+    let exec = "/share/apps/tophat/1.2.0/tophat-1.2.0.Linux_x86_64/tophat" in
+    let version = "TopHat v1.2.0" in
+    let min_anchor_length = 10l in
+    let solexa1_3_quals = true in
+    let num_threads = 6l in
+    let max_multihits = 20l in
+    let no_coverage_search = false in
+    let coverage_search = false in
+    let butterfly_search = false in
+    let gtf_name = "refGeneAnnot.gtf" in
+    let gtf_id = CachedFile.id_of_name dbh gtf_name in
+    let no_novel_juncs = true in
+    let index_base = "mm9" in
+    let lane_id = Lane.id_of_sl_id dbh sl_id in
+    let started = Util.now() in
+    let status = "in_progress" in
+    let note = "" in
+
+    PGOCaml.begin_work dbh;
+    PGSQL(dbh)
+      "INSERT INTO th17_tophat
+       (exec_path,version,min_anchor_length,solexa1_3_quals,num_threads,
+        max_multihits,no_coverage_search,coverage_search,butterfly_search,
+        gtf_id,no_novel_juncs,index_base,lane_id,started,status,note)
+       VALUES
+       ($exec,$version,$min_anchor_length,$solexa1_3_quals,$num_threads,
+        $max_multihits,$no_coverage_search,$coverage_search,$butterfly_search,
+        $gtf_id,$no_novel_juncs,$index_base,$lane_id,$started,$status,$note)";
+    let tophat_id = PGOCaml.serial4 dbh "th17_tophat_id_seq" in
+    PGOCaml.commit dbh;
+
+    let sequme_root = Map.StringMap.find "sequme_root" conf in
+    let outdir = List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "tophat"; Int32.to_string tophat_id]
+    in
+    Unix.mkdir outdir 0o755;
+    let tophat_outdir = Filename.concat outdir "tophat_out" in
+
+    let cmd = TopHat.make_cmd ~exec
+      ~min_anchor_length:(Int32.to_int min_anchor_length)
+      ~solexa1_3_quals
+      ~num_threads:(Int32.to_int num_threads)
+      ~max_multihits:(Int32.to_int max_multihits)
+      ~no_coverage_search
+      ~coverage_search
+      ~butterfly_search
+      ~gtf:(CachedFile.path_of_id sequme_root dbh gtf_id)
+      ~no_novel_juncs
+      ~output_dir:tophat_outdir
+      (Bowtie.path_of_index conf index_base)
+      [Lane.fastq_file_path_of_id sequme_root lane_id]
+      []
+    in
+
+    let job_name = sprintf "tophat_%ld" tophat_id |> flip String.right 15 in
+    let resource_list = "nodes=1:ppn=8,mem=14gb" in
+    let pbs_outdir = Filename.concat outdir "pbs_out" in
+    let cmds = [
+      TopHat.cmd_to_string cmd;
+      "";
+      sprintf "chmod 755 %s" tophat_outdir;
+      sprintf "chmod 644 %s/*" tophat_outdir
+    ]
+    in
+    Pbs.make_and_run ~resource_list ~job_name pbs_outdir cmds
+
+
+  let post_process sequme_root dbh id =
+    let accepted_hits_file = List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "tophat"; Int32.to_string id; "tophat_out"; "accepted_hits.bam"]
+    in
+
+    let status =
+      if Sys.file_exists accepted_hits_file
+      then "sucess" else "failed"
+    in PGSQL(dbh) "UPDATE th17_tophat SET status=$status WHERE id=$id";
+
+    let finished = Util.file_last_modified_time accepted_hits_file in
+    PGSQL(dbh) "UPDATE th17_tophat SET finished=$finished WHERE id=$id"
 
 end
 

@@ -6,6 +6,17 @@ exception Error of string
 type dbh = (string, bool) Batteries_uni.Hashtbl.t PGOCaml.t
 type timestamptz = CalendarLib.Calendar.t * CalendarLib.Time_Zone.t
 
+module CachedFile : sig
+  val id_of_name : dbh -> string -> int32
+  val name_of_id : dbh -> int32 -> string
+  val path_of_id : string -> dbh -> int32 -> string
+end
+
+module Sample : sig
+  val id_to_sl_id : dbh -> int32 -> string
+  val sl_id_to_id : dbh -> string -> int32
+end
+
 module Lane : sig
   val id_of_sl_id : dbh -> string -> int32
     (** [id_of_sl_id dbh x] returns the ID of the lane on which the
@@ -33,6 +44,23 @@ module Lane : sig
         data sets available at HudsonAlpha but not yet downloaded to
         sequme database. *)
 
+  val no_fastq_file : string -> dbh -> (string * int32) list
+    (** [no_fastq_file sequme_root dbh] returns the list of samples,
+        along with their lane IDs, which have been recorded in the
+        database but do not have a fastq file. TO DO: delete this once
+        we're caught up. Subsequently maintain invariant that new
+        samples from HudsonAlpha only recorded after sequencing is
+        complete. *)
+
+  val is_paired_end : string -> int32 -> bool
+    (** [is_paired_end sequme_root dbh id] returns true if the
+        given data set is paired-end. *)
+
+end
+
+module TopHat : sig
+  val run : Conf.t -> dbh -> string -> unit
+  val post_process : string -> dbh -> int32 -> unit
 end
 
 module Bowtie : sig
