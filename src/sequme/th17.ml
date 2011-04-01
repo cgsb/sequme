@@ -25,6 +25,44 @@ end
 
 module Sample = struct
 
+  type t = {
+    id : int32;
+    owner_id : int32;
+    sample_made_by_id : int32;
+    library_made_by_id : int32;
+    created : timestamptz;
+    last_modified : timestamptz;
+    name : string;
+    sl_id : string;
+    note : string;
+    exp_type : string;
+    cell_type : string;
+    condition : string;
+    factor_ChIP : string;
+    antibody_ChIP : string;
+    target_ChIP : string
+  }
+
+  let all_ids dbh = PGSQL(dbh) "SELECT id FROM th17_sample"
+
+  let of_id dbh id =
+    match PGSQL(dbh)
+      "SELECT id,owner_id,sample_made_by_id,library_made_by_id,
+              created,last_modified,name,sl_id,note,exp_type,
+              cell_type,condition,\"factor_ChIP\",\"antibody_ChIP\",\"target_ChIP\"
+       FROM th17_sample WHERE id=$id"
+    with
+      | (id,owner_id,sample_made_by_id,library_made_by_id,
+        created,last_modified,name,sl_id,note,exp_type,
+        cell_type,condition,factor_ChIP,antibody_ChIP,target_ChIP)::[]
+        -> Some {
+          id;owner_id;sample_made_by_id;library_made_by_id;
+          created;last_modified;name;sl_id;note;exp_type;
+          cell_type;condition;factor_ChIP;antibody_ChIP;target_ChIP
+        }
+      | [] -> None
+      | _ -> assert false
+
   let id_to_sl_id dbh id =
     match PGSQL(dbh) "SELECT sl_id FROM th17_sample WHERE id=$id" with
       | x::[] -> x
@@ -38,6 +76,34 @@ module Sample = struct
 end
 
 module Lane = struct
+
+  type t = {
+    id : int32;
+    number : int;
+    illuminarun_id : int32;
+    sample : Sample.t
+  }
+
+  let all_ids dbh = PGSQL(dbh) "SELECT id FROM th17_lane"
+
+  let of_id dbh id =
+    PGOCaml.begin_work dbh;
+    let ans =
+      match PGSQL(dbh)
+        "SELECT id,number,illuminarun_id,sample_id
+         FROM th17_lane WHERE id=$id"
+      with
+        | (id,number,illuminarun_id,sample_id)::[] ->
+            Some {
+              id; number; illuminarun_id;
+              sample = Sample.of_id dbh sample_id |> Option.get
+            }
+        | [] -> None
+        | _ -> assert false
+    in
+    PGOCaml.commit dbh;
+    ans
+
   let id_of_sl_id dbh sl_id = match PGSQL(dbh)
       "SELECT th17_lane.id FROM th17_sample,th17_lane
        WHERE th17_sample.id = th17_lane.sample_id
@@ -211,6 +277,51 @@ module TopHat = struct
 end
 
 module Bowtie = struct
+
+  type t = {
+    id : int32;
+    exec_path : string;
+    version : string;
+    index_base : string;
+    k : int32 option;
+    best : bool;
+    sam : bool;
+    num_threads : int32 option;
+    lane : Lane.t;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string
+  }
+
+  let all_ids dbh = PGSQL(dbh) "SELECT id FROM th17_bowtie"
+
+  let of_id dbh id =
+    PGOCaml.begin_work dbh;
+    let ans =
+      match PGSQL(dbh)
+        "SELECT id,exec_path,version,index_base,k,best,sam,
+                num_threads,lane_id,started,finished,
+                status,note
+         FROM th17_bowtie WHERE id=$id"
+      with
+        | (id,exec_path,version,index_base,k,best,sam,
+          num_threads,lane_id,started,finished,
+          status,note)::[]
+          -> Some {
+            id;exec_path;version;index_base;
+            k;best;sam;num_threads;
+            lane = Lane.of_id dbh lane_id |> Option.get;
+            started;finished;
+            status;note
+          }
+        | [] -> None
+        | _ -> assert false
+    in
+    PGOCaml.commit dbh;
+    ans
+
+
   let run conf dbh sl_id =
     let exec = "/share/apps/bowtie/0.12.7/gnu/bowtie" in
     let version = "0.12.7" in
@@ -328,6 +439,59 @@ module Bowtie = struct
 end
 
 module Macs = struct
+
+  type t = {
+    id : int32;
+    exec_path : string;
+    version : string;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string;
+    format : string;
+    pvalue : string;
+    mfold : (int32 * int32) option;
+    tsize : int32 option;
+    gsize : string;
+    bw : int32 option;
+    control : Bowtie.t;
+    treatment : Bowtie.t
+  }
+
+  let all_ids dbh = PGSQL(dbh) "SELECT id FROM th17_macs"
+
+  let of_id dbh id =
+    PGOCaml.begin_work dbh;
+    let ans =
+      match PGSQL(dbh)
+        "SELECT id,exec_path,version,started,finished,status,note,format,
+                pvalue,mfold_low,mfold_high,tsize,gsize,bw,control_id,
+                treatment_id
+         FROM th17_macs WHERE id=$id"
+      with
+        | (id,exec_path,version,started,finished,status,note,format,
+          pvalue,mfold_low,mfold_high,tsize,gsize,bw,control_id,
+          treatment_id)::[] ->
+            Some {
+              id;exec_path;version;started;finished;status;note;
+              format;pvalue;
+              mfold = (
+                match mfold_low,mfold_high with
+                  | Some l, Some h -> Some (l,h)
+                  | None, None -> None
+                  | _ -> assert false
+              );
+              tsize;gsize;bw;
+              control = Bowtie.of_id dbh control_id |> Option.get;
+              treatment = Bowtie.of_id dbh treatment_id |> Option.get
+            }
+        | [] -> None
+        | _ -> assert false
+    in
+    PGOCaml.commit dbh;
+    ans
+
+
   let run conf dbh treatment control =
     let sequme_root = Map.StringMap.find "sequme_root" conf in
 

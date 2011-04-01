@@ -13,11 +13,44 @@ module CachedFile : sig
 end
 
 module Sample : sig
+
+  type t = private {
+    id : int32;
+    owner_id : int32;
+    sample_made_by_id : int32;
+    library_made_by_id : int32;
+    created : timestamptz;
+    last_modified : timestamptz;
+    name : string;
+    sl_id : string;
+    note : string;
+    exp_type : string;
+    cell_type : string;
+    condition : string;
+    factor_ChIP : string;
+    antibody_ChIP : string;
+    target_ChIP : string
+  }
+
+  val of_id : dbh -> int32 -> t option
+  val all_ids : dbh -> int32 list
+
   val id_to_sl_id : dbh -> int32 -> string
   val sl_id_to_id : dbh -> string -> int32
 end
 
 module Lane : sig
+
+  type t = private {
+    id : int32;
+    number : int;
+    illuminarun_id : int32;
+    sample : Sample.t
+  }
+
+  val of_id : dbh -> int32 -> t option
+  val all_ids : dbh -> int32 list
+
   val id_of_sl_id : dbh -> string -> int32
     (** [id_of_sl_id dbh x] returns the ID of the lane on which the
         sample with SL ID [x] was run.
@@ -64,6 +97,26 @@ module TopHat : sig
 end
 
 module Bowtie : sig
+
+  type t = private {
+    id : int32;
+    exec_path : string;
+    version : string;
+    index_base : string;
+    k : int32 option;
+    best : bool;
+    sam : bool;
+    num_threads : int32 option;
+    lane : Lane.t;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string
+  }
+
+  val of_id : dbh -> int32 -> t option
+  val all_ids : dbh -> int32 list
+
   val run : Conf.t -> dbh -> string -> unit
     (** [run conf sl_id] runs bowtie on the sample with given SL ID
         using the parameters decided on for the Th17 project.
@@ -108,6 +161,28 @@ module Bowtie : sig
 end
 
 module Macs : sig
+
+  type t = private {
+    id : int32;
+    exec_path : string;
+    version : string;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string;
+    format : string;
+    pvalue : string;
+    mfold : (int32 * int32) option;
+    tsize : int32 option;
+    gsize : string;
+    bw : int32 option;
+    control : Bowtie.t;
+    treatment : Bowtie.t
+  }
+
+  val of_id : dbh -> int32 -> t option
+  val all_ids : dbh -> int32 list
+
   val run : Conf.t -> dbh -> string -> string -> unit
     (** [run conf dbh treatment control] runs MACS on the given
         treatment and control samples, specified by their SL IDs. If
