@@ -454,6 +454,8 @@ module Macs = struct
     tsize : int32 option;
     gsize : string;
     bw : int32 option;
+    wig : bool;
+    space : int32 option;
     control : Bowtie.t;
     treatment : Bowtie.t
   }
@@ -465,13 +467,13 @@ module Macs = struct
     let ans =
       match PGSQL(dbh)
         "SELECT id,exec_path,version,started,finished,status,note,format,
-                pvalue,mfold_low,mfold_high,tsize,gsize,bw,control_id,
-                treatment_id
+                pvalue,mfold_low,mfold_high,tsize,gsize,bw,
+                wig,space,control_id,treatment_id
          FROM th17_macs WHERE id=$id"
       with
         | (id,exec_path,version,started,finished,status,note,format,
-          pvalue,mfold_low,mfold_high,tsize,gsize,bw,control_id,
-          treatment_id)::[] ->
+          pvalue,mfold_low,mfold_high,tsize,gsize,bw,
+          wig,space,control_id,treatment_id)::[] ->
             Some {
               id;exec_path;version;started;finished;status;note;
               format;pvalue;
@@ -481,7 +483,7 @@ module Macs = struct
                   | None, None -> None
                   | _ -> assert false
               );
-              tsize;gsize;bw;
+              tsize;gsize;bw;wig;space;
               control = Bowtie.of_id dbh control_id |> Option.get;
               treatment = Bowtie.of_id dbh treatment_id |> Option.get
             }
@@ -504,6 +506,8 @@ module Macs = struct
     let tsize = 36l in
     let gsize = "mm" in
     let bw = 200l in
+    let wig = true in
+    let space = 1l in
 
     let treatment_bowtie_id = Bowtie.any_id_of_sl_id dbh treatment in
     let treatment_sam_file = Bowtie.sam_file_path_of_id sequme_root treatment_bowtie_id in
@@ -517,10 +521,12 @@ module Macs = struct
     PGSQL(dbh)
       "INSERT INTO th17_macs
        (exec_path,version,started,status,note,format,pvalue,
-        mfold_high,mfold_low,tsize,gsize,bw,control_id,treatment_id)
+        mfold_high,mfold_low,tsize,gsize,bw,wig,space,
+        control_id,treatment_id)
        VALUES
        ($exec,$version,$started,$status,$note,$format,$pvalue,
-        $mfold_high,$mfold_low,$tsize,$gsize,$bw,$control_bowtie_id,$treatment_bowtie_id)"
+        $mfold_high,$mfold_low,$tsize,$gsize,$bw,$wig,$space,
+        $control_bowtie_id,$treatment_bowtie_id)"
     ;
     let macs_id = PGOCaml.serial4 dbh "th17_macs_id_seq" in
 
@@ -532,6 +538,7 @@ module Macs = struct
     let macs_cmd = Macs.make_cmd ~exec
       ~format ~pvalue ~mfold:(mfold_low,mfold_high)
       ~tsize ~gsize ~bw
+      ~wig ~space
       ~control:control_sam_file ~treatment:treatment_sam_file () in
 
     let macs_outdir = Filename.concat outdir "macs_out" in

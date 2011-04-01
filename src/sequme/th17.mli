@@ -176,6 +176,8 @@ module Macs : sig
     tsize : int32 option;
     gsize : string;
     bw : int32 option;
+    wig : bool;
+    space : int32 option;
     control : Bowtie.t;
     treatment : Bowtie.t
   }
