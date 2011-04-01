@@ -10,6 +10,8 @@ type cmd = {
   tsize : int32 option;
   gsize : string option;
   bw : int32 option;
+  wig : bool;
+  space : int32 option;
   control : string;
   treatment : string;
 }
@@ -17,13 +19,14 @@ type cmd = {
 let make_cmd
     ?(exec="macs")
     ?format ?pvalue ?mfold ?tsize ?gsize ?bw
+    ?(wig=false) ?space
     ~control ~treatment ()
     =
-  {exec; format; pvalue; mfold; tsize; gsize; bw; control; treatment}
+  {exec; format; pvalue; mfold; tsize; gsize; bw; wig; space; control; treatment}
 
 let cmd_to_string cmd =
   let i opt x = match x with None -> "" | Some x -> sprintf " -%c %ld" opt x in
-  let i' opt x = match x with None -> "" | Some x -> sprintf " --%s %ld" opt x in
+  let i' opt x = match x with None -> "" | Some x -> sprintf " --%s=%ld" opt x in
   let ii opt x = match x with None -> "" | Some (x1,x2) -> sprintf " -%c %ld,%ld" opt x1 x2 in
   let s opt x = match x with None -> "" | Some x -> sprintf " -%c %s" opt x in
   String.concat "" [
@@ -34,6 +37,8 @@ let cmd_to_string cmd =
     i 's' cmd.tsize;
     s 'g' cmd.gsize;
     i' "bw" cmd.bw;
+    (if cmd.wig then " -w" else "");
+    i' "space" cmd.space;
     sprintf " -t %s" cmd.treatment;
     sprintf " -c %s" cmd.control;
   ]
