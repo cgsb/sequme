@@ -7,6 +7,7 @@ exception Error of string
 (** MACS command. *)
 type cmd = private {
   exec : string;
+  name : string option;
   format : string option;
   pvalue : string option;
   mfold : (int32 * int32) option;
@@ -19,7 +20,8 @@ type cmd = private {
   treatment : string;
 }
 
-val make_cmd : ?exec:string -> ?format:string
+val make_cmd : ?exec:string
+  -> ?name:string -> ?format:string
   -> ?pvalue:string -> ?mfold:(int32 * int32)
   -> ?tsize:int32 -> ?gsize:string -> ?bw:int32
   -> ?wig:bool -> ?space:int32

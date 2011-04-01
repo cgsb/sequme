@@ -170,6 +170,7 @@ module Macs : sig
     finished : timestamptz option;
     status : string;
     note : string;
+    name : string;
     format : string;
     pvalue : string;
     mfold : (int32 * int32) option;

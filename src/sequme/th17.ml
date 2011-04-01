@@ -448,6 +448,7 @@ module Macs = struct
     finished : timestamptz option;
     status : string;
     note : string;
+    name : string;
     format : string;
     pvalue : string;
     mfold : (int32 * int32) option;
@@ -466,17 +467,19 @@ module Macs = struct
     PGOCaml.begin_work dbh;
     let ans =
       match PGSQL(dbh)
-        "SELECT id,exec_path,version,started,finished,status,note,format,
+        "SELECT id,exec_path,version,started,finished,status,note,
+                name,format,
                 pvalue,mfold_low,mfold_high,tsize,gsize,bw,
                 wig,space,control_id,treatment_id
          FROM th17_macs WHERE id=$id"
       with
-        | (id,exec_path,version,started,finished,status,note,format,
+        | (id,exec_path,version,started,finished,status,note,
+          name,format,
           pvalue,mfold_low,mfold_high,tsize,gsize,bw,
           wig,space,control_id,treatment_id)::[] ->
             Some {
               id;exec_path;version;started;finished;status;note;
-              format;pvalue;
+              name;format;pvalue;
               mfold = (
                 match mfold_low,mfold_high with
                   | Some l, Some h -> Some (l,h)
@@ -499,6 +502,7 @@ module Macs = struct
 
     let exec = "/home/aa144/local/python/bin/macs14" in
     let version = "macs14 1.4.0rc2 20110214 (Valentine) patched" in
+    let name = sprintf "%s_%s" treatment control in
     let format = "sam" in
     let pvalue = "1e-10" in
     let mfold_low = 15l in
@@ -520,11 +524,11 @@ module Macs = struct
 
     PGSQL(dbh)
       "INSERT INTO th17_macs
-       (exec_path,version,started,status,note,format,pvalue,
+       (exec_path,version,started,status,note,name,format,pvalue,
         mfold_high,mfold_low,tsize,gsize,bw,wig,space,
         control_id,treatment_id)
        VALUES
-       ($exec,$version,$started,$status,$note,$format,$pvalue,
+       ($exec,$version,$started,$status,$note,$name,$format,$pvalue,
         $mfold_high,$mfold_low,$tsize,$gsize,$bw,$wig,$space,
         $control_bowtie_id,$treatment_bowtie_id)"
     ;
@@ -536,7 +540,7 @@ module Macs = struct
     Unix.mkdir outdir 0o755;
 
     let macs_cmd = Macs.make_cmd ~exec
-      ~format ~pvalue ~mfold:(mfold_low,mfold_high)
+      ~name ~format ~pvalue ~mfold:(mfold_low,mfold_high)
       ~tsize ~gsize ~bw
       ~wig ~space
       ~control:control_sam_file ~treatment:treatment_sam_file () in

@@ -4,6 +4,7 @@ exception Error of string
 
 type cmd = {
   exec : string;
+  name : string option;
   format : string option;
   pvalue : string option;
   mfold : (int32 * int32) option;
@@ -18,11 +19,11 @@ type cmd = {
 
 let make_cmd
     ?(exec="macs")
-    ?format ?pvalue ?mfold ?tsize ?gsize ?bw
+    ?name ?format ?pvalue ?mfold ?tsize ?gsize ?bw
     ?(wig=false) ?space
     ~control ~treatment ()
     =
-  {exec; format; pvalue; mfold; tsize; gsize; bw; wig; space; control; treatment}
+  {exec; name; format; pvalue; mfold; tsize; gsize; bw; wig; space; control; treatment}
 
 let cmd_to_string cmd =
   let i opt x = match x with None -> "" | Some x -> sprintf " -%c %ld" opt x in
@@ -31,6 +32,7 @@ let cmd_to_string cmd =
   let s opt x = match x with None -> "" | Some x -> sprintf " -%c %s" opt x in
   String.concat "" [
     cmd.exec;
+    s 'n' cmd.name;
     s 'f' cmd.format;
     s 'p' cmd.pvalue;
     ii 'm' cmd.mfold;
