@@ -193,6 +193,62 @@ end
 
 module TopHat = struct
 
+  type t = {
+    id : int32;
+    exec_path : string;
+    version : string;
+    min_anchor_length : int32 option;
+    solexa1_3_quals : bool;
+    num_threads : int32 option;
+    max_multihits : int32 option;
+    no_coverage_search : bool;
+    coverage_search : bool;
+    butterfly_search : bool;
+    gtf_id : int32 option;
+    no_novel_juncs : bool;
+    index_base : string;
+    lane : Lane.t;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string
+  }
+
+  let all_ids dbh = PGSQL(dbh) "SELECT id FROM th17_tophat"
+
+  let of_id dbh id =
+    PGOCaml.begin_work dbh;
+    let ans =
+      match PGSQL(dbh)
+        "SELECT id,exec_path,version,min_anchor_length,
+                solexa1_3_quals,num_threads,max_multihits,
+                no_coverage_search,coverage_search,
+                butterfly_search,gtf_id,no_novel_juncs,
+                index_base,lane_id,started,finished,
+                status,note
+         FROM th17_tophat WHERE id=$id"
+      with
+        | (id,exec_path,version,min_anchor_length,
+                solexa1_3_quals,num_threads,max_multihits,
+                no_coverage_search,coverage_search,
+                butterfly_search,gtf_id,no_novel_juncs,
+                index_base,lane_id,started,finished,
+                status,note)::[]
+          -> Some {
+            id;exec_path;version;min_anchor_length;
+            solexa1_3_quals;num_threads;max_multihits;
+            no_coverage_search;coverage_search;
+            butterfly_search;gtf_id;no_novel_juncs;
+            index_base;
+            lane = Lane.of_id dbh lane_id |> Option.get;
+            started;finished;
+            status;note}
+        | [] -> None
+        | _ -> assert false
+    in
+    PGOCaml.commit dbh;
+    ans
+
   let run conf dbh sl_id =
     let exec = "/share/apps/tophat/1.2.0/tophat-1.2.0.Linux_x86_64/tophat" in
     let version = "TopHat v1.2.0" in
@@ -273,6 +329,18 @@ module TopHat = struct
 
     let finished = Util.file_last_modified_time accepted_hits_file in
     PGSQL(dbh) "UPDATE th17_tophat SET finished=$finished WHERE id=$id"
+
+
+  let delete conf dbh id =
+    match PGSQL(dbh) "SELECT id FROM th17_tophat WHERE id=$id" with
+      | [] -> Error (sprintf "tophat run with ID %ld unknown" id) |> raise
+      | _::_::_ -> assert false
+      | _::[] ->
+          PGSQL(dbh) "DELETE FROM th17_tophat WHERE id=$id";
+          let dir = List.reduce Filename.concat
+            [Map.StringMap.find "sequme_root" conf; "db"; "th17"; "tophat"; Int32.to_string id]
+          in
+          sprintf "rm -rf %s" dir |> Sys.command |> ignore
 
 end
 
@@ -393,7 +461,7 @@ module Bowtie = struct
       | _::[] ->
           PGSQL(dbh) "DELETE FROM th17_bowtie WHERE id=$id";
           let dir = List.reduce Filename.concat
-            [Map.StringMap.find "sequme" conf; "db"; "th17"; "bowtie"; Int32.to_string id]
+            [Map.StringMap.find "sequme_root" conf; "db"; "th17"; "bowtie"; Int32.to_string id]
           in
           sprintf "rm -rf %s" dir |> Sys.command |> ignore
 

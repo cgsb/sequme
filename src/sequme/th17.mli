@@ -92,8 +92,36 @@ module Lane : sig
 end
 
 module TopHat : sig
+
+  type t = private {
+    id : int32;
+    exec_path : string;
+    version : string;
+    min_anchor_length : int32 option;
+    solexa1_3_quals : bool;
+    num_threads : int32 option;
+    max_multihits : int32 option;
+    no_coverage_search : bool;
+    coverage_search : bool;
+    butterfly_search : bool;
+    gtf_id : int32 option;
+    no_novel_juncs : bool;
+    index_base : string;
+    lane : Lane.t;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string
+  }
+
+  val of_id : dbh -> int32 -> t option
+  val all_ids : dbh -> int32 list
+
   val run : Conf.t -> dbh -> string -> unit
   val post_process : string -> dbh -> int32 -> unit
+
+  val delete : Conf.t -> dbh -> int32 -> unit
+
 end
 
 module Bowtie : sig
