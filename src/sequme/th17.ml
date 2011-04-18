@@ -249,6 +249,28 @@ module TopHat = struct
     PGOCaml.commit dbh;
     ans
 
+  let of_sl_id dbh sl_id =
+    PGOCaml.begin_work dbh;
+    let ans =
+      match PGSQL(dbh)
+        "SELECT t.id FROM th17_sample as s, th17_lane as l, th17_tophat as t
+         WHERE t.lane_id = l.id
+         AND l.sample_id = s.id
+         AND s.sl_id=$sl_id"
+      with
+        | x::[] -> of_id dbh x
+        | [] -> None
+        | _ -> assert false
+    in
+    PGOCaml.commit dbh;
+    ans
+
+  let sam_file_path conf t =
+    let sequme_root = Map.StringMap.find "sequme_root" conf in
+    List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "tophat"; Int32.to_string t.id;
+       "tophat_out"; "accepted_hits.bam"]
+
   let run conf dbh sl_id =
     let exec = "/share/apps/tophat/1.2.0/tophat-1.2.0.Linux_x86_64/tophat" in
     let version = "TopHat v1.2.0" in
@@ -324,7 +346,7 @@ module TopHat = struct
 
     let status =
       if Sys.file_exists accepted_hits_file
-      then "sucess" else "failed"
+      then "success" else "failed"
     in PGSQL(dbh) "UPDATE th17_tophat SET status=$status WHERE id=$id";
 
     let finished = Util.file_last_modified_time accepted_hits_file in
@@ -677,5 +699,69 @@ module Macs = struct
     match last_info_datetime sequme_root id with
       | None -> ()
       | Some x -> PGSQL(dbh) "UPDATE th17_macs SET finished=$x WHERE id=$id"
+
+end
+
+module Cufflinks = struct
+
+  let run conf dbh sl_id =
+    let sequme_root = Map.StringMap.find "sequme_root" conf in
+
+    let exec = "/share/apps/cufflinks/0.9.3/Linux_x86_64_precompiled/cufflinks" in
+    (* let exec = "/share/apps/cufflinks/0.9.3/gnu/cufflinks" in *)
+    let version = "0.9.3" in
+    let num_threads = 5l in
+    let mask_id = CachedFile.id_of_name dbh "20101217_rRNA_tRNA_mask.gtf" in
+    let quartile_normalization = false in
+    let gtf_id = CachedFile.id_of_name dbh "refGeneAnnot.gtf" in
+
+    let tophat = match TopHat.of_sl_id dbh sl_id with
+      | Some x -> x
+      | None -> Error (sprintf "no TopHat run found for SL ID %s" sl_id) |> raise
+    in
+    let tophat_id = tophat.TopHat.id in
+
+    let note = "" in
+    let status = "in_progress" in
+    let started = Util.now() in
+
+    PGOCaml.begin_work dbh;
+    PGSQL(dbh)
+      "INSERT INTO th17_cufflinks
+       (exec_path,version,started,status,note,num_threads,
+        mask_id,quartile_normalization,gtf_id,tophat_id)
+       VALUES
+       ($exec,$version,$started,$status,$note,$num_threads,
+        $mask_id,$quartile_normalization,$gtf_id,$tophat_id)"
+    ;
+    let cufflinks_id = PGOCaml.serial4 dbh "th17_cufflinks_id_seq" in
+    PGOCaml.commit dbh;
+
+    let outdir = List.reduce Filename.concat
+      [sequme_root; "db"; "th17"; "cufflinks"; Int32.to_string cufflinks_id]
+    in
+    Unix.mkdir outdir 0o755;
+    let cufflinks_outdir = Filename.concat outdir "cufflinks_out" in
+
+    let cmd = Cufflinks.make_cmd ~exec
+      ~output_dir:cufflinks_outdir
+      ~num_threads:(Int32.to_int num_threads)
+      ~mask_file:(CachedFile.path_of_id sequme_root dbh mask_id)
+      ~quartile_normalization
+      ~gtf:(CachedFile.path_of_id sequme_root dbh gtf_id)
+      (TopHat.sam_file_path conf tophat)
+    in
+
+    let job_name = sprintf "cufflinks_%ld" cufflinks_id |> flip String.right 15 in
+    let resource_list = "nodes=1:ppn=6" in
+    let pbs_outdir = Filename.concat outdir "pbs_out" in
+    let cmds = [
+      Cufflinks.cmd_to_string cmd;
+      "";
+      sprintf "chmod 755 %s" cufflinks_outdir;
+      sprintf "chmod 644 %s/*" cufflinks_outdir
+    ]
+    in
+    Pbs.make_and_run ~resource_list ~job_name pbs_outdir cmds
 
 end

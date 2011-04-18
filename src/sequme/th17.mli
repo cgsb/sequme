@@ -116,6 +116,9 @@ module TopHat : sig
 
   val of_id : dbh -> int32 -> t option
   val all_ids : dbh -> int32 list
+  val of_sl_id : dbh -> string -> t option
+
+  val sam_file_path : Conf.t -> t -> string
 
   val run : Conf.t -> dbh -> string -> unit
   val post_process : string -> dbh -> int32 -> unit
@@ -241,5 +244,11 @@ module Macs : sig
   val post_process : string -> dbh -> int32 -> unit
     (** [post_process sequme_root dbh] does any post processing
         necessary after a call to {!run}. *)
+
+end
+
+module Cufflinks : sig
+
+  val run : Conf.t -> dbh -> string -> unit
 
 end
