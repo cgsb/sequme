@@ -249,6 +249,24 @@ end
 
 module Cufflinks : sig
 
+  type t = private {
+    id : int32;
+    exec_path : string;
+    version : string;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string;
+    num_threads : int32 option;
+    mask_id : int32 option;
+    quartile_normalization : bool;
+    gtf_id : int32 option;
+    tophat : TopHat.t;
+  }
+
+  val of_id : dbh -> int32 -> t option
+  val all_ids : dbh -> int32 list
+
   val run : Conf.t -> dbh -> string -> unit
 
 end

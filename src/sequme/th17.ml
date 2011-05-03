@@ -704,6 +704,45 @@ end
 
 module Cufflinks = struct
 
+  type t = {
+    id : int32;
+    exec_path : string;
+    version : string;
+    started : timestamptz option;
+    finished : timestamptz option;
+    status : string;
+    note : string;
+    num_threads : int32 option;
+    mask_id : int32 option;
+    quartile_normalization : bool;
+    gtf_id : int32 option;
+    tophat : TopHat.t;
+  }
+
+  let all_ids dbh = PGSQL(dbh) "SELECT id FROM th17_cufflinks"
+
+  let of_id dbh id =
+    PGOCaml.begin_work dbh;
+    let ans =
+      match PGSQL(dbh)
+        "SELECT id,exec_path,version,started,finished,status,note,
+                num_threads,mask_id,quartile_normalization,gtf_id,tophat_id
+         FROM th17_cufflinks WHERE id=$id"
+      with
+        | (id,exec_path,version,started,finished,status,note,
+          num_threads,mask_id,quartile_normalization,gtf_id,tophat_id)::[] ->
+            Some {
+              id;exec_path;version;started;finished;status;note;
+              num_threads;mask_id;quartile_normalization;gtf_id;
+              tophat = TopHat.of_id dbh tophat_id |> Option.get
+            }
+        | [] -> None
+        | _ -> assert false
+    in
+    PGOCaml.commit dbh;
+    ans
+
+
   let run conf dbh sl_id =
     let sequme_root = Map.StringMap.find "sequme_root" conf in
 
