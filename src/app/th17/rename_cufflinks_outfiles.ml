@@ -1,7 +1,7 @@
 #! /usr/bin/env ocamlscript
 Ocaml.packs := ["batteries"; "sequme"]
 --
-open Batteries_uni;; open Printf;; open Sequme
+open Batteries_uni;; open Printf
 open Filename
 
 let root = List.reduce concat ["/data"; "users"; "aa144"; "th17"]
