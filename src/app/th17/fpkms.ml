@@ -81,7 +81,18 @@ let insert db_file slid =
 ;;
 type command = Init | Add
 
-let db_file = Sys.argv.(1) in
+let genome = Sys.argv.(1) in
+
+let db_file = List.reduce Filename.concat
+  [
+    root;
+    "fpkms";
+    match genome with
+      | "mm9" -> "mm9.db"
+      | "hg19" -> "hg19.db"
+      | _ -> failwith (sprintf "unknown genome %s" genome)
+  ]
+in
 
 let slids =
   let ans = ref [] in
