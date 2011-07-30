@@ -143,10 +143,10 @@ def load_peaks(peaks_rpt) :
     for entry in lines :
         line = entry.rstrip()
 
-        if line.find("#") > -1 or line.find("summit") > -1 :
+        if line.find("#") > -1 or line.find("summit") > -1 or line.isspace() or len(line) == 0 :
             print "SKIPPING: ", line
             continue        
-        
+
         pinfo = line.split("\t")
 
         peak = {}
