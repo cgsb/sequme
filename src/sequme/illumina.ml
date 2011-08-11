@@ -1,4 +1,5 @@
 open Batteries_uni;; open Printf
+module StringMap = Map.StringMap
 
 (** Like [int_of_string] but with a better error message. *)
 let int s =
@@ -103,7 +104,19 @@ module SampleSheet = struct
       Error "invalid header" |> raise
     ;
     Enum.fold (fun ans line -> (record_of_string line)::ans) [] e |> List.rev
-        
+
+
+  let group_by_sample_id t =
+    t
+    |> List.fold_left (fun map x ->
+           let prev =
+             try StringMap.find x.sample_id map
+             with Not_found -> []
+           in
+           StringMap.add x.sample_id (x::prev) map
+       ) StringMap.empty
+    |> StringMap.map List.rev
+
 end
 
 

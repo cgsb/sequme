@@ -47,6 +47,7 @@ module SampleSheet : sig
   type t = record list
 
   val of_file : string -> t
+  val group_by_sample_id : t -> record list Map.StringMap.t
 end
 
 
