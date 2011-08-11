@@ -1,5 +1,21 @@
 open Batteries_uni;; open Printf
 
+(** Like [int_of_string] but with a better error message. *)
+let int s =
+  try int_of_string s
+  with Failure _ -> failwith (sprintf "%s is not an int" s)
+
+(** Like [float_of_string] but with a better error message. *)      
+let float s =
+  try float_of_string s
+  with Failure _ -> failwith (sprintf "%s is not a float" s)
+
+let control_of_string = function
+  | "Y" -> true
+  | "N" -> false
+  | x -> failwith (sprintf "control must be Y or N but is %s" x)
+
+
 module Fastq = struct
   exception Error of string
 
@@ -50,17 +66,50 @@ module Fastq = struct
 end
 
 
+module SampleSheet = struct
+  exception Error of string
+
+  type record = {
+    flowcell_id : string;
+    lane : int;
+    sample_id : string;
+    sample_ref : string;
+    index : string;
+    description : string;
+    control : bool;
+    recipe : string;
+    operator : string;
+    project : string
+  }
+
+  type t = record list
+
+  let record_of_string x = match String.nsplit x "," with
+    | [flowcell_id;lane;sample_id;sample_ref;index;
+       description;control;recipe;operator;project]
+      ->
+        {
+          flowcell_id; lane = int lane; sample_id;
+          sample_ref; index; description;
+          control = control_of_string control;
+          recipe; operator; project
+        }
+    | x -> Error (sprintf "expected exactly 10 columns but found %d" (List.length x)) |> raise
+          
+  let of_file file =
+    let e = File.lines_of file in
+    let hdr = Enum.get e |> Option.get in
+    if not (hdr = "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject") then
+      Error "invalid header" |> raise
+    ;
+    Enum.fold (fun ans line -> (record_of_string line)::ans) [] e |> List.rev
+        
+end
+
+
 module DemultiplexStats = struct
 
   exception Error of string
-
-  let int s =
-    try int_of_string s
-    with Failure _ -> Error (sprintf "%s is not an int" s) |> raise
-
-  let float s =
-    try float_of_string s
-    with Failure _ -> Error (sprintf "%s is not a float" s) |> raise
 
   let qint =
     Util.unquote
@@ -98,11 +147,7 @@ module DemultiplexStats = struct
             sample_ref;
             index;
             description;
-            control = (match control with
-              | "Y" -> true
-              | "N" -> false
-              | x -> raise (Error (sprintf "invalid value %s for control" x))
-            );
+            control = control_of_string control;
             project;
             yield = qint yield;
             percent_pass_filter = float pass_filter;

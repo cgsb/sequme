@@ -27,6 +27,29 @@ module Fastq : sig
 end
 
 
+(** Support for [SampleSheet]s. *)
+module SampleSheet : sig
+  exception Error of string
+
+  type record = {
+    flowcell_id : string;
+    lane : int;
+    sample_id : string;
+    sample_ref : string;
+    index : string;
+    description : string;
+    control : bool;
+    recipe : string;
+    operator : string;
+    project : string
+  }
+
+  type t = record list
+
+  val of_file : string -> t
+end
+
+
 (** Support for Demultiplex_Stats.htm file. *)
 module DemultiplexStats : sig
 
