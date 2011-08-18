@@ -67,6 +67,56 @@ module Fastq = struct
 end
 
 
+module Barcode = struct
+  exception Error of string
+
+  module IntMap = Map.IntMap
+  module StringMap = Map.StringMap
+  module S = Set.StringSet
+
+  let code_seqs_enum =
+    [
+      1, "ATCACG";
+      2, "CGATGT";
+      3, "TTAGGC";
+      4, "TGACCA";
+      5, "ACAGTG";
+      6, "GCCAAT";
+      7, "CAGATC";
+      8, "ACTTGA";
+      9, "GATCAG";
+      10, "TAGCTT";
+      11, "GGCTAC";
+      12, "CTTGTA"
+    ] |> List.enum
+
+  (* Different representations of the same barcodes. *)
+  let code_seqs = IntMap.of_enum code_seqs_enum
+  let seq_codes = code_seqs_enum |> Enum.map (fun (x,y) -> y,x) |> StringMap.of_enum
+  let barcodes = code_seqs_enum |> Enum.map snd |> S.of_enum
+
+  type t = string
+
+  let of_int x =
+    try IntMap.find x code_seqs
+    with Not_found -> Error (sprintf "invalid index %d" x) |> raise
+
+  let of_ad_code x =
+    try String.split x "AD" |> snd |> int_of_string |> of_int
+    with Failure _ | Error _ -> Error (sprintf "invalid index %s" x) |> raise
+
+  let of_seq x =
+    if S.mem x barcodes then x
+    else Error (sprintf "invalid index %s" x) |> raise
+
+  let to_ad_code t =
+    sprintf "AD%03d" (StringMap.find t seq_codes)
+
+  let to_seq t = t
+
+end
+
+
 module SampleSheet = struct
   exception Error of string
 

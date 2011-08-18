@@ -26,6 +26,17 @@ module Fastq : sig
 
 end
 
+(** Barcodes. *)
+module Barcode : sig
+  exception Error of string
+  type t
+  val of_int : int -> t
+  val of_ad_code : string -> t
+  val of_seq : string -> t
+  val to_ad_code : t -> string
+  val to_seq : t -> string
+end
+
 
 (** Support for [SampleSheet]s. *)
 module SampleSheet : sig
