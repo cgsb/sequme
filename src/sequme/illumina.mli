@@ -47,7 +47,7 @@ module SampleSheet : sig
     lane : int;
     sample_id : string;
     sample_ref : string;
-    index : string;
+    barcode : Barcode.t;
     description : string;
     control : bool;
     recipe : string;

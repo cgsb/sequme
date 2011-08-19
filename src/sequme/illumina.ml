@@ -74,7 +74,7 @@ module Barcode = struct
   module StringMap = Map.StringMap
   module S = Set.StringSet
 
-  let code_seqs_enum =
+  let code_seqs_list =
     [
       1, "ATCACG";
       2, "CGATGT";
@@ -88,12 +88,12 @@ module Barcode = struct
       10, "TAGCTT";
       11, "GGCTAC";
       12, "CTTGTA"
-    ] |> List.enum
+    ]
 
   (* Different representations of the same barcodes. *)
-  let code_seqs = IntMap.of_enum code_seqs_enum
-  let seq_codes = code_seqs_enum |> Enum.map (fun (x,y) -> y,x) |> StringMap.of_enum
-  let barcodes = code_seqs_enum |> Enum.map snd |> S.of_enum
+  let code_seqs = code_seqs_list |> List.enum |> IntMap.of_enum
+  let seq_codes = code_seqs_list |> List.enum |> Enum.map (fun (x,y) -> y,x) |> StringMap.of_enum
+  let barcodes = code_seqs_list |> List.enum |> Enum.map snd |> S.of_enum
 
   type t = string
 
@@ -125,7 +125,7 @@ module SampleSheet = struct
     lane : int;
     sample_id : string;
     sample_ref : string;
-    index : string;
+    barcode : Barcode.t;
     description : string;
     control : bool;
     recipe : string;
@@ -136,12 +136,14 @@ module SampleSheet = struct
   type t = record list
 
   let record_of_string x = match String.nsplit x "," with
-    | [flowcell_id;lane;sample_id;sample_ref;index;
+    | [flowcell_id;lane;sample_id;sample_ref;barcode;
        description;control;recipe;operator;project]
       ->
         {
           flowcell_id; lane = int lane; sample_id;
-          sample_ref; index; description;
+          sample_ref;
+          barcode = Barcode.of_seq barcode;
+          description;
           control = control_of_string control;
           recipe; operator; project
         }
