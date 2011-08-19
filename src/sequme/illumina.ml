@@ -169,6 +169,15 @@ module SampleSheet = struct
        ) StringMap.empty
     |> StringMap.map List.rev
 
+  let find_lane_barcode t lane barcode =
+    let rec loop = function
+      | [] -> None
+      | x::rest ->
+          if x.lane = lane && x.barcode = barcode then Some x
+          else loop rest
+    in
+    loop t
+
 end
 
 

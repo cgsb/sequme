@@ -59,6 +59,7 @@ module SampleSheet : sig
 
   val of_file : string -> t
   val group_by_sample_id : t -> record list Map.StringMap.t
+  val find_lane_barcode : t -> int -> Barcode.t -> record option
 end
 
 
