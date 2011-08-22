@@ -15,7 +15,7 @@ module Library : sig
 
   type t = {
     sample : Sample.t;
-    index : Illumina.Barcode.t;
+    indexes : Illumina.Barcode.t list;
     read_type : ReadType.t;
     read_length : int; (** For paired-end, this is length of each end. *)
   }

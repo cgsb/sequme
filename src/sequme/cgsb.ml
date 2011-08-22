@@ -24,7 +24,7 @@ module Library = struct
 
   type t = {
     sample : Sample.t;
-    index : Illumina.Barcode.t;
+    indexes : Illumina.Barcode.t list;
     read_type : ReadType.t;
     read_length : int;
   }
@@ -37,7 +37,11 @@ module Library = struct
   let of_row (get : Table.getter) (row : Table.row) =
     {
       sample = Sample.of_row get row;
-      index = get row "index" |> Illumina.Barcode.of_ad_code;
+      indexes =
+        get row "indexes"
+        |> flip String.nsplit ","
+        |> List.map (String.strip |- Illumina.Barcode.of_ad_code)
+      ;
       read_type = get row "Read Type" |> ReadType.of_string;
       read_length = get row "Read Length" |> parse_read_length;
     }
@@ -52,7 +56,7 @@ module LibraryDB = struct
   let columns = [
     "ID"; "Sample Name1"; "Sample Name2"; "organism"; "investigator";
     "application"; "stranded"; "control_type"; "truseq_control_used";
-    "index"; "library_submitted"; "Read Type"; "Read Length"
+    "indexes"; "library_submitted"; "Read Type"; "Read Length"
   ]
 
   let of_file file =
