@@ -5,6 +5,8 @@ exception Error of string
 type cmd = {
   exec : string;
   ebwt : string;
+  phred33_quals : bool;
+  phred64_quals : bool;
   k : int option;
   best : bool;
   sam : bool;
@@ -14,13 +16,16 @@ type cmd = {
 }
 
 let make_cmd
-    ?(exec="bowtie")
-    ~ebwt ?k ?(best=false) ?(sam=false) ?threads
+    ?(exec="bowtie") ~ebwt
+    ?(phred33_quals=false) ?(phred64_quals=false)
+    ?k ?(best=false) ?(sam=false) ?threads
     ?hit ~reads
     =
   {
     exec;
     ebwt;
+    phred33_quals;
+    phred64_quals;
     k;
     best;
     sam;
@@ -38,6 +43,8 @@ let cmd_to_string cmd =
     i 'k' cmd.k;
     if cmd.best then " --best" else "";
     if cmd.sam then " --sam" else "";
+    if cmd.phred33_quals then " --phred33-quals" else "";
+    if cmd.phred64_quals then " --phred64-quals" else "";
     i 'p' cmd.threads;
 
     (* ebwt, reads, hit *)

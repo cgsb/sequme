@@ -8,6 +8,8 @@ exception Error of string
 type cmd = private {
   exec : string;
   ebwt : string;
+  phred33_quals : bool;
+  phred64_quals : bool;
   k : int option;
   best : bool;
   sam : bool;
@@ -16,7 +18,9 @@ type cmd = private {
   hit : string option;
 }
 
-val make_cmd : ?exec:string -> ebwt:string -> ?k:int
+val make_cmd : ?exec:string -> ebwt:string
+  -> ?phred33_quals:bool -> ?phred64_quals:bool
+  -> ?k:int
   -> ?best:bool -> ?sam:bool -> ?threads:int
   -> ?hit:string -> reads:string
   -> cmd
