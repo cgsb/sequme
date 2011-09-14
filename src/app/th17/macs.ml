@@ -4,9 +4,7 @@ Ocaml.packs := ["batteries"; "sequme"]
 open Batteries_uni;; open Printf;; open Sequme
 open Filename
 
-let root = List.reduce concat ["/data"; "users"; "aa144"; "th17"]
-
-let run treatment_sl_id control_sl_id =
+let run root meta treatment_sl_id control_sl_id =
   let exec = "/home/aa144/local/python/bin/macs14" in
   let name = sprintf "%s_%s" treatment_sl_id control_sl_id in
   let format = "sam" in
@@ -16,11 +14,11 @@ let run treatment_sl_id control_sl_id =
   let tsize = 36l in
   let gsize = "mm" in
   let bw = 200l in
-  let wig = false in
-  let space = 1l in (* only relevant if wig = true *)
+  let wig = true in
+  let space = 10l in (* only relevant if wig = true *)
 
-  let treatment_sam_file = List.reduce concat [root; "sam_keep_name_only"; treatment_sl_id ^ ".sam"] in
-  let control_sam_file = List.reduce concat [root; "sam_keep_name_only"; control_sl_id ^ ".sam"] in
+  let treatment_sam_file = List.reduce concat [root; "sam_keep_name_only"; treatment_sl_id; treatment_sl_id ^ ".sam"] in
+  let control_sam_file = List.reduce concat [root; "sam_keep_name_only"; control_sl_id; control_sl_id ^ ".sam"] in
 
   let outdir = List.reduce concat
     [root; "macs"; treatment_sl_id ^ "_" ^ control_sl_id]
@@ -52,4 +50,16 @@ let run treatment_sl_id control_sl_id =
 
 ;;
 
-run Sys.argv.(1) Sys.argv.(2)
+let root_dir = Sys.argv.(1)
+let meta = List.reduce Filename.concat [root_dir; "metadata"; "metadata.tsv"] |> Th17_meta.of_file
+
+let sl_ids =
+  let open Th17_meta in
+  meta
+  |> List.filter_map (fun x ->
+       if x.read_type = "SE" && x.application = "ChIP-Seq"
+       then Some (x.sl_id, x.control_sl_id)
+       else None
+     )
+
+let _ = List.iter (printf "%s\t%s\n" |> uncurry) sl_ids

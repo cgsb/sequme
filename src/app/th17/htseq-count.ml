@@ -3,16 +3,18 @@ Ocaml.packs := ["batteries"; "sequme"]
 --
 open Batteries_uni;; open Printf;; open Sequme
 
-let root = List.reduce Filename.concat ["/data"; "users"; "aa144"; "th17"]
+let run root meta sl_id =
+  let m = List.filter (fun x -> x.Th17_meta.sl_id = sl_id) meta in
+  assert (List.length m = 1);
+  let m = List.hd m in
 
-let run genome sl_id =
   let sam_file = List.reduce Filename.concat [root; "bowtie"; sl_id; sl_id ^ ".sam"] in
   let gtf_file = List.reduce Filename.concat
     [root; "refseq";
-     match genome with
-       | "mm9" -> "mm9_refseq_annot_May_1_2011.gtf"
-       | "hg19" -> "hg19_refseq_annot_May_1_2011.gtf"
-       | _ -> failwith (sprintf "unknown genome %s" genome)
+     match m.Th17_meta.organism with
+       | "Mouse" -> "mm9_refseq_annot_May_1_2011.gtf"
+       | "Human" -> "hg19_refseq_annot_May_1_2011.gtf"
+       | _ -> assert false
     ]
   in
   let outdir = List.reduce Filename.concat [root; "htseq-count"; sl_id] in
@@ -36,4 +38,16 @@ let run genome sl_id =
 
 ;;
 
-run Sys.argv.(1) Sys.argv.(2)
+let root_dir = Sys.argv.(1)
+let meta = List.reduce Filename.concat [root_dir; "metadata"; "metadata.tsv"] |> Th17_meta.of_file
+
+let sl_ids =
+  let open Th17_meta in
+  meta
+  |> List.filter_map (fun x ->
+       if x.read_type = "SE"
+       then Some x.sl_id
+       else None
+     )
+
+let _ = List.iter (print_endline) sl_ids

@@ -1,30 +1,38 @@
 #! /usr/bin/env ocamlscript
-Ocaml.packs := ["batteries"; "sequme"]
+Ocaml.packs := ["batteries"; "biocaml"; "sequme"]
 --
 open Batteries_uni;; open Printf;; open Sequme
 
-let root = List.reduce Filename.concat ["/data"; "users"; "aa144"; "th17"]
+let run root meta sl_id =
+  let m = List.filter (fun x -> x.Th17_meta.sl_id = sl_id) meta in
+  assert (List.length m = 1);
+  let m = List.hd m in
 
-let run genome sl_id =
   let exec = "/share/apps/bowtie/0.12.7/gnu/bowtie" in
   let k = 1 in
   let best = true in
   let sam = true in
   let num_threads = 3 in
+  let phred33_quals,phred64_quals = match m.Th17_meta.phred_offset with
+    | "Q33" -> true,false
+    | "Q64" -> false,true
+    | _ -> assert false
+  in
 
   let outdir = List.reduce Filename.concat [root; "bowtie"; sl_id] in
   let _ = Unix.mkdir outdir 0o755 in
   
-  let ebwt = match genome with
-    | "mm9" -> "/data/sequme/db/bowtie/indexes/mm9/mm9"
-    | "hg19" -> "/data/sequme/db/bowtie/indexes/hg19/hg19"
-    | x -> failwith (sprintf "unknown genome %s" x)
+  let ebwt = match m.Th17_meta.organism with
+    | "Mouse" -> "/data/sequme/db/bowtie/indexes/mm9/mm9"
+    | "Human" -> "/data/sequme/db/bowtie/indexes/hg19/hg19"
+    | _ -> assert false
   in
 
   let hit_file = Filename.concat outdir (sl_id ^ ".sam") in
 
   let cmd = Bowtie.make_cmd ~exec
     ~ebwt
+    ~phred33_quals ~phred64_quals
     ~k
     ~best ~sam
     ~threads:num_threads
@@ -46,15 +54,7 @@ let run genome sl_id =
 
 ;;
 
-module Set = Set.StringSet
-
-let already_ran = Filename.concat root "bowtie" |> Sys.files_of |> Set.of_enum
-
-let available_to_run = Filename.concat root "fastq" |> Sys.files_of
-  |> Enum.filter (flip Filename.check_suffix ".fastq")
-  |> Enum.map (flip Filename.chop_suffix ".fastq") |> Set.of_enum
-
-let need_to_run = Set.diff available_to_run already_ran |> Set.enum |> List.of_enum
-
-;;
-let () = run Sys.argv.(1) Sys.argv.(2)
+let root_dir = Sys.argv.(1)
+let meta = List.reduce Filename.concat [root_dir; "metadata"; "metadata.tsv"] |> Th17_meta.of_file
+let sl_id = Sys.argv.(2)
+(* let _ = run root_dir meta sl_id *)
