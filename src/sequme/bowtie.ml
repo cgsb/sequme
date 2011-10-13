@@ -52,9 +52,3 @@ let cmd_to_string cmd =
     sprintf " %s" cmd.reads;
     (match cmd.hit with Some hit -> sprintf " %s" hit | None -> "")
   ]
-
-let path_of_index conf i =
-  let sequme_root = Map.StringMap.find "sequme_root" conf in
-  let path = List.fold_left Filename.concat "" [sequme_root; "db"; "bowtie"; "indexes"; i] in
-  if Sys.file_exists path then Filename.concat path i
-  else raise Not_found

@@ -12,7 +12,7 @@ findlib-pkg=$(lib)
 #
 # Do everything
 #
-world: install-lib install-apps doc
+world: install-lib doc #install-apps
 
 
 ############################################################
@@ -29,10 +29,10 @@ doc/html/%:
 
 doc: clean-doc doc/html/$(lib)
 
-APPS=$(patsubst src/app/%.ml,%,$(wildcard src/app/*.ml))
-apps:
-	cd src; ocamlbuild $(patsubst %,app/%.native,$(APPS))
-	rm -f $(patsubst %,src/%.native,$(APPS))
+# APPS=$(patsubst src/app/%.ml,%,$(wildcard src/app/*.ml))
+# apps:
+# 	cd src; ocamlbuild $(patsubst %,app/%.native,$(APPS))
+# 	rm -f $(patsubst %,src/%.native,$(APPS))
 
 
 ############################################################
@@ -58,11 +58,11 @@ install-lib: lib uninstall-lib
 uninstall-lib:
 	ocamlfind remove $(findlib-pkg)
 
-install-apps: apps
-	mkdir $(BINDIR); bin/install_apps.ml src/_build/app $(BINDIR)
+# install-apps: apps
+# 	mkdir $(BINDIR); bin/install_apps.ml src/_build/app $(BINDIR)
 
-uninstall-apps:
-	rm -f $(patsubst %,$(BINDIR)/%,$(APPS))
+# uninstall-apps:
+# 	rm -f $(patsubst %,$(BINDIR)/%,$(APPS))
 
 ############################################################
 #
@@ -85,6 +85,6 @@ clean-dot:
 clean-all: clean clean-doc clean-dot
 
 # clean everything and uninstall
-fresh: clean-all uninstall-lib uninstall-apps
+fresh: clean-all uninstall-lib #uninstall-apps
 
-.PHONY: lib doc apps dot install-lib uninstall-lib install-apps uninstall-apps clean clean-doc clean-dot clean-all fresh
+.PHONY: lib doc dot install-lib uninstall-lib clean clean-doc clean-dot clean-all fresh #apps install-apps uninstall-apps
