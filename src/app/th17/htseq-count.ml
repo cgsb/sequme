@@ -40,14 +40,6 @@ let run root meta sl_id =
 
 let root_dir = Sys.argv.(1)
 let meta = List.reduce Filename.concat [root_dir; "metadata"; "metadata.tsv"] |> Th17_meta.of_file
+let sl_id = Sys.argv.(2)
 
-let sl_ids =
-  let open Th17_meta in
-  meta
-  |> List.filter_map (fun x ->
-       if x.read_type = "SE"
-       then Some x.sl_id
-       else None
-     )
-
-let _ = List.iter (print_endline) sl_ids
+let _ = run root_dir meta sl_id
