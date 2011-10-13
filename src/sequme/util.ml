@@ -64,14 +64,3 @@ let temp_dir ?(parent_dir=Filename.temp_dir_name) ?(perm=0o700) prefix suffix =
     with e ->
       if counter >= 1000 then raise e else try_name (counter + 1)
   in try_name 0
-
-
-let now () =
-  CalendarLib.Calendar.now (), CalendarLib.Time_Zone.current()
-
-
-let file_last_modified_time file =
-  let open Unix in
-  let open CalendarLib in
-  ((stat file).st_mtime |> localtime |> Calendar.from_unixtm),
-  Time_Zone.Local
