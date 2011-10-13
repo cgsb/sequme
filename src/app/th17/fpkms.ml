@@ -7,7 +7,7 @@ open Batteries_uni;; open Printf;; open Biocaml;; open Sequme
    slid - a samples SL ID as defined by HudsonAlpha 
 *)
 
-let root = List.reduce Filename.concat ["/data"; "users"; "aa144"; "th17"]
+let root = List.reduce Filename.concat ["/mnt"; "pod"; "aa144"; "th17"]
 let table = "fpkms" (* name of main table of FPKM values *)
 
 let run cmd =
