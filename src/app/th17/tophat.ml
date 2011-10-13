@@ -3,32 +3,46 @@ Ocaml.packs := ["batteries"; "sequme"]
 --
 open Batteries_uni;; open Printf;; open Sequme
 
-let root = List.reduce Filename.concat ["/data"; "users"; "aa144"; "th17"]
+let mkpath = List.fold_left Filename.concat
 
-let run genome sl_id =
+let run root meta sl_id =
+  let m = List.filter (fun x -> x.Th17_meta.sl_id = sl_id) meta in
+  assert (List.length m = 1);
+  let m = List.hd m in
+
   let exec = "/share/apps/tophat/1.2.0/tophat-1.2.0.Linux_x86_64/tophat" in
   let min_anchor_length = 10 in
-  let solexa1_3_quals = false in
+
+  let solexa1_3_quals = match m.Th17_meta.phred_offset with
+    | "Q33" -> false
+    | "Q64" -> true
+    | _ -> assert false
+  in
+
   let num_threads = 6 in
   let max_multihits = 20 in
   let no_coverage_search = false in
   let coverage_search = false in
   let butterfly_search = false in
-  let gtf = match genome with
-    | "mm9" -> "/data/sequme/db/th17/cachedfile/refGeneAnnot.gtf"
-    | "hg19" -> "/data/users/aa144/th17/refseq/hg19_refseq_annot_May_1_2011.gtf"
-    | _ -> failwith (sprintf "unknown genome %s" genome)
+
+  let gtf = match m.Th17_meta.organism with
+    | "Mouse" -> mkpath root ["cachedfile"; "refGeneAnnot.gtf"]
+    | "Human" -> mkpath root ["refseq"; "hg19_refseq_annot_May_1_2011.gtf"]
+    | _ -> assert false
   in
+
   let no_novel_juncs = true in
-  let index_path = match genome with
-    | "mm9" -> "/data/sequme/db/bowtie/indexes/mm9/mm9"
-    | "hg19" -> "/data/sequme/db/bowtie/indexes/hg19/hg19"
-    | _ -> failwith (sprintf "unknown genome %s" genome)
+
+  let index_path = match m.Th17_meta.organism with
+    | "Mouse" -> mkpath root ["bowtie_index"; "mm9"; "mm9"]
+    | "Human" -> mkpath root ["bowtie_index"; "hg19"; "hg19"]
+    | _ -> assert false
   in
-  let fastq_file_path = List.reduce Filename.concat [root; "fastq"; sl_id ^ ".fastq"] in
-  let outdir = List.reduce Filename.concat [root; "tophat"; sl_id] in
+
+  let fastq_file_path = mkpath root ["fastq"; sl_id ^ ".fastq"] in
+  let outdir = mkpath root ["tophat"; sl_id] in
   let _ = Unix.mkdir outdir 0o755 in
-  let tophat_outdir = Filename.concat outdir "tophat_out" in
+  let tophat_outdir = mkpath outdir ["tophat_out"] in
 
   let cmd = TopHat.make_cmd ~exec
     ~min_anchor_length
@@ -48,7 +62,7 @@ let run genome sl_id =
   
   let job_name = sprintf "tophat_%s" sl_id |> flip String.right 15 in
   let resource_list = "nodes=1:ppn=8,mem=14gb" in
-  let pbs_outdir = Filename.concat outdir "pbs_out" in
+  let pbs_outdir = mkpath outdir ["pbs_out"] in
   let cmds = [
     TopHat.cmd_to_string cmd;
     "";
@@ -61,5 +75,7 @@ let run genome sl_id =
 
 ;;
 
-run Sys.argv.(1) Sys.argv.(2)
-
+let root_dir = Sys.argv.(1)
+let meta = mkpath root_dir ["metadata"; "metadata.tsv"] |> Th17_meta.of_file
+let sl_id = Sys.argv.(2)
+let _ = run root_dir meta sl_id
