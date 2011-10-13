@@ -47,3 +47,7 @@ val make_cmd : ?exec:string -> ?min_anchor_length:int -> ?solexa1_3_quals:bool
 val cmd_to_string : cmd -> string
   (** [to_string cmd] returns the string that can be typed directly on the
       command line to run tophat. *)
+
+(* val pbs_run : Conf.t -> cmd -> unit *)
+  (** [pbs conf cmd] runs [cmd], placing output files in appropriate
+      directories and adding to metadata locations for given conf. *)
