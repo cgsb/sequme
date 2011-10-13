@@ -1,6 +1,6 @@
 <sequme>: include
 
-<**/*.{ml,mli,byte,native}>: pkg_batteries, pkg_calendar, pkg_netstring, pkg_netclient, pkg_shell, pkg_sqlite3, pkg_biocaml, pkg_pgocaml, pkg_pgocaml.syntax, syntax_camlp4o
+<**/*.{ml,mli,byte,native}>: thread, pkg_batteries, pkg_calendar, pkg_netstring, pkg_netclient, pkg_shell, pkg_sqlite3, pkg_biocaml, pkg_pgocaml, pkg_pgocaml.syntax, syntax_camlp4o
 
 <sequme/*.cmx>: for-pack(Sequme)
 
