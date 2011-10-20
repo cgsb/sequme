@@ -1,4 +1,5 @@
-open Batteries_uni;; open Printf
+open Sequme_std
+
 module StringMap = Map.StringMap
 
 (** Like [int_of_string] but with a better error message. *)
