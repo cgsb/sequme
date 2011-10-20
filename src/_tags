@@ -1,4 +1,4 @@
 <lib>: include
-<**/*.{ml,mli,byte,native}>: thread, pkg_batteries, pkg_biocaml
+<**/*.{ml,mli,byte,native}>: pkg_threads, pkg_batteries, pkg_biocaml
 <lib/*.cmx>: for-pack(Sequme)
 true: debug
