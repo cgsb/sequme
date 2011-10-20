@@ -46,11 +46,11 @@ module Fastq = struct
     if not (String.starts_with str "@") then
       raise (Error "sequence identifier must start with '@' character")
     else
-      let x,y = String.split str " " in
-      match String.nsplit x ":", String.nsplit y ":" with
+      match String.split str " " with
+      | Some (x, y) ->
+        begin match String.nsplit x ":", String.nsplit y ":" with
         | [instrument;run_number;flowcell_id;lane;tile;x_pos;y_pos],
-          [read;is_filtered;control_number;index]
-          -> {
+          [read;is_filtered;control_number;index] -> {
             instrument = String.lchop instrument;
             run_number = i "run_number" run_number;
             flowcell_id;
@@ -64,6 +64,8 @@ module Fastq = struct
             index
           }
         | _ -> raise (Error ("invalid sequence identifier for Illumina Fastq file"))
+        end
+      | _ -> raise (Error ("invalid sequence identifier for Illumina Fastq file"))
 
 end
 
@@ -93,8 +95,8 @@ module Barcode = struct
 
   (* Different representations of the same barcodes. *)
   let code_seqs = code_seqs_list |> List.enum |> IntMap.of_enum
-  let seq_codes = code_seqs_list |> List.enum |> Enum.map (fun (x,y) -> y,x) |> StringMap.of_enum
-  let barcodes = code_seqs_list |> List.enum |> Enum.map snd |> S.of_enum
+  let seq_codes = code_seqs_list |> List.enum |> Enum.map ~f:(fun (x,y) -> y,x) |> StringMap.of_enum
+  let barcodes = code_seqs_list |> List.enum |> Enum.map ~f:snd |> S.of_enum
 
   type t = string
 
@@ -103,7 +105,7 @@ module Barcode = struct
     with Not_found -> Error (sprintf "invalid index %d" x) |> raise
 
   let of_ad_code x =
-    try String.split x "AD" |> snd |> int_of_string |> of_int
+    try String.split_exn x "AD" |> snd |> int_of_string |> of_int
     with Failure _ | Error _ -> Error (sprintf "invalid index %s" x) |> raise
 
   let of_seq x =
@@ -156,18 +158,18 @@ module SampleSheet = struct
     if not (hdr = "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject") then
       Error "invalid header" |> raise
     ;
-    Enum.fold (fun ans line -> (record_of_string line)::ans) [] e |> List.rev
+    Enum.fold ~f:(fun ans line -> (record_of_string line)::ans) ~init:[] e |> List.rev
 
 
   let group_by_sample_id t =
-    t
-    |> List.fold_left (fun map x ->
-           let prev =
-             try StringMap.find x.sample_id map
-             with Not_found -> []
-           in
-           StringMap.add x.sample_id (x::prev) map
-       ) StringMap.empty
+    t 
+    |> List.fold_left ~f:(fun map x ->
+          let prev =
+            try StringMap.find x.sample_id map
+            with Not_found -> []
+          in
+          StringMap.add x.sample_id (x::prev) map
+        ) ~init:StringMap.empty
     |> StringMap.map List.rev
 
   let find_lane_barcode t lane barcode =
@@ -259,19 +261,19 @@ module DemultiplexStats = struct
 
   let of_rendered_html file =
     let e = File.lines_of file in
-    let flowcell = Enum.get e |> Option.get |> flip String.split "Flowcell: " |> snd |> String.trim in
+    let flowcell = Enum.get e |> Option.get |> flip String.split_exn "Flowcell: " |> snd |> String.trim in
     Enum.iter (fun _ -> Enum.junk e) (1--4);
     let barcodes =
       e
-      |> Enum.take_while (not -| flip String.starts_with "Sample information")
-      |> Enum.fold (fun ans line -> (Barcode.of_string line)::ans) []
+      |> Enum.take_while ~f:(not -| flip String.starts_with "Sample information")
+      |> Enum.fold ~f:(fun ans line -> (Barcode.of_string line)::ans) ~init:[]
       |> List.rev
     in
     Enum.iter (fun _ -> Enum.junk e) (1--4);
     let samples =
       e
-      |> Enum.take_while (not -| flip String.starts_with "CASAVA")
-      |> Enum.fold (fun ans line -> (Sample.of_string line)::ans) []
+      |> Enum.take_while ~f:(not -| flip String.starts_with "CASAVA")
+      |> Enum.fold ~f:(fun ans line -> (Sample.of_string line)::ans) ~init:[]
       |> List.rev
     in
     let software = Enum.get e |> Option.get |> String.trim in

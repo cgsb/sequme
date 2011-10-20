@@ -1,9 +1,66 @@
 (** Module used as “Parvasive” in the library.  *)
 
 
-include Batteries
-include Printf
+include BatPervasives
+include BatPrintf
 
+module List = struct 
+  include List
+  include ListLabels
+  include BatList
+  include BatList.Labels
+
+  let assoc_exn = assoc
+  let hd_exn = hd
+  let tl_exn = tl
+
+  include BatList.Exceptionless
+  include BatList.Labels.LExceptionless
+
+end
+
+module String = struct
+  include StringLabels
+  include BatString
+  include BatString.Exceptionless
+  let split_exn a b = BatString.split a b
+end
+
+module Array = struct
+  include Array 
+  include BatArray 
+  include BatArray.Labels
+end
+
+module Enum = struct
+  include BatEnum
+  include BatEnum.Labels
+  include BatEnum.Labels.LExceptionless
+end
+
+module IO = struct
+  include BatIO
+end
+
+module File = struct
+  include BatFile
+end
+
+module Map = BatMap
+module Set = BatSet
+
+module Option = struct
+  module M = struct
+    include BatOption
+    include BatOption.Labels
+  end
+  module With_monad = struct
+    include M
+    include BatOption.Monad
+    let (>>=) = bind
+  end
+  include M
+end
 
 (** Utility functions. A place to quickly place functions that don't
     obviously fit into another module, or don't justify defining a new

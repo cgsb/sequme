@@ -46,5 +46,6 @@ let cmd_to_string cmd =
     if cmd.time_series then " -T" else "";
     if cmd.quartile_normalization then " -N" else "";
     sprintf " %s" cmd.gtf;
-    cmd.samples |> List.map (String.concat ",") |> String.concat " " |> sprintf " %s"
+    cmd.samples |> List.map ~f:(String.concat ~sep:",") |>
+        String.concat ~sep:" " |> sprintf " %s"
   ]
