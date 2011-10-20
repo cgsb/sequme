@@ -1,0 +1,8 @@
+# OASIS_START
+# DO NOT EDIT (digest: cd6191944f6f051474a702214fb90ede)
+# Library sequme
+"src/lib": include
+<src/lib/*.ml{,i}>: pkg_threads
+<src/lib/*.ml{,i}>: pkg_biocaml
+<src/lib/*.ml{,i}>: pkg_batteries
+# OASIS_STOP
