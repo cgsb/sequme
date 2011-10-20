@@ -1,6 +1,6 @@
 (** MACS support. See the
     {{:http://liulab.dfci.harvard.edu/MACS/}MACS website} for details. *)
-open Batteries_uni
+open Sequme_std
 
 exception Error of string
 

@@ -1,5 +1,5 @@
 (** PBS support. *)
-open Batteries_uni;; open Printf
+open Sequme_std
 
 exception Error of string
 

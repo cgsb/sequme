@@ -22,10 +22,14 @@ Library sequme
            , Sequme_pbs        
            , Sequme_read_type  
            , Sequme_tophat     
-           , Sequme_util       
 
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
   InstallDir: $docdir
-  
+  Type:                 ocamlbuild (0.2)
+  Install:              false
+  BuildTools+:          ocamldoc
+  XOCamlbuildPath:      src/lib/
+  XOCamlbuildLibraries: sequme
+

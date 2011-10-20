@@ -1,6 +1,5 @@
 (** TopHat support. See the {{:http://tophat.cbcb.umd.edu}TopHat
     website} for details. *)
-open Batteries_uni
 
 exception Error of string
 

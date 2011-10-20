@@ -1,6 +1,5 @@
 (** Bowtie support. See the
     {{:http://bowtie-bio.sourceforge.net}Bowtie website} for details. *)
-open Batteries_uni
 
 exception Error of string
 

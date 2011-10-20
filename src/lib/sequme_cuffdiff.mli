@@ -1,6 +1,5 @@
 (** Cuffdiff support. See the
     {{:http://cufflinks.cbcb.umd.edu}Cuffdiff website} for details. *)
-open Batteries_uni
 
 exception Error of string
 

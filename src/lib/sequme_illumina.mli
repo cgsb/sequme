@@ -1,5 +1,4 @@
 (** Illumina specific features. *)
-open Batteries_uni
 
 (** Features specific to Illumina FASTQ files. Meant to be used in
     conjunction with the {!Biocaml.Fastq} module. *)
@@ -58,7 +57,7 @@ module SampleSheet : sig
   type t = record list
 
   val of_file : string -> t
-  val group_by_sample_id : t -> record list Map.StringMap.t
+  val group_by_sample_id : t -> record list BatMap.StringMap.t
   val find_lane_barcode : t -> int -> Barcode.t -> record option
 end
 

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 18274c0d9dea51994958fdebfce4a346)
+# DO NOT EDIT (digest: 4b90d5c80fcb02409537e29736e23820)
 Sequme
 Sequme_std
 Sequme_bowtie
@@ -10,5 +10,4 @@ Sequme_macs
 Sequme_pbs
 Sequme_read_type
 Sequme_tophat
-Sequme_util
 # OASIS_STOP
