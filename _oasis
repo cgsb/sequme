@@ -22,7 +22,8 @@ Library sequme
            , Sequme_pbs        
            , Sequme_read_type  
            , Sequme_tophat     
-  DataFiles: ../script/make_pbs_script.ml ($bindir)
+  DataFiles: ../script/make_pbs_script.ml ($bindir),
+            ../script/full_sample_sheet.ml ($bindir)
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
