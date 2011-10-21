@@ -74,20 +74,20 @@ let () =
   let config =
     List.map (List.tl_exn (List.tl_exn (Array.to_list Sys.argv)))
       ~f:(function
-        | "I2" -> 2, illumina_barcodes 
-        | "I3" -> 3, illumina_barcodes 
-        | "I4" -> 4, illumina_barcodes 
-        | "I5" -> 5, illumina_barcodes 
-        | "I6" -> 6, illumina_barcodes 
-        | "I7" -> 7, illumina_barcodes 
-        | "I8" -> 8, illumina_barcodes 
-        | "B2" -> 2, bioo_barcodes 
-        | "B3" -> 3, bioo_barcodes 
-        | "B4" -> 4, bioo_barcodes 
-        | "B5" -> 5, bioo_barcodes 
-        | "B6" -> 6, bioo_barcodes 
-        | "B7" -> 7, bioo_barcodes 
-        | "B8" -> 8, bioo_barcodes 
+        | "I2" -> 2, "I", illumina_barcodes 
+        | "I3" -> 3, "I", illumina_barcodes 
+        | "I4" -> 4, "I", illumina_barcodes 
+        | "I5" -> 5, "I", illumina_barcodes 
+        | "I6" -> 6, "I", illumina_barcodes 
+        | "I7" -> 7, "I", illumina_barcodes 
+        | "I8" -> 8, "I", illumina_barcodes 
+        | "B2" -> 2, "B", bioo_barcodes 
+        | "B3" -> 3, "B", bioo_barcodes 
+        | "B4" -> 4, "B", bioo_barcodes 
+        | "B5" -> 5, "B", bioo_barcodes 
+        | "B6" -> 6, "B", bioo_barcodes 
+        | "B7" -> 7, "B", bioo_barcodes 
+        | "B8" -> 8, "B", bioo_barcodes 
         | s ->
           failwith (sprintf  "Can't understand %S" s)
       ) in
@@ -97,10 +97,10 @@ let () =
 %s,1,PhiX,,,,Y,,,PhiX
 " flowcell in
   printf "%s" head;
-  List.iter config ~f:(fun (lane, barcodes) ->
+  List.iter config ~f:(fun (lane, letter, barcodes) ->
     List.iter barcodes ~f:(fun (id, barcode) ->
-      printf "%s,%d,I%02d%s,,%s,,N,,,I%02d%sLane%d\n"
-        flowcell lane id barcode barcode id barcode lane;
+      printf "%s,%d,%s%02d%s,,%s,,N,,,Lane%d\n"
+        flowcell lane letter id barcode barcode lane;
     );
   );
 
