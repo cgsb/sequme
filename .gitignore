@@ -1,3 +1,6 @@
 .ocamlinit
 _build/
 tmp/
+sequmedoc.docdir
+setup.data
+setup.log
