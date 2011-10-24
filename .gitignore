@@ -1,4 +1,3 @@
 .ocamlinit
 _build/
-bin/*.exe
 tmp/
