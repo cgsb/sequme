@@ -74,6 +74,7 @@ let () =
   let config =
     List.map (List.tl_exn (List.tl_exn (Array.to_list Sys.argv)))
       ~f:(function
+        | "I1" -> 1, "I", illumina_barcodes 
         | "I2" -> 2, "I", illumina_barcodes 
         | "I3" -> 3, "I", illumina_barcodes 
         | "I4" -> 4, "I", illumina_barcodes 
@@ -81,6 +82,7 @@ let () =
         | "I6" -> 6, "I", illumina_barcodes 
         | "I7" -> 7, "I", illumina_barcodes 
         | "I8" -> 8, "I", illumina_barcodes 
+        | "B1" -> 1, "B", bioo_barcodes 
         | "B2" -> 2, "B", bioo_barcodes 
         | "B3" -> 3, "B", bioo_barcodes 
         | "B4" -> 4, "B", bioo_barcodes 
@@ -88,14 +90,20 @@ let () =
         | "B6" -> 6, "B", bioo_barcodes 
         | "B7" -> 7, "B", bioo_barcodes 
         | "B8" -> 8, "B", bioo_barcodes 
+        | "N1" -> 1, "N", [ 0, "" ] 
+        | "N2" -> 2, "N", [ 0, "" ] 
+        | "N3" -> 3, "N", [ 0, "" ] 
+        | "N4" -> 4, "N", [ 0, "" ] 
+        | "N5" -> 5, "N", [ 0, "" ] 
+        | "N6" -> 6, "N", [ 0, "" ] 
+        | "N7" -> 7, "N", [ 0, "" ] 
+        | "N8" -> 8, "N", [ 0, "" ] 
         | s ->
           failwith (sprintf  "Can't understand %S" s)
       ) in
   let head = 
     sprintf
-      "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject
-%s,1,PhiX,,,,Y,,,PhiX
-" flowcell in
+      "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject\n" in
   printf "%s" head;
   List.iter config ~f:(fun (lane, letter, barcodes) ->
     List.iter barcodes ~f:(fun (id, barcode) ->
