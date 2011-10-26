@@ -3,7 +3,7 @@ Name:        sequme
 Version:     0.1
 Synopsis:    Bioinformatics Pipelines Library
 Authors:     Ashish Agarwal
-License:     LGPL-3.0 with OCaml linking exception
+License:     PROP
 Plugins:     META (0.2)
 BuildTools:  ocamlbuild
 
