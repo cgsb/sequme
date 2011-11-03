@@ -75,7 +75,7 @@ module Barcode = struct
 
   module IntMap = Map.IntMap
   module StringMap = Map.StringMap
-  module S = Set.StringSet
+  module S = Set.Make(String)
 
   let code_seqs_list =
     [
