@@ -34,12 +34,7 @@ let make_script ?(mail_options=[]) ?(user_list=[]) ?resource_list ?job_name
     mail_options = List.unique mail_options;
     user_list;
     resource_list;
-    job_name = (match job_name with
-      | None -> None
-      | Some x ->
-          if String.length x < 16 then Some x 
-          else Error (sprintf "%s: job name must be <= 15 characters" x) |> raise
-    );
+    job_name;
     priority;
     stdout_path;
     stderr_path;
