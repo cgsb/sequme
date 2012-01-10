@@ -11,6 +11,7 @@ let mail_option_to_char = function
   | JobEnded -> 'e'
 
 type script = {
+  shell: string;
   mail_options : mail_option list;
   user_list : string list;
   resource_list : string option;
@@ -24,13 +25,15 @@ type script = {
   commands : string list;
 }
 
-let make_script ?(mail_options=[]) ?(user_list=[]) ?resource_list ?job_name
+let make_script ?(shell="/bin/bash")
+    ?(mail_options=[]) ?(user_list=[]) ?resource_list ?job_name
     ?priority
     ?stdout_path ?stderr_path ?(export_qsub_env=false)
     ?rerunable ?queue
     commands
     =
   {
+    shell;
     mail_options = List.unique mail_options;
     user_list;
     resource_list;
@@ -49,6 +52,7 @@ let script_to_string x =
   let s opt x = sprintf "#PBS %s %s\n" opt x in
   let i opt x = sprintf "#PBS %s %d\n" opt x in
   let header = String.concat "" [
+    sprintf "#!%s\n" x.shell;
     (match x.mail_options with
       | [] -> ""
       | x ->
