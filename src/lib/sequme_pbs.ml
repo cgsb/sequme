@@ -20,13 +20,14 @@ type script = {
   stderr_path : string option;
   export_qsub_env : bool;
   rerunable : bool option;
+  queue: string option;
   commands : string list;
 }
 
 let make_script ?(mail_options=[]) ?(user_list=[]) ?resource_list ?job_name
     ?priority
     ?stdout_path ?stderr_path ?(export_qsub_env=false)
-    ?rerunable
+    ?rerunable ?queue
     commands
     =
   {
@@ -44,6 +45,7 @@ let make_script ?(mail_options=[]) ?(user_list=[]) ?resource_list ?job_name
     stderr_path;
     export_qsub_env;
     rerunable;
+    queue;
     commands
   }
 
@@ -72,6 +74,7 @@ let script_to_string x =
     (match x.stdout_path with None -> "" | Some x -> s "-o" x);
     (match x.stderr_path with None -> "" | Some x -> s "-e" x);
     (match x.job_name with None -> "" | Some x -> s "-N" x);
+    (match x.queue with None -> "" | Some q -> s "-q" q);
   ]
   in
   header ^ "\n" ^ (String.concat "\n" x.commands)
