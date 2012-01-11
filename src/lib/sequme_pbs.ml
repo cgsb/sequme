@@ -76,7 +76,7 @@ let script_to_string x =
     (match x.queue with None -> "" | Some q -> s "-q" q);
   ]
   in
-  header ^ "\n" ^ (String.concat "\n" x.commands)
+  header ^ "\n" ^ (String.concat "\n" x.commands) ^ "\n"
 
 let script_to_file script ?mode ?perm file : unit =
   let cout = match mode,perm with
