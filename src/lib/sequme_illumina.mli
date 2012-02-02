@@ -1,5 +1,29 @@
 (** Illumina specific features. *)
 
+(** Tiles are sub-sections of flowcells. *)
+module Tile : sig
+  exception Error of string
+
+  type surface = Top | Bottom
+
+  type t = private {
+    surface : surface;
+    swath : int; (** 1, 2, or 3 *)
+    tile_num : int; (** 1 - 99, but usually 1 - 8 *)
+  }
+
+  val of_string_exn : string -> t
+    (** E.g. [of_string_exn "2304"] parses to  
+        - surface = Bottom
+        - swath = 3
+        - tile_num = 4
+    *)
+
+  val to_string : t -> string
+    (** Inverse of [of_string_exn]. *)
+
+end
+
 (** Features specific to Illumina FASTQ files. Meant to be used in
     conjunction with the {!Biocaml.Fastq} module. *)
 module Fastq : sig

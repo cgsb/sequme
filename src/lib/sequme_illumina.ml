@@ -18,6 +18,47 @@ let control_of_string = function
   | x -> failwith (sprintf "control must be Y or N but is %s" x)
 
 
+
+module Tile = struct
+  exception Error of string
+  type surface = Top | Bottom
+  type t = {surface:surface; swath:int; tile_num:int;}
+
+  let of_string_exn s =
+    if String.length s <> 4
+      || not (String.enum s |> Enum.for_all ~f:Char.is_digit)
+    then
+      Error (sprintf "invalid tile %s" s) |> raise
+    else
+      let surface = match s.[0] with
+        | '1' -> Top
+        | '2' -> Bottom
+        | x -> Error (sprintf "invalid surface %c" x) |> raise
+      in
+      let swath = match s.[1] with
+        | '1' -> 1
+        | '2' -> 2
+        | '3' -> 3
+        | x -> Error (sprintf "invalid swath %c" x) |> raise
+      in
+      let tile_num =
+        let s = String.right s 2 in
+        let x = int_of_string s in
+        if x <= 0 then
+          Error (sprintf "invalid tile number %s" s) |> raise
+        else
+          x
+      in
+      {surface; swath; tile_num}
+
+  let to_string t =
+    sprintf "%c%d%02d"
+      (match t.surface with Top -> '1' | Bottom -> '2')
+      t.swath
+      t.tile_num
+
+end
+
 module Fastq = struct
   exception Error of string
 

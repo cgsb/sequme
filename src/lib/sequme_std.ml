@@ -26,6 +26,11 @@ module String = struct
   let split_exn a b = BatString.split a b
 end
 
+module Char = struct
+  include Char
+  include BatChar
+end
+
 module Array = struct
   include Array 
   include BatArray 
