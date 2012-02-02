@@ -67,7 +67,7 @@ module Fastq = struct
     run_number : int;
     flowcell_id : string;
     lane : int;
-    tile : int;
+    tile : Tile.t;
     x_pos : int;
     y_pos : int;
     read : int;
@@ -96,7 +96,7 @@ module Fastq = struct
             run_number = i "run_number" run_number;
             flowcell_id;
             lane = i "lane" lane;
-            tile = i "tile" tile;
+            tile = Tile.of_string_exn tile;
             x_pos = i "x_pos" x_pos;
             y_pos = i "y_pos" y_pos;
             read = i "read" read;

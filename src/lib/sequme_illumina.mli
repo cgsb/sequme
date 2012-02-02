@@ -34,7 +34,7 @@ module Fastq : sig
     run_number : int;
     flowcell_id : string;
     lane : int;
-    tile : int;
+    tile : Tile.t;
     x_pos : int;
     y_pos : int;
     read : int;
