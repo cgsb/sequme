@@ -22,6 +22,7 @@ Library sequme
            , Sequme_pbs        
            , Sequme_read_type  
            , Sequme_tophat     
+           , Sequme_syscall
   
 Document sequmedoc
   Title:      Documentation of the Sequme library

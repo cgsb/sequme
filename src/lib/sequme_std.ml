@@ -54,6 +54,16 @@ end
 module Map = BatMap
 module Set = BatSet
 
+module Buffer = struct
+  include Buffer
+  include BatBuffer
+end
+
+module Unix = struct
+  include Unix
+  include BatUnix
+end
+
 module Option = struct
   module M = struct
     include BatOption
@@ -135,4 +145,3 @@ module Util = struct
 
 
 end
-
