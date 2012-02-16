@@ -4,3 +4,12 @@ tmp/
 sequmedoc.docdir
 setup.data
 setup.log
+_tags
+myocamlbuild.ml
+setup.ml
+configure
+Makefile
+src/lib/META
+src/lib/sequme.mllib
+src/lib/sequmedoc.odocl
+
