@@ -4,7 +4,7 @@ Version:     0.1-dev
 Synopsis:    Bioinformatics Pipelines Library
 Authors:     Ashish Agarwal
 License:     PROP
-Plugins:     META (0.2)
+Plugins:     META (0.2), DevFiles (0.2)
 BuildTools:  ocamlbuild
 
 Library sequme
