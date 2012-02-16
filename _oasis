@@ -1,6 +1,6 @@
 OASISFormat: 0.2
 Name:        sequme
-Version:     0.1
+Version:     0.1-dev
 Synopsis:    Bioinformatics Pipelines Library
 Authors:     Ashish Agarwal
 License:     PROP
