@@ -26,3 +26,13 @@ let syscall ?path cmd =
   );
   let exit_status = Unix.close_process_full (ic, oc, ec) in
   contents buf1, contents buf2, exit_status
+
+
+let check_exit_status ?process x =
+  let p = match process with None -> "" | Some p -> p ^ ": " in
+  Unix.(match x with
+    | WEXITED 0 -> ()
+    | WEXITED x -> failwith (sprintf "%sterminated with exit code (%d)" p x)
+    | WSIGNALED x -> failwith (sprintf "%skilled by signal %d" p x)
+    | WSTOPPED x -> failwith (sprintf "%sstopped by signal %d" p x)
+  )

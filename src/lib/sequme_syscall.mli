@@ -13,3 +13,9 @@ val syscall : ?path:string -> string -> (string * string * Unix.process_status)
                which [syscall] is called.
 
   *)
+
+val check_exit_status : ?process:string -> Unix.process_status -> unit
+  (** [check_exit_status x] returns unit if [x = Unix.WEXITED 0], and
+      otherwise raises Failure with a descriptive message. If
+      provided, the name of the [process] that returned [x] is used in
+      the error messages. *)
