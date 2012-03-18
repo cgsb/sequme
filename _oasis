@@ -23,6 +23,7 @@ Library sequme
            , Sequme_read_type  
            , Sequme_tophat     
            , Sequme_syscall
+           , Sequme_postgres
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
