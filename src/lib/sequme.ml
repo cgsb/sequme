@@ -9,3 +9,4 @@ module Read_type  = Sequme_read_type
 module TopHat     = Sequme_tophat
 module Syscall    = Sequme_syscall
 module Postgres   = Sequme_postgres
+module Pgpass     = Sequme_pgpass

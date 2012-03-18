@@ -24,6 +24,7 @@ Library sequme
            , Sequme_tophat     
            , Sequme_syscall
            , Sequme_postgres
+           , Sequme_pgpass
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
