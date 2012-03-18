@@ -21,3 +21,8 @@ type record = private {
 type t = record list
 
 val of_file_exn : string -> t
+
+val find : hostname:string -> port:int -> database:string -> username:string -> t -> record option
+  (** [find hostname port database username t] returns the first
+      record in [t] matching the given database parameters, or None of
+      no match is found. *)

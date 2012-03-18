@@ -76,3 +76,20 @@ let of_file_exn file =
   file |> File.lines_of
   |> Enum.mapi ~f:(fun i -> of_line file (i+1))
   |> List.of_enum
+
+let (=*) (x:'a) (y : 'a star) = match y with
+  | Star -> true
+  | Val y -> x = y
+
+let is_match h p d u {hostname;port;database;username} =
+  (h =* hostname) && (p =* port) && (d =* database) && (u =* username)
+
+let find ~hostname ~port ~database ~username t =
+  let rec loop = function
+    | [] -> None
+    | record::t ->
+        if is_match hostname port database username record
+        then Some record
+        else loop t
+  in
+  loop t
