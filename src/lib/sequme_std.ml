@@ -55,7 +55,6 @@ module Map = BatMap
 module Set = BatSet
 
 module Buffer = struct
-  include Buffer
   include BatBuffer
 end
 
