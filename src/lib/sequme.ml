@@ -10,3 +10,4 @@ module TopHat     = Sequme_tophat
 module Syscall    = Sequme_syscall
 module Postgres   = Sequme_postgres
 module Pgpass     = Sequme_pgpass
+module Flow_monad = Sequme_flow_monad
