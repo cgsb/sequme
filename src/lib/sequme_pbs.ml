@@ -88,7 +88,7 @@ let script_to_file script ?mode ?perm file : unit =
   finally (fun () -> close_out cout) (fun cout -> fprintf cout "%s\n" (script_to_string script)) cout
 
 
-let make_and_run ?(resource_list="nodes=1:ppn=8,mem=14gb") ~job_name outdir commands =
+let make_and_run ?(resource_list="nodes=1:ppn=8,mem=14gb") ~job_name ?(export_qsub_env=true) outdir commands =
   let pbs_stdout_file = Filename.concat outdir "stdout.txt" in
   let pbs_stderr_file = Filename.concat outdir "stderr.txt" in
   let pbs_script_file = Filename.concat outdir "script.pbs" in
@@ -102,7 +102,7 @@ let make_and_run ?(resource_list="nodes=1:ppn=8,mem=14gb") ~job_name outdir comm
     ~job_name
     ~stdout_path:pbs_stdout_file
     ~stderr_path:pbs_stderr_file
-    ~export_qsub_env:true
+    ~export_qsub_env
     ~rerunable:false
     commands
   in
