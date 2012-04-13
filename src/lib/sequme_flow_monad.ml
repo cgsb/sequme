@@ -1,29 +1,30 @@
 (** The I/O configuration module type is the main parameter of [Hitscore.Make].  *)
 module type IO_CONFIGURATION = sig
 
-  (** The threading and I/O (for now) follows PG'OCaml's conventions:
-    {[
-    module type THREAD = sig
-    type 'a t
-    val return : 'a -> 'a t
-    val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
-    val fail : exn -> 'a t
-    
-    type in_channel
-    type out_channel
-    val open_connection : Unix.sockaddr -> (in_channel * out_channel) t
-    val output_char : out_channel -> char -> unit t
-    val output_binary_int : out_channel -> int -> unit t
-    val output_string : out_channel -> string -> unit t
-    val flush : out_channel -> unit t
-    val input_char : in_channel -> char t
-    val input_binary_int : in_channel -> int t
-    val really_input : in_channel -> string -> int -> int -> unit t
-    val close_in : in_channel -> unit t
-    end
-    ]} *)
-  include PGOCaml_generic.THREAD
 
+  (** {4 I/O Compatible with PG'OCaml} *)
+  (** The threading and I/O (for now) follows PG'OCaml's conventions: *)
+
+  (** The IO monad *)
+  type 'a t
+  val return : 'a -> 'a t
+  val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+  val fail : exn -> 'a t
+    
+  type in_channel
+  type out_channel
+  val open_connection : Unix.sockaddr -> (in_channel * out_channel) t
+  val output_char : out_channel -> char -> unit t
+  val output_binary_int : out_channel -> int -> unit t
+  val output_string : out_channel -> string -> unit t
+  val flush : out_channel -> unit t
+  val input_char : in_channel -> char t
+  val input_binary_int : in_channel -> int t
+  val really_input : in_channel -> string -> int -> int -> unit t
+  val close_in : in_channel -> unit t
+
+(** {4 Additional Requirements} *)
+    
   (** Report errors (as text, temporary).  *)
   val log_error: string -> unit t
 
@@ -51,7 +52,24 @@ open Core.Std
     weaker typing). *)
 module Preemptive_threading_config : 
   IO_CONFIGURATION with type 'a t = 'a = struct
-    include PGOCaml.Simple_thread
+
+    type 'a t = 'a
+    let return x = x
+    let (>>=) v f =  f v
+    let fail = raise
+
+    type in_channel = Pervasives.in_channel
+    type out_channel = Pervasives.out_channel
+    let open_connection = Unix.open_connection
+    let output_char = output_char
+    let output_binary_int = output_binary_int
+    let output_string = output_string
+    let flush = flush
+    let input_char = input_char
+    let input_binary_int = input_binary_int
+    let really_input = really_input
+    let close_in = close_in
+
     let map_sequential l ~f = List.map ~f l
     let log_error = eprintf "%s"
     let catch f e =
