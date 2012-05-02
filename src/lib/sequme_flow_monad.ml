@@ -75,11 +75,12 @@ module Preemptive_threading_config :
     let catch f e =
       try f () with ex -> e ex
 
-    exception Wrong_status of Unix.Process_status.t
+    exception Wrong_status of [ `Exit_non_zero of int | `Signal of Signal.t ]
     let system_command s =
-      let status = Unix.system s in
-      if (Unix.Process_status.is_ok status) then ()
-      else raise (Wrong_status status)
+      begin match Unix.system s with
+      | Ok () -> ()
+      | Error e -> raise (Wrong_status e)
+      end
 
     let write_string_to_file content file =
       Out_channel.(with_file file ~f:(fun o ->
@@ -110,7 +111,8 @@ module type FLOW_MONAD = sig
       val ignore : ('a, 'b) monad -> (unit, 'b) monad
       ]}
   *)
-  include Monad.S2 with type ('a, 'b) monad = ('a, 'b) Result.t IO.t
+  include Monad.S2 with type ('a, 'b) t = ('a, 'b) Result.t IO.t
+  type ('a, 'b) monad = ('a, 'b) t
     
   (** [catch_io f x] uses [IO_configuration.catch] to catch all the
       exceptions in the result. *)
@@ -174,6 +176,7 @@ module Make (IO_configuration : IO_CONFIGURATION):
 
     module IO = IO_configuration
  
+    type ('a, 'b) t = ('a, 'b) Result.t IO_configuration.t
     include  Monad.Make2(struct 
       type ('a, 'b) t = ('a, 'b) Result.t IO_configuration.t
 
@@ -183,6 +186,8 @@ module Make (IO_configuration : IO_CONFIGURATION):
           | Error e -> IO_configuration.return (Error e)
           | Ok o -> f o)
     end)
+
+    type ('a, 'b) monad = ('a, 'b) t
 
     let error e = IO_configuration.return (Error e)
     
