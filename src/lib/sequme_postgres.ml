@@ -12,6 +12,14 @@ let exists_db db =
   else if stderr = err_str then false
   else failwith (sprintf "Sequme_postgres.exists_db returned\n  stdout: %s\n  stderr: %s\n" stdout stderr)
 
+let exec dbh query =
+  PGOCaml.(
+    prepare dbh ~query ();
+    let ans = execute dbh ~params:[] () in
+    close_statement dbh ();
+    ans
+  )
+
 module Val = struct
   type t = Int of int | Now
 

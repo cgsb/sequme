@@ -13,6 +13,10 @@ val exists_db : string -> bool
       this in production code.
   *)
 
+(** [exec dbh query] will execute [query] against the database handle
+    [dbh]. *)
+val exec : 'a PGOCaml.t -> string -> PGOCaml.row list
+
 (** Values *)
 module Val : sig
 
