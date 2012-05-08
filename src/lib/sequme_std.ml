@@ -4,6 +4,8 @@
 include BatPervasives
 include BatPrintf
 
+module Sexp = Sexplib.Sexp
+
 module List = struct 
   include List
   include ListLabels
