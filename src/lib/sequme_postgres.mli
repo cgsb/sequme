@@ -1,7 +1,8 @@
 (** PostgreSQL support. The abstract syntax tree defined here meets
     only our specific needs. It is not a comprehensive representation
-    of the PostgreSQL language, and the API allows creation of invalid
-    SQL statements. *)
+    of the PostgreSQL language, and the API makes only minimal effort
+    to enforce SQL's type system.
+*)
 
 val exists_db : string -> bool
   (** [exists_db db] returns true if database [db] exists. Return
@@ -16,35 +17,60 @@ val exists_db : string -> bool
 (** Values *)
 module Val : sig
 
+  (** OCaml representation of a SQL value depends on the column
+      modifiers used. An ['a rep] embodies the different representations
+      needed. *)
+  type 'a rep =
+      | Scalar of 'a
+      | ScalarOpt of 'a option
+      | Array of 'a array
+      | ArrayOpt of 'a array option
+
+  type bytea = string
+      (** Byte arrays in OCaml are normal strings. *)
+
   type t =
-      | Int of int
-      | Now
+      | SmallInt of int rep
+      | Integer of int32 rep
+      | BigInt of int64 rep
+      | Float4 of float rep
+      | Float8 of float rep
+      | Char of string rep * int (** string value, plus its fixed length *)
+      | VarChar of string rep * int (** string value, plus its max length *)
+      | Text of string rep
+      | Boolean of bool rep
+      | Bytea of bytea rep
+      | Date of Core.Std.Date.t rep
+      | Timestamptz of Core.Std.Time.t rep (** time with time zone *)
+      | Interval of Core.Span.t rep
+
+  (** Human readable string representation of given value. No
+      guarantee this can be parsed back into a {!t}. *)
+  val to_string : t -> string
 
 end
 
 (** Column types *)
 module Column : sig
 
-  type base_type = 
+  type typ = 
       | SmallInt (** signed 2-byte integer *)
       | Integer (** signed 4-byte integer *)
       | BigInt (** signed 8-byte integer *)
       | Float4 (** single precision 4-byte float, aka real *)
       | Float8 (** double precision 8-byte float *)
-      | Numeric of int * int
+      | Numeric of int * int (** exact decimal with given precision (total count of significant digits ) and scale (count of decimal digits in the fractional part) *)
       | Char of int (** fixed-length string of length n *)
-      | VarChar of int (** variable length string up to n bits *)
+      | VarChar of int (** variable length string up to length n *)
       | Text (** variable length string with no maximum length *)
-      | Serial (** auto-incrementing 4-byte integer *)
-      | BigSerial (** auto-incrementing 8-byte integer *)
       | Boolean
       | Bytea (** byte array *)
       | Money
       | Bit of int (** fixed-length bit string of length n *)
       | VarBit of int (** variable length bit string up to n bits *)
       | Date (** year, month, day *)
-      | Time (** time of day *)
-      | TimeStamp (** date and time *)
+      | Time (** time *)
+      | Timestamp (** date and time *)
       | Interval (** time span *)
       | Cidr (** IPv4 or IPv6 network address *)
       | Inet (** IPv4 or IPv6 host address *)
@@ -62,63 +88,43 @@ module Column : sig
       | Uuid
       | Xml
 
-
-  type typ =
-      | Scalar of base_type
-      | Array of base_type
-
-  (** Column constraints. Not called "constraint" because that is an
-      OCaml keyword. *)
+  (** Column modifiers (also called constraints). *)
   type modifier =
+      | Array
       | NotNull
       | Unique
       | PrimaryKey
       | Default of Val.t
-      | WithTimeZone
+      | DefaultNow (** only valid with date and time types *)
+      | WithTimeZone (** only valid with time types *)
+      | Serial (** only valid with {!Integer} or {!BigInt} *)
       | References of string * string (** foreign key reference to (table,column) *)
 
-  (** A column declaration consists of a column name, column type, and
-      a list of constraints. *)
-  type decl = string * typ * modifier list
+  (** A column declaration. *)
+  type decl = private {
+    name : string; (** column name *)
+    typ : typ; (** column type *)
+    modifiers : modifier list; (** column modifiers *)
+  }
 
-  val smallint : typ
-  val integer : typ
-  val bigint : typ
-  val float4 : typ
-  val real : typ
-  val float8 : typ
-  val double_precision : typ
-  val numeric : int -> int -> typ
-  val char : int -> typ
-  val varchar : int -> typ
-  val text : typ
-  val serial : typ
-  val bigserial : typ
-  val boolean : typ
-  val bytea : typ
-  val money : typ
-  val bit : int -> typ
-  val varbit : int -> typ
-  val date : typ
-  val time : typ
-  val timestamp : typ
-  val interval : typ
-  val cidr : typ
-  val inet : typ
-  val macaddr : typ
-  val box : typ
-  val cirlce : typ
-  val line : typ
-  val point : typ
-  val lseg : typ
-  val path : typ
-  val point : typ
-  val polygon : typ
-  val tsquery : typ
-  val tsvector : typ
-  val txid_snapshot : typ
-  val uuid : typ
-  val xml : typ
+  (** Make a [decl]. Duplicate modifiers are simply discarded.
+      
+      @raise Failure if given parameters do not correspond to a valid
+      declaration.  *)
+  val make_decl : name:string -> typ:typ -> modifiers:(modifier list) -> decl
+
+  (** SQL string for given [typ]. *)
+  val typ_to_string : typ -> string
+
+  (** SQL string for given [modifier]. 
+
+      @raise Failure if given {!Array} or {!Serial}, neither of which
+      are printed within modifier section of SQL syntax. *)
+  val modifier_to_string : modifier -> string
+
+  (** SQL string representation for a column declaration, especially
+      as used within CREATE TABLE statements. *)
+  val decl_to_string : decl -> string
 
 end
 
@@ -136,7 +142,7 @@ module Table : sig
       [temporary] is false.
 
       @raise Failure if given parameters do not represent a valid
-      table. (WARNING: currently no checks are being done.)
+      table.
   *)
   val make : name:string -> ?temporary:bool -> columns:(Column.decl list) -> unit -> decl
 
