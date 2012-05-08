@@ -4,6 +4,8 @@
     to enforce SQL's type system.
 *)
 
+type dbh = (string,bool) Hashtbl.t PGOCaml.t
+
 val exists_db : string -> bool
   (** [exists_db db] returns true if database [db] exists. Return
       value depends on other PostgreSQL environment variables such as
@@ -16,7 +18,7 @@ val exists_db : string -> bool
 
 (** [exec dbh query] will execute [query] against the database handle
     [dbh]. *)
-val exec : 'a PGOCaml.t -> string -> PGOCaml.row list
+val exec : dbh -> string -> PGOCaml.row list
 
 (** Values *)
 module Val : sig
@@ -130,6 +132,11 @@ module Column : sig
       as used within CREATE TABLE statements. *)
   val decl_to_string : decl -> string
 
+  (** [parse_val decl x] parses [x] assuming it comes from column with
+      given [decl] (decl.name is immaterial). A value of None for [x]
+      should be given to indicate a SQL null value. *)
+  val parse_val : decl -> string option -> Val.t
+
 end
 
 (** Tables *)
@@ -153,5 +160,17 @@ module Table : sig
   (** Given a table declaration, return the PostgreSQL statement to
       create it. *)
   val create_table_stmt : decl -> string
+
+  (** [get_column_decl tbl col] returns the column declaration in
+      [tbl] for the column named [col]. Return None if there is no
+      such column. *)
+  val get_column_decl : decl -> string -> Column.decl option
+
+end
+
+(** SELECT queries. *)
+module Select : sig
+
+  val select : dbh -> Table.decl -> string list -> Val.t list list
 
 end

@@ -1,6 +1,8 @@
 open Sequme_std
 module Syscall = Sequme_syscall
 
+type dbh = (string,bool) Hashtbl.t PGOCaml.t
+
 let exists_db db =
   let err_str = sprintf "psql: FATAL:  database \"%s\" does not exist" db in
   let cmd = sprintf "psql -t -c \"SELECT COUNT(1) FROM pg_catalog.pg_database WHERE datname = '%s'\"" db in
@@ -215,6 +217,77 @@ module Column = struct
     );
     decl
 
+  let parse_val decl x =
+    let typ = decl.typ in
+    let modifiers = decl.modifiers in
+    let is_nullable = not (List.mem NotNull modifiers || List.mem Serial modifiers) in
+    let is_array = List.mem Array modifiers in
+    match is_nullable, is_array with
+      | false,false -> begin
+          let x = match x with
+            | Some x -> x
+            | None -> failwith "unexpected None for non-nullable value"
+          in
+          match typ with
+            | SmallInt -> Val.(SmallInt (Scalar (PGOCaml.int_of_string x)))
+            | Integer -> Val.(Integer (Scalar (PGOCaml.int32_of_string x)))
+            | BigInt -> Val.(BigInt (Scalar (PGOCaml.int64_of_string x)))
+            | Float4 -> Val.(Float4 (Scalar (PGOCaml.float_of_string x)))
+            | Float8 -> Val.(Float8 (Scalar (PGOCaml.float_of_string x)))
+            | Char n ->
+                if String.length x = n
+                then Val.(Char (Scalar x, n))
+                else failwith (sprintf "%s not of length %d" x n)
+            | VarChar n ->
+                if String.length x <= n
+                then Val.(VarChar (Scalar x, n))
+                else failwith (sprintf "%s length exceeds %d" x n)
+            | Text -> Val.(Text (Scalar x))
+            | Boolean -> Val.(Boolean (Scalar (PGOCaml.bool_of_string x)))
+            | Bytea -> Val.(Bytea (Scalar (PGOCaml.bytea_of_string x)))
+            | Date | Timestamp -> failwith "Not yet supported"
+            | _ -> failwith "not supported"
+        end
+      | true,false ->
+          begin match x with
+            | None -> begin match typ with
+                | SmallInt -> Val.(SmallInt (ScalarOpt None))
+                | Integer -> Val.(Integer (ScalarOpt None))
+                | BigInt -> Val.(BigInt (ScalarOpt None))
+                | Float4 -> Val.(Float4 (ScalarOpt None))
+                | Float8 -> Val.(Float8 (ScalarOpt None))
+                | Char n -> Val.(Char (ScalarOpt None, n))
+                | VarChar n -> Val.(VarChar (ScalarOpt None, n))
+                | Text -> Val.(Text (ScalarOpt None))
+                | Boolean -> Val.(Boolean (ScalarOpt None))
+                | Bytea -> Val.(Bytea (ScalarOpt None))
+                | Date -> Val.(Date (ScalarOpt None))
+                | Timestamp -> Val.(Date (ScalarOpt None))
+                | _ -> failwith "not supported"
+              end
+            | Some x -> begin match typ with
+                | SmallInt -> Val.(SmallInt (ScalarOpt (Some (PGOCaml.int_of_string x))))
+                | Integer -> Val.(Integer (ScalarOpt (Some (PGOCaml.int32_of_string x))))
+                | BigInt -> Val.(BigInt (ScalarOpt (Some (PGOCaml.int64_of_string x))))
+                | Float4 -> Val.(Float4 (ScalarOpt (Some (PGOCaml.float_of_string x))))
+                | Float8 -> Val.(Float8 (ScalarOpt (Some (PGOCaml.float_of_string x))))
+                | Char n ->
+                    if String.length x = n
+                    then Val.(Char (ScalarOpt (Some x), n))
+                    else failwith (sprintf "%s not of length %d" x n)
+                | VarChar n ->
+                    if String.length x <= n
+                    then Val.(VarChar (ScalarOpt (Some x), n))
+                    else failwith (sprintf "%s length exceeds %d" x n)
+                | Text -> Val.(Text (ScalarOpt (Some x)))
+                | Boolean -> Val.(Boolean (ScalarOpt (Some (PGOCaml.bool_of_string x))))
+                | Bytea -> Val.(Bytea (ScalarOpt (Some (PGOCaml.bytea_of_string x))))
+                | Date | Timestamp -> failwith "Not yet supported"
+                | _ -> failwith "not supported"
+              end
+          end
+      | _,true -> failwith "parsing array values not yet supported"
+
 end
 
 module Table = struct
@@ -240,5 +313,24 @@ module Table = struct
       (if x.temporary then "TEMP " else "")
       x.name
       (x.columns |> List.map ~f:Column.decl_to_string |> String.concat ~sep:", ")
+
+  let get_column_decl table column_name =
+    List.find table.columns ~f:(fun x -> x.Column.name = column_name)
+
+end
+
+module Select = struct
+
+  let select dbh table columns =
+    let n = List.length columns in
+    let col_decls = List.map columns ~f:(Table.get_column_decl table |- Option.get) in
+    let parse_row (row : string option list) =
+      if List.length row <> n then
+        failwith (sprintf "expected %d values per row but got %d" n (List.length row))
+      ;
+      List.map2 col_decls row ~f:Column.parse_val
+    in
+    let query = sprintf "SELECT %s FROM %s" (String.concat ~sep:"," columns) table.Table.name in
+    List.map ~f:parse_row (exec dbh query)
 
 end
