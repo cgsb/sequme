@@ -192,7 +192,6 @@ module Column = struct
     let decl_str = decl_to_string decl in
     let typ_str = typ_to_string typ in
     List.iter modifiers ~f:(fun modifier ->
-      let mod_str = modifier_to_string modifier in
       match modifier with
         | Array | NotNull
         | Unique | PrimaryKey
@@ -200,11 +199,15 @@ module Column = struct
         | Default _ -> () (* TODO: check that default value is of correct type *)
         | DefaultNow -> (match typ with
             | Date | Time | Timestamp -> ()
-            | _ -> failwith (sprintf "%s invalid for non-time column type %s" mod_str typ_str)
+            | _ -> failwith (sprintf "%s invalid for non-time column type %s"
+                                (modifier_to_string modifier) typ_str
+              )
           )
         | WithTimeZone -> (match typ with
             | Time | Timestamp -> ()
-            | _ -> failwith (sprintf "%s invalid for non-time column type %s" mod_str typ_str)
+            | _ -> failwith (sprintf "%s invalid for non-time column type %s"
+                                (modifier_to_string modifier) typ_str
+              )
           )
         | Serial ->
             (match typ with
