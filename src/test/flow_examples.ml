@@ -10,13 +10,14 @@ module Test = struct
   let tests =
     (ref []:
        (string,
+        unit -> 
         (unit, [ `io_exn of Core.Std.Exn.t ]) Sequme_flow.t) Core.Std.List.Assoc.t ref)
   let add n m =
     tests := (n, m) :: !tests
 
   let run_flow m =
     try
-      begin match Lwt_main.run m with
+      begin match Lwt_main.run (m ()) with
       | Ok () -> log "End: Ok"
       | Error (`io_exn e) -> log "End: Error: %s" (Exn.to_string e)
       end
@@ -37,12 +38,25 @@ end
 
 
 let () =
-  Test.add "basic"
-    (wrap_io Lwt_unix.sleep 1.
-     >>= fun () ->
-     Test.log "Started !";
-     return ())
-
+  Test.add "basic" (fun () ->
+    Test.log "Started !";
+    return ())
+    
+let () =
+  let on_item d =
+    Test.log "%d before sleep" d;
+    wrap_io Lwt_unix.sleep 0.3
+    >>= fun () ->
+    Test.log "%d after sleep" d;
+    return ()
+  in
+  let items = [ 11;22;33;44; ] in
+  Test.add "lists" (fun () ->
+    map_sequential items on_item
+    >>= fun _ ->
+    map_concurrent items on_item
+    >>= fun _ ->
+    return ())
 
 let () =
   match Array.to_list Sys.argv with

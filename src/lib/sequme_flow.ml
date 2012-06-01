@@ -34,3 +34,44 @@ let wrap_io ?(on_exn=fun e -> `io_exn e) f x =
   double_bind caught
     ~ok:return
     ~error:(fun exn -> error (on_exn exn)) 
+
+
+let map_sequential:
+    'a list -> f:('a -> ('c, 'b) t) -> ('c list, 'b) t
+  = fun (type b) (l: 'a list) ~(f: 'a -> ('c, b) t) ->
+  let module Map_sequential = struct
+    exception Local_exception of b
+    let ms l f =
+      bind_on_error 
+        (catch_io
+           (Lwt_list.map_s (fun o ->
+             Lwt.bind (f o) (function
+             | Ok oo -> Lwt.return oo
+             | Error ee -> Lwt.fail (Local_exception ee))))
+           l)
+        (function Local_exception e -> error e 
+        | e ->
+          failwithf "Expecting only Local_exception, but got: %s"
+            (Exn.to_string e) ())
+  end in
+  Map_sequential.ms l f
+
+let map_concurrent:
+    'a list -> f:('a -> ('c, 'b) t) -> ('c list, 'b) t
+  = fun (type b) (l: 'a list) ~(f: 'a -> ('c, b) t) ->
+  let module Map_concurrent = struct
+    exception Local_exception of b
+    let ms l f =
+      bind_on_error 
+        (catch_io
+           (Lwt_list.map_p (fun o ->
+             Lwt.bind (f o) (function
+             | Ok oo -> Lwt.return oo
+             | Error ee -> Lwt.fail (Local_exception ee))))
+           l)
+        (function Local_exception e -> error e 
+        | e ->
+          failwithf "Expecting only Local_exception, but got: %s"
+            (Exn.to_string e) ())
+  end in
+  Map_concurrent.ms l f
