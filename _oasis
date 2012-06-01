@@ -10,7 +10,7 @@ BuildTools:  ocamlbuild
 Library sequme
   Path: src/lib
   FindlibName: sequme
-  BuildDepends: threads, batteries, core, pgocaml, biocaml
+  BuildDepends: threads, batteries, core, pgocaml, biocaml, lwt.ssl
   Install: true
   Modules: Sequme
            , Sequme_std
@@ -26,6 +26,7 @@ Library sequme
            , Sequme_postgres
            , Sequme_pgpass
            , Sequme_flow_monad
+           , Sequme_flow
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
