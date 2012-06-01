@@ -37,3 +37,10 @@ Document sequmedoc
   XOCamlbuildPath:      src/lib/
   XOCamlbuildLibraries: sequme
 
+Executable test_sequme_flow
+  Path: src/test/
+  MainIs: flow_examples.ml
+  BuildDepends: threads, core, sequme
+  CompiledObject: best
+  Install: false
+
