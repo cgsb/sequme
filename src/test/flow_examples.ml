@@ -59,6 +59,58 @@ let () =
     return ())
 
 let () =
+  let open Sequme_flow_sys in
+  let test_syscmd s =
+    let spiced = sprintf "%s >> /tmp/flow_examples.log 2>&1" s in
+    Test.log "  Running: %S" spiced;
+    double_bind (system_command spiced)
+      ~ok:(fun () -> Test.log "  -> Success"; return ())
+      ~error:(function
+      | `io_exn e ->
+        Test.log " -> IO Exn: %s" (Exn.to_string e); return ()
+      | `system_command_error (s, err) ->
+        Test.log "  -> system_command_error: %s"
+          (match err with
+          | `exn e -> Exn.to_string e
+          | `exited n -> sprintf "exited with %d" n
+          | `signaled n -> sprintf "signaled with %d" n
+          | `stopped n -> sprintf "stopped: %d" n);
+        return ())
+  in
+  let test_write_file file ~content =
+    Test.log "  Writing %s (%d bytes)" file (String.length content);
+    double_bind (write_file file ~content)
+      ~ok:(fun () -> Test.log "  -> OK"; return ())
+      ~error:(function
+      | `io_exn e -> Test.log " -> IO Exn: %s" (Exn.to_string e); return ()
+      | `write_file_error (_, e) ->
+        Test.log "  -> write_file_error: %s" (Exn.to_string e); return ())
+  in
+  let test_read_file file =
+    Test.log "  Reading %s" file;
+    double_bind (read_file file)
+      ~ok:(fun s -> Test.log "  -> read %d bytes" (String.length s); return ())
+      ~error:(function
+      | `io_exn e -> Test.log " -> IO Exn: %s" (Exn.to_string e); return ()
+      | `read_file_error (_, e) ->
+        Test.log "  -> read_file_error: %s" (Exn.to_string e); return ())
+  in
+  Test.add "flow_sys" (fun () ->
+    test_syscmd "ls" >>= fun () ->
+    test_syscmd "command_not_found__" >>= fun () ->
+    test_syscmd "cat /etc/shadow" >>= fun () ->
+    test_read_file "/tmp/flow_examples.log" >>= fun () ->
+    test_write_file "/tmp/flow_examples.log" ~content:"" >>= fun () ->
+    test_read_file "/tmp/flow_examples.log" >>= fun () ->
+    test_read_file "/etc/passwd" >>= fun () ->
+    test_read_file "/etc/shadow" >>= fun () ->
+    test_write_file "/etc/passwd" ~content:"" >>= fun () ->
+    test_write_file "/etc/shadow" ~content:"" >>= fun () ->
+    test_read_file "/tmplskjdgfldkjgjfdsgfdsghf123" >>= fun () ->
+    test_write_file "/tmpls/kjdgfldkjgjfdsgfdsghf123" ~content:"" >>= fun () ->
+    return ())
+
+let () =
   match Array.to_list Sys.argv with
   | [] | _ :: [] -> Test.log "nothing to do"
   | exec :: ["-all"] -> Test.run_all_tests ()
