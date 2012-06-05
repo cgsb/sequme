@@ -35,6 +35,16 @@ let wrap_io ?(on_exn=fun e -> `io_exn e) f x =
     ~ok:return
     ~error:(fun exn -> error (on_exn exn)) 
 
+let map_option: 'a option -> f:('a -> ('b, 'error) t) -> ('b option, 'error) t
+  = fun o ~f ->
+    begin match o with
+    | None -> return None
+    | Some s ->
+      f s
+      >>= fun g ->
+      return (Some g)
+    end
+    
 
 let map_sequential:
     'a list -> f:('a -> ('c, 'b) t) -> ('c list, 'b) t

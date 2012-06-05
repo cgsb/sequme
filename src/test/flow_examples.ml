@@ -59,6 +59,17 @@ let () =
     return ())
 
 let () =
+  Test.add "options" (fun () ->
+    let show = function
+      | None -> Test.log "  It's None"
+      | Some s -> Test.log "  It's Some %S" s in
+    let f s = return (String.uppercase s) in
+    map_option None ~f >>| show >>= fun () ->
+    map_option (Some "thing") ~f >>| show >>= fun () ->
+    return ())
+
+    
+let () =
   let open Sequme_flow_sys in
   let test_syscmd s =
     let spiced = sprintf "%s >> /tmp/flow_examples.log 2>&1" s in
