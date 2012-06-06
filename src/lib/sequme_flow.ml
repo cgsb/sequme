@@ -45,6 +45,7 @@ let map_option: 'a option -> f:('a -> ('b, 'error) t) -> ('b option, 'error) t
       return (Some g)
     end
     
+let of_result r = Lwt.return r 
 
 let map_sequential:
     'a list -> f:('a -> ('c, 'b) t) -> ('c list, 'b) t
