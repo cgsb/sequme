@@ -28,6 +28,7 @@ Library sequme
            , Sequme_flow_monad
            , Sequme_flow
            , Sequme_flow_sys
+           , Sequme_flow_io
   
 Document sequmedoc
   Title:      Documentation of the Sequme library

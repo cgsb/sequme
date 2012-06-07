@@ -122,7 +122,7 @@ let () =
     return ())
 
 let () =
-  let open Sequme_flow_sys in
+  let open Sequme_flow_io in
   let substring s m =
     if String.length s <= m then s else String.sub s 0 m in
   let pad s m = sprintf "%s%s" s (String.make (m - String.length s) '0') in
