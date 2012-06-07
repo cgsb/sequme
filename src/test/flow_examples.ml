@@ -44,18 +44,27 @@ let () =
     
 let () =
   let on_item d =
-    Test.log "%d before sleep" d;
-    wrap_io Lwt_unix.sleep 0.3
-    >>= fun () ->
-    Test.log "%d after sleep" d;
-    return ()
+    if d = 42 then
+      error (`io_exn (Failure "don't want 42"))
+    else (
+      Test.log "%d before sleep" d;
+      wrap_io Lwt_unix.sleep 0.3
+      >>= fun () ->
+      Test.log "%d after sleep" d;
+      return ())
   in
   let items = [ 11;22;33;44; ] in
   Test.add "lists" (fun () ->
     map_sequential items on_item
     >>= fun _ ->
     map_concurrent items on_item
-    >>= fun _ ->
+    >>= fun (ok, bad) ->
+    Test.log "  map_concurrent: ok: %d, bad: %d"
+      (List.length ok) (List.length bad);
+    map_concurrent (42 :: items) on_item
+    >>= fun (ok, bad) ->
+    Test.log "  map_concurrent with 42: ok: %d, bad: %d"
+      (List.length ok) (List.length bad);
     return ())
 
 let () =
@@ -138,21 +147,25 @@ let () =
       Test.log "  Message too long: %S" (substring s 20)
     end;
     return () in
-  let with_timeout m r =
-    Lwt.pick [m ;
+  let monitor_with_timeout ?(name="no-name") m r =
+    Lwt.on_cancel m (fun () -> Test.log "  %s cancelled" name);
+    Lwt.pick [m;
               wrap_io Lwt_unix.sleep 1.
               >>= fun () ->
-              Test.log "  TIMEOUT!";
+              Test.log "  %s timeouted" name;
               return r] 
   in 
   let read_and_write ic oc s =
     map_concurrent [`write s; `read] (function
     | `write s ->
+      Test.log "  Writing %S" (substring s 20);
       bin_send oc s
     | `read ->
-      with_timeout (bin_recv ic) "NOTHING"
-      >>= fun s ->
-      Test.log "  Recv: %S" (substring s 20);
+      Test.log "  Reading %S" (substring s 20);
+      monitor_with_timeout ~name:(sprintf "recv %s" (substring s 20))
+        (bin_recv ic) "NOTHING"
+      >>= fun read ->
+      Test.log "  Recv: waiting: %S, read: %S" (substring s 20) (substring read 20);
       return ())
     >>= fun _ ->
     return ()
@@ -166,8 +179,11 @@ let () =
     bind_on_error (read_and_write ic oc (pad "good string " 10_000_000)) print_error
     >>= fun () ->
     bind_on_error (read_and_write ic oc (pad "bad string " 100_000_000)) print_error
+    >>= fun () ->
+    bind_on_error (read_and_write ic oc "one more") print_error
   )
     
+
 let () =
   match Array.to_list Sys.argv with
   | [] | _ :: [] -> Test.log "nothing to do"
