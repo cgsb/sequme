@@ -242,3 +242,100 @@ module Table = struct
       (x.columns |> List.map ~f:Column.decl_to_string |> String.concat ~sep:", ")
 
 end
+  
+module Bytea = struct
+
+  open Core.Std
+    
+  let is_first_oct_digit c = c >= '0' && c <= '3'
+  let is_oct_digit c = c >= '0' && c <= '7'
+  let oct_val c = Char.to_int c - 0x30
+
+  let is_hex_digit = function '0'..'9' | 'a'..'f' | 'A'..'F' -> true | _ -> false
+
+  let hex_val c =
+    let offset = match c with
+      | '0'..'9' -> 0x30
+      | 'a'..'f' -> 0x57
+      | 'A'..'F' -> 0x37
+      | _	       -> failwith "hex_val"
+    in Char.to_int c - offset
+
+  (* Deserialiser for the new 'hex' format introduced in PostgreSQL 9.0. *)
+  let bytea_of_string_hex str =
+    let len = String.length str in
+    let buf = Buffer.create ((len-2)/2) in
+    let i = ref 3 in
+    while !i < len do
+      let hi_nibble = str.[!i-1] in
+      let lo_nibble = str.[!i] in
+      i := !i+2;
+      if is_hex_digit hi_nibble && is_hex_digit lo_nibble
+      then begin
+        let byte = ((hex_val hi_nibble) lsl 4) + (hex_val lo_nibble) in
+        Buffer.add_char buf (Char.of_int_exn byte)
+      end
+    done;
+    Buffer.contents buf
+
+  (* Deserialiser for the old 'escape' format used in PostgreSQL < 9.0. *)
+  let bytea_of_string_escape str =
+    let len = String.length str in
+    let buf = Buffer.create len in
+    let i = ref 0 in
+    while !i < len do
+      let c = str.[!i] in
+      if c = '\\' then (
+        incr i;
+        if !i < len && str.[!i] = '\\' then (
+	  Buffer.add_char buf '\\';
+	  incr i
+        ) else if !i+2 < len &&
+	    is_first_oct_digit str.[!i] &&
+	    is_oct_digit str.[!i+1] &&
+	    is_oct_digit str.[!i+2] then (
+	      let byte = oct_val str.[!i] in
+	      incr i;
+	      let byte = (byte lsl 3) + oct_val str.[!i] in
+	      incr i;
+	      let byte = (byte lsl 3) + oct_val str.[!i] in
+	      incr i;
+	      Buffer.add_char buf (Char.of_int_exn byte)
+	    )
+      ) else (
+        incr i;
+        Buffer.add_char buf c
+      )
+    done;
+    Buffer.contents buf
+
+  (* PostgreSQL 9.0 introduced the new 'hex' format for binary data.
+     We must therefore check whether the data begins with a magic sequence
+     that identifies this new format and if so call the appropriate parser;
+     if it doesn't, then we invoke the parser for the old 'escape' format.
+  *)
+  let bytea_of_string str =
+    if String.is_prefix str ~prefix:"\\x"
+    then bytea_of_string_hex str
+    else bytea_of_string_escape str
+
+  let string_of_bytea b =
+    let len = String.length b in
+    let buf = Buffer.create (len * 2) in
+    for i = 0 to len - 1 do
+      let c = b.[i] in
+      let cc = Char.to_int c in
+      if  cc < 0x20 || cc > 0x7e || c = '\'' || c = '"' || c = '\\'
+      then
+        Buffer.add_string buf (sprintf "\\\\%03o" cc) (* non-print -> \ooo *)
+      else 
+        Buffer.add_char buf c (* printable *)
+    done;
+    sprintf "E'%s'::bytea" (Buffer.contents buf)
+
+      
+  let to_db_input = string_of_bytea
+  let of_db_output = bytea_of_string
+
+end
+

@@ -155,3 +155,15 @@ module Table : sig
   val create_table_stmt : decl -> string
 
 end
+
+(** Escape any string to the byte-array PostgreSQL type. *)
+module Bytea: sig
+
+  (** Encode any string with Postgresql 8.2 'Escape' format. *)
+  val to_db_input: string -> string
+
+  (** Decode the output of a query (from either Postgresal 8.2 'Escape'
+      format or from Postgresql 9.0 'Hex' format). *)
+  val of_db_output: string -> string
+
+end
