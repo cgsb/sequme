@@ -68,7 +68,7 @@ let () =
     map_option (Some "thing") ~f >>| show >>= fun () ->
     return ())
 
-    
+
 let () =
   let open Sequme_flow_sys in
   let test_syscmd s =
@@ -121,6 +121,53 @@ let () =
     test_write_file "/tmpls/kjdgfldkjgjfdsgfdsghf123" ~content:"" >>= fun () ->
     return ())
 
+let () =
+  let open Sequme_flow_sys in
+  let substring s m =
+    if String.length s <= m then s else String.sub s 0 m in
+  let pad s m = sprintf "%s%s" s (String.make (m - String.length s) '0') in
+  let print_error err =
+    begin match err with
+    | `io_exn e -> Test.log "  I/O Exn: %s" (Exn.to_string e) 
+    | `bin_recv (`error e) -> Test.log "  Unknown recv error: %s" (Exn.to_string e)
+    | `bin_recv (`wrong_length (c, s)) ->
+      Test.log "  Wrong-length recv error: %d Vs %d (%S)"
+        c (String.length s) (substring s 20)
+    | `bin_send (`error e) -> Test.log "  Unknown send error: %s" (Exn.to_string e)
+    | `bin_send (`message_too_long s) ->
+      Test.log "  Message too long: %S" (substring s 20)
+    end;
+    return () in
+  let with_timeout m r =
+    Lwt.pick [m ;
+              wrap_io Lwt_unix.sleep 1.
+              >>= fun () ->
+              Test.log "  TIMEOUT!";
+              return r] 
+  in 
+  let read_and_write ic oc s =
+    map_concurrent [`write s; `read] (function
+    | `write s ->
+      bin_send oc s
+    | `read ->
+      with_timeout (bin_recv ic) "NOTHING"
+      >>= fun s ->
+      Test.log "  Recv: %S" (substring s 20);
+      return ())
+    >>= fun _ ->
+    return ()
+  in
+  Test.add "bin_send/recv" (fun () ->
+    let ic, oc = Lwt_io.pipe ~buffer_size:4242 () in
+    bind_on_error (read_and_write ic oc "booh") print_error
+    >>= fun () ->
+    bind_on_error (read_and_write ic oc "") print_error
+    >>= fun () ->
+    bind_on_error (read_and_write ic oc (pad "good string " 10_000_000)) print_error
+    >>= fun () ->
+    bind_on_error (read_and_write ic oc (pad "bad string " 100_000_000)) print_error
+  )
+    
 let () =
   match Array.to_list Sys.argv with
   | [] | _ :: [] -> Test.log "nothing to do"
