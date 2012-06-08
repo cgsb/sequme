@@ -2,17 +2,18 @@ open Core.Std
 open Sequme_flow
   
 let  write_file file ~content =
-  wrap_io ~on_exn:(fun e -> `write_file_error (file, e))
-    Lwt_io.(fun () -> with_file ~mode:output file (fun i -> write i content)) ()
+  catch_io () ~f:Lwt_io.(fun () ->
+    with_file ~mode:output file (fun i -> write i content))
+  |! bind_on_error ~f:(fun e -> error (`write_file_error (file, e)))
 
 let read_file file =
-  wrap_io ~on_exn:(fun e -> `read_file_error (file, e))
-    Lwt_io.(fun () -> with_file ~mode:input file (fun i -> read i)) ()
+  catch_io () ~f:Lwt_io.(fun () ->
+    with_file ~mode:input file (fun i -> read i))
+  |! bind_on_error ~f:(fun e -> error (`read_file_error (file, e)))
 
 let system_command s =
-  wrap_io
-    ~on_exn:(fun exn -> `system_command_error (s, `exn exn))
-    Lwt_unix.system s
+  bind_on_error ~f:(fun e -> error (`system_command_error (s, `exn e)))
+    (catch_io () ~f:Lwt_io.(fun () -> Lwt_unix.system s))
   >>= fun ret ->
   begin match ret with
   | Lwt_unix.WEXITED 0 -> return ()

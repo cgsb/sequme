@@ -1,0 +1,21 @@
+(** Basic system access functions. *)
+
+open Core.Std
+open Sequme_flow
+
+(** Write a string to a file. *)
+val write_file: string -> content:string ->
+  (unit, [> `write_file_error of (string * exn)]) t
+
+(** Read a string from a file. *)
+val read_file: string -> 
+  (string, [> `read_file_error of (string * exn)]) t
+    
+(** Make [/bin/sh] execute a command. *)
+val system_command: string ->
+  (unit,
+   [> `system_command_error of string *
+       [> `exited of int | `exn of exn | `signaled of int | `stopped of int ]
+   ]) t
+
+    
