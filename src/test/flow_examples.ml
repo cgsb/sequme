@@ -147,11 +147,11 @@ let () =
   let print_error err =
     begin match err with
     | `io_exn e -> Test.log "  I/O Exn: %s" (Exn.to_string e) 
-    | `bin_recv (`error e) -> Test.log "  Unknown recv error: %s" (Exn.to_string e)
+    | `bin_recv (`exn e) -> Test.log "  Unknown recv error: %s" (Exn.to_string e)
     | `bin_recv (`wrong_length (c, s)) ->
       Test.log "  Wrong-length recv error: %d Vs %d (%S)"
         c (String.length s) (substring s 20)
-    | `bin_send (`error e) -> Test.log "  Unknown send error: %s" (Exn.to_string e)
+    | `bin_send (`exn e) -> Test.log "  Unknown send error: %s" (Exn.to_string e)
     | `bin_send (`message_too_long s) ->
       Test.log "  Message too long: %S" (substring s 20)
     end;

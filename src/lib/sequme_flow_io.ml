@@ -1,3 +1,4 @@
+open Core.Std
 open Sequme_flow
 
 let max_message_length = 10_000_000
@@ -6,15 +7,15 @@ let bin_send oc msg =
   if String.length msg > max_message_length then
     error (`bin_send (`message_too_long msg))
   else
-    wrap_io ~on_exn:(fun e -> `bin_send (`error e))
-      Lwt.(fun s ->
+    catch_io msg
+      ~f:Lwt.(fun s ->
         Lwt_io.BE.write_int oc (String.length s) >>= fun () ->
         Lwt_io.write oc s)
-      msg
+    |! bind_on_error ~f:(fun e -> error (`bin_send (`exn e)))
 
 let bin_recv ic =
-  wrap_io ~on_exn:(fun e -> `bin_recv (`error e))
-    Lwt.(fun () ->
+  let io =
+    catch_io () ~f:Lwt.(fun () ->
       Lwt_io.BE.read_int ic >>= fun c ->
       begin if max_message_length >= c && c > 0 then (
         let s = String.make c 'B' in
@@ -24,8 +25,8 @@ let bin_recv ic =
           return ""
       end
       >>= fun s ->
-      return (c,s)
-    ) ()
+      return (c,s)) in
+  bind_on_error io (fun e -> error (`bin_recv (`exn e)))
   >>= fun (c, s) ->
   if String.length s <> c then
     error (`bin_recv (`wrong_length (c, s)))
