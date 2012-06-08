@@ -48,7 +48,7 @@ let map_option: 'a option -> f:('a -> ('b, 'error) t) -> ('b option, 'error) t
 let of_result r = Lwt.return r 
 
 (** Returns the list of results if all succeed, or the first error. *)
-let map_sequential:
+let while_sequential:
     'a list -> f:('a -> ('c, 'b) t) -> ('c list, 'b) t
   = fun (type b) (l: 'a list) ~(f: 'a -> ('c, b) t) ->
   let module Map_sequential = struct
@@ -68,7 +68,7 @@ let map_sequential:
   end in
   Map_sequential.ms l f
 
-let map_concurrent:
+let for_concurrent:
     'a list -> f:('a -> ('c, 'b) t) -> ('c list * 'b list, 'd) t
   = fun l ~f ->
     let open Lwt in

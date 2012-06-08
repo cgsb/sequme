@@ -55,13 +55,13 @@ let () =
   in
   let items = [ 11;22;33;44; ] in
   Test.add "lists" (fun () ->
-    map_sequential items on_item
+    while_sequential items on_item
     >>= fun _ ->
-    map_concurrent items on_item
+    for_concurrent items on_item
     >>= fun (ok, bad) ->
     Test.log "  map_concurrent: ok: %d, bad: %d"
       (List.length ok) (List.length bad);
-    map_concurrent (42 :: items) on_item
+    for_concurrent (42 :: items) on_item
     >>= fun (ok, bad) ->
     Test.log "  map_concurrent with 42: ok: %d, bad: %d"
       (List.length ok) (List.length bad);
@@ -156,7 +156,7 @@ let () =
               return r] 
   in 
   let read_and_write ic oc s =
-    map_concurrent [`write s; `read] (function
+    for_concurrent [`write s; `read] (function
     | `write s ->
       Test.log "  Writing %S" (substring s 20);
       bin_send oc s
