@@ -1,8 +1,8 @@
-(** The Flow-monad core module *)
+(** The Flow-monad core module. *)
 
 open Core.Std
 
-(** The flow-monad type. *)
+(** The flow-monad “embeds” {i Core}'s [Result]s into [Lwt] threads. *)
 type ('good, 'bad) t = ('good, 'bad) Result.t Lwt.t
 
 val bind : ('a, 'd) t -> ('a -> ('b, 'd) t) -> ('b, 'd) t
