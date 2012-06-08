@@ -41,30 +41,38 @@ let () =
   Test.add "basic" (fun () ->
     Test.log "Started !";
     return ())
+
     
+(* ./flow_examples.native lists
+
+*) 
 let () =
   let on_item d =
     if d = 42 then
       error (`io_exn (Failure "don't want 42"))
     else (
-      Test.log "%d before sleep" d;
+      Test.log "    %d before sleep" d;
       wrap_io Lwt_unix.sleep 0.3
       >>= fun () ->
-      Test.log "%d after sleep" d;
+      Test.log "    %d after sleep" d;
       return ())
   in
   let items = [ 11;22;33;44; ] in
   Test.add "lists" (fun () ->
-    while_sequential items on_item
-    >>= fun _ ->
-    for_concurrent items on_item
-    >>= fun (ok, bad) ->
-    Test.log "  map_concurrent: ok: %d, bad: %d"
-      (List.length ok) (List.length bad);
-    for_concurrent (42 :: items) on_item
-    >>= fun (ok, bad) ->
-    Test.log "  map_concurrent with 42: ok: %d, bad: %d"
-      (List.length ok) (List.length bad);
+    Test.log "  while_sequential all good";
+    while_sequential items on_item >>= fun (_ : unit list) ->
+    Test.log "  for_sequential all good";
+    for_sequential items on_item >>= fun (ok, bad) ->
+    Test.log "  ok: %d, bad: %d" (List.length ok) (List.length bad);
+    Test.log "  for_sequential one bad";
+    for_sequential (42 :: items) on_item >>= fun (ok, bad) ->
+    Test.log "  ok: %d, bad: %d" (List.length ok) (List.length bad);
+    Test.log "  for_concurrent all good";
+    for_concurrent items on_item >>= fun (ok, bad) ->
+    Test.log "  ok: %d, bad: %d" (List.length ok) (List.length bad);
+    Test.log "  for_concurrent one bad, 4 good";
+    for_concurrent (42 :: items) on_item >>= fun (ok, bad) ->
+    Test.log "  ok: %d, bad: %d" (List.length ok) (List.length bad);
     return ())
 
 let () =
