@@ -27,6 +27,7 @@ Library sequme
            , Sequme_pgpass
            , Sequme_flow_monad
            , Sequme_flow
+           , Sequme_flow_list
            , Sequme_flow_sys
            , Sequme_flow_io
   

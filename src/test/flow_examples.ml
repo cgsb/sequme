@@ -58,6 +58,7 @@ let () =
       return ())
   in
   let items = [ 11;22;33;44; ] in
+  let open Sequme_flow_list in
   Test.add "lists" (fun () ->
     Test.log "  while_sequential all good";
     while_sequential items on_item >>= fun (_ : unit list) ->
@@ -164,7 +165,7 @@ let () =
               return r] 
   in 
   let read_and_write ic oc s =
-    for_concurrent [`write s; `read] (function
+    Sequme_flow_list.for_concurrent [`write s; `read] (function
     | `write s ->
       Test.log "  Writing %S" (substring s 20);
       bin_send oc s
