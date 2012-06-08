@@ -157,11 +157,19 @@ let () =
     end;
     return () in
   let monitor_with_timeout ?(name="no-name") m r =
-    Lwt.on_cancel m (fun () -> Test.log "  %s cancelled" name);
-    Lwt.pick [m;
+    begin match Lwt.state m with
+    | Lwt.Sleep -> Test.log "  [%s] is sleeping" name
+    | _ -> Test.log "  [%s] is not sleeping" name
+    end;
+    Lwt.on_cancel m (fun () -> Test.log "  [%s] cancelled" name);
+    Lwt.pick [double_bind m
+                 ~ok:(fun r ->
+                   Test.log "  [%s] finished on time" name;
+                   return r)
+                 ~error:(fun e -> print_error e >>= fun () -> error e);
               wrap_io Lwt_unix.sleep 1.
               >>= fun () ->
-              Test.log "  %s timeouted" name;
+              Test.log "  [%s] timeouted" name;
               return r] 
   in 
   let read_and_write ic oc s =
