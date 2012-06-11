@@ -1,3 +1,8 @@
+(** The Old Functorial Flow-monad
+    @deprecated
+    Use [Sequme_flow]
+*)
+
 (** The I/O configuration module type is the main parameter of [Hitscore.Make].  *)
 module type IO_CONFIGURATION = sig
 
