@@ -6,11 +6,13 @@ Authors:     Ashish Agarwal
 License:     PROP
 Plugins:     META (0.2), DevFiles (0.2)
 BuildTools:  ocamlbuild
+PostConfCommand: mv myocamlbuild.ml /tmp/sequme_ocamlbuild.ml && \
+                 cat /tmp/sequme_ocamlbuild.ml ocamlbuild_ocamldoc.ml > myocamlbuild.ml
 
 Library sequme
   Path: src/lib
   FindlibName: sequme
-  BuildDepends: threads, batteries, core, pgocaml, biocaml
+  BuildDepends: threads, batteries, core, pgocaml, biocaml, lwt.ssl
   Install: true
   Modules: Sequme
            , Sequme_std
@@ -26,6 +28,10 @@ Library sequme
            , Sequme_postgres
            , Sequme_pgpass
            , Sequme_flow_monad
+           , Sequme_flow
+           , Sequme_flow_list
+           , Sequme_flow_sys
+           , Sequme_flow_io
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
@@ -35,4 +41,11 @@ Document sequmedoc
   BuildTools+:          ocamldoc
   XOCamlbuildPath:      src/lib/
   XOCamlbuildLibraries: sequme
+
+Executable test_sequme_flow
+  Path: src/test/
+  MainIs: flow_examples.ml
+  BuildDepends: threads, core, sequme
+  CompiledObject: best
+  Install: false
 
