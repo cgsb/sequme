@@ -6,7 +6,10 @@ open Sequme_flow_sys
 let _master_filename = "sequme_flow_certificate_authority_master.sexp"
 
 type certificate = {
-  cert_prefix: string;
+  cert_prefix: string; (* The 'name' for the .crt, .key, etc. files *)
+  cert_cn: string; (* The CN in the cert, the actual format is fixed:
+                      {Server,Client}<index-nb> name
+                      => the name is recomputable from the CN *)
   mutable cert_history:
     [`created of Time.t | `revoked of Time.t] list;
 } with sexp
@@ -258,10 +261,11 @@ let escape_for_filename =
 let make_server_certificate t ~name =
   let cert_prefix =
     sprintf "Server_%s_%08d" (escape_for_filename name) t.server_index in
-  t.server_index <- t.server_index + 1;
   let cert_prefix_path = Filename.concat t.path cert_prefix in
+  let cert_cn = sprintf "Server%08d %s" t.server_index name in
+  t.server_index <- t.server_index + 1;
   system_command (String.concat ~sep:" " [
-    sprintf "export CN=%S &&" cert_prefix;
+    sprintf "export CN=%S &&" cert_cn;
     sprintf "%s req -batch" t.openssl_command;
     sprintf "-config %S" (openssl_config_path t);
     "-nodes -new -extensions server";
@@ -278,7 +282,7 @@ let make_server_certificate t ~name =
       cert_prefix_path cert_prefix_path cert_prefix_path;
   ])
   >>= fun () ->
-  let new_cert = { cert_prefix; cert_history = [`created Time.(now ())] } in
+  let new_cert = { cert_prefix; cert_cn; cert_history = [`created Time.(now ())] } in
   begin match String.Map.find t.servers name with
   | None ->
     let data = { name ; history = [new_cert] } in
