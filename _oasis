@@ -53,3 +53,9 @@ Executable test_sequme_flow
   CompiledObject: best
   Install: false
 
+Executable flow_ca
+  Path: src/test/
+  MainIs: flow_ca.ml
+  BuildDepends: sequme
+  CompiledObject: best
+  Install: false
