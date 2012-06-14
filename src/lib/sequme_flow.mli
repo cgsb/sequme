@@ -35,6 +35,10 @@ val catch_io : f:('b -> 'a Lwt.t) -> 'b -> ('a, exn) t
 val wrap_io: ?on_exn:(exn -> ([> `io_exn of exn ] as 'c)) ->
   ('a -> 'b Lwt.t) -> 'a -> ('b, 'c) t
 
+(** Put any non-I/O function
+    in a flow-monad and do “something” on the error.  *)
+val wrap: on_exn:(exn -> 'c) -> f:('a -> 'b) -> 'a -> ('b, 'c) t
+  
 (** [map_option] allows to put options {i inside} the t. *)
 val map_option: 'a option -> f:('a -> ('c, 'b) t) -> ('c option, 'b) t 
 
