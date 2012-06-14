@@ -44,6 +44,20 @@ let server path name =
   | Some (crt, key) -> log "And:\n%s\n%s" crt key
   end
 
+let server_info path name =
+  Flow_CA.load path >>= fun ca ->
+  begin match Flow_CA.server_history ca ~name with
+  | None -> log "Server %S not found." name
+  | Some l ->
+    log "Server %S:\n%s" name
+      (l |! List.rev |! List.map ~f:(fun (cn, cert_hist) ->
+        sprintf "Cert %s:\n%s" cn
+          (cert_hist |! List.rev |! List.map ~f:(function
+            | `created t -> sprintf "  created %s" Time.(to_string t)
+            | `revoked t -> sprintf "  revoked %s" Time.(to_string t))
+          |! String.concat ~sep:"\n"))
+      |! String.concat ~sep:"\n")
+  end
   
 let main () =
   begin match Array.to_list Sys.argv with
@@ -54,6 +68,7 @@ let main () =
          flow_ca server <path> <common-name>"
   | exec :: "establish" :: path :: [] -> do_establishment path  
   | exec :: "server" :: path :: name :: [] -> server path name
+  | exec :: "server-info" :: path :: name :: [] -> server_info path name
   | exec :: l ->
     log "Don't know what to do with [%s]"
       (l |! List.map ~f:(sprintf "%S") |! String.concat ~sep:", ")
