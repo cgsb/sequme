@@ -10,7 +10,6 @@ val create :
   ?dn_city:string ->
   ?dn_org:string ->
   ?dn_orgunit:string ->
-  ?dn_cn:string ->
   ?dn_email:string ->
   ?rsa_key_size:int ->
   ?default_validity:int ->
@@ -37,3 +36,25 @@ val load :
   (t, [> `parse_config_error of exn
       | `read_file_error of string * exn ]) Sequme_flow.t
 (** Load a certificate-authority from a given path. *)
+
+    
+val make_server_certificate : t -> name:string ->
+  (unit,
+   [> `system_command_error of
+       string *
+         [> `exited of int
+         | `exn of exn
+         | `signaled of int
+         | `stopped of int ]
+   | `write_file_error of string * exn ]) Sequme_flow.t
+(** Create a certificate for a server of common name [name].
+    If [name] is already used a new certificate is created for this
+    “person”, if not a new entity is created.
+*)
+
+val server_crtkey_path: t -> name:string -> string option
+(** Get the path to the 'crtkey' file of the server [name]. *)
+
+val server_certificate_and_key_paths: t -> name:string -> (string * string) option
+(** Get the paths to the 'crt' and 'key' files of the server [name]. *)
+
