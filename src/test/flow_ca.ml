@@ -34,15 +34,13 @@ let do_establishment path =
 let server path name =
   Flow_CA.load path >>= fun ca ->
   Flow_CA.make_server_certificate ca ~name >>= fun () ->
-  begin match Flow_CA.server_crtkey_path ca ~name with
-  | None -> failwithf "Cannot find the certificate just created"
-  | Some p -> log "Created: %s" p
-  end
+  Flow_CA.server_crtkey_path ca ~name |! of_result
+  >>= fun p ->
+  log "Created: %s" p
   >>= fun () ->
-  begin match Flow_CA.server_certificate_and_key_paths ca ~name with
-  | None -> failwithf "Cannot find the certificate just created"
-  | Some (crt, key) -> log "And:\n%s\n%s" crt key
-  end
+  Flow_CA.server_certificate_and_key_paths ca ~name |! of_result
+  >>= fun (crt, key) ->
+  log "And:\n%s\n%s" crt key
 
 let server_info path name =
   Flow_CA.load path >>= fun ca ->
@@ -82,6 +80,10 @@ let () =
   | Error e ->
     begin match e with
     | `io_exn e -> eprintf "End with ERROR: %s\n" (Exn.to_string e)
+    | `server_not_found s ->
+      eprintf "End with ERROR: Server_Not_Found: %S" s
+    | `certificate_revoked (n, t) ->
+      eprintf "End with ERROR: Certificate_Revoked: %S on %s" n Time.(to_string t)
     | `system_command_error (cmd, status) ->
       eprintf "End with ERROR: SYS-COMMAND %S failed\n" (cmd)
     | `parse_config_error e ->

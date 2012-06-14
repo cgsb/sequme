@@ -1,5 +1,6 @@
 (** Certificate authority (for now, wrap [openssl]). *)
-
+open Core.Std
+  
 type t
 
 
@@ -52,10 +53,16 @@ val make_server_certificate : t -> name:string ->
     “person”, if not a new entity is created.
 *)
 
-val server_crtkey_path: t -> name:string -> string option
+val server_crtkey_path : t -> name:string ->
+  (string,
+   [> `certificate_revoked of string * Time.t
+   | `server_not_found of string ]) Result.t
 (** Get the path to the 'crtkey' file of the server [name]. *)
 
-val server_certificate_and_key_paths: t -> name:string -> (string * string) option
+val server_certificate_and_key_paths: t -> name:string ->
+  (string * string,
+   [> `certificate_revoked of string * Time.t
+   | `server_not_found of string ]) Result.t
 (** Get the paths to the 'crt' and 'key' files of the server [name]. *)
 
 val server_history: t -> name: string ->

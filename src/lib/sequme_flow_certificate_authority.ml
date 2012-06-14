@@ -5,17 +5,20 @@ open Sequme_flow_sys
 
 let _master_filename = "sequme_flow_certificate_authority_master.sexp"
 
+type certificate_status = [`created of Time.t | `revoked of Time.t] with sexp
+
 type certificate = {
   cert_prefix: string; (* The 'name' for the .crt, .key, etc. files *)
   cert_cn: string; (* The CN in the cert, the actual format is fixed:
                       {Server,Client}<index-nb> name
                       => the name is recomputable from the CN *)
-  mutable cert_history:
-    [`created of Time.t | `revoked of Time.t] list;
+  mutable cert_status: certificate_status;
+  mutable cert_history: certificate_status list;
 } with sexp
   
 type certification = {
   name: string;
+  mutable certificate: certificate;
   mutable history : certificate list;
 } with sexp
   
@@ -282,13 +285,17 @@ let make_server_certificate t ~name =
       cert_prefix_path cert_prefix_path cert_prefix_path;
   ])
   >>= fun () ->
-  let new_cert = { cert_prefix; cert_cn; cert_history = [`created Time.(now ())] } in
+  let new_cert =
+    { cert_prefix; cert_cn; cert_history = [];
+      cert_status = `created Time.(now ()) } in
   begin match String.Map.find t.servers name with
   | None ->
-    let data = { name ; history = [new_cert] } in
+    let data = { name ; certificate = new_cert;
+                 history = [] } in
     t.servers <- String.Map.add t.servers ~key:name ~data;
   | Some certification ->
-    certification.history <- new_cert :: certification.history;
+    certification.history <- certification.certificate :: certification.history;
+    certification.certificate <- new_cert;
   end;
   save t
 
@@ -301,33 +308,36 @@ let make_server_certificate t ~name =
     cat "${CERTSDIR}/${1}.crt" "${CERTSDIR}/${1}.key" > "${CERTSDIR}/${1}.crtkey"
 *)
 
-let server_valid_certificate t ~name =
+let server_certificate t ~name =
   let open Option in
   String.Map.find t.servers name >>= fun certification ->
-  List.hd certification.history >>= fun current_certificate ->
-  List.hd current_certificate.cert_history >>= fun status ->
-  begin match status with
-  | `created _ -> return (current_certificate)
-  | `revoked _ -> None
+  return certification.certificate
+    
+let server_certificate_prefix t ~name =
+  begin match server_certificate t ~name with
+  | None -> Error (`server_not_found name)
+  | Some {cert_status = `created _; cert_prefix } ->
+    Ok cert_prefix
+  | Some {cert_status = `revoked t} ->
+    Error (`certificate_revoked (name, t))
   end
-  
+    
 let server_crtkey_path t ~name =
-  let open Option in
-  server_valid_certificate t ~name >>= fun current_certificate ->
-  return (Filename.concat t.path
-            (sprintf "%s.crtkey" current_certificate.cert_prefix))
+  let open Result in
+  server_certificate_prefix t ~name >>= fun prefix ->
+  return (Filename.concat t.path (sprintf "%s.crtkey" prefix))
     
 let server_certificate_and_key_paths t ~name =
-  let open Option in
-  server_valid_certificate t ~name >>= fun current_certificate ->
-  return (Filename.concat t.path
-            (sprintf "%s.crt" current_certificate.cert_prefix),
-          Filename.concat t.path
-            (sprintf "%s.key" current_certificate.cert_prefix))
+  let open Result in
+  server_certificate_prefix t ~name >>= fun prefix ->
+  return (Filename.concat t.path (sprintf "%s.crt" prefix),
+          Filename.concat t.path (sprintf "%s.key" prefix))
 
 let server_history t ~name =
   let open Option in
   String.Map.find t.servers name >>= fun certification ->
-  return (List.map certification.history (fun certificate ->
-    (certificate.cert_prefix, certificate.cert_history)))
+  return (List.map (certification.certificate :: certification.history)
+            (fun certificate ->
+              (certificate.cert_prefix,
+               certificate.cert_status :: certificate.cert_history)))
     
