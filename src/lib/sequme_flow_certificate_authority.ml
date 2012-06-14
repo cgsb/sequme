@@ -1,17 +1,234 @@
+open Core.Std
+open Sequme_flow
+open Sequme_flow_list
+open Sequme_flow_sys
 
+let _master_filename = "sequme_flow_certificate_authority_master.sexp"
 type t = {
 
+  openssl_command : string;
   path: string;
 
-}
+  (* DN values *)
+  dn_country: string;
+  dn_province: string;
+  dn_city: string;
+  dn_org: string;
+  dn_orgunit: string;
+  dn_cn: string;
+  dn_email: string;
 
-let create path =
+  rsa_key_size: int;
+
+  default_validity: int;
+
+  ca_filename_prefix: string;
+  ca_cn: string;
+
+} with sexp
+
+let create
+    ?(openssl_command="openssl")
+    ?(dn_country="US")
+    ?(dn_province="TX")
+    ?(dn_city="Austin")
+    ?(dn_org="Primus Ltd.")
+    ?(dn_orgunit="")
+    ?(dn_cn="")
+    ?(dn_email="")
+    ?(rsa_key_size = 4096)
+    ?(default_validity = 3650)
+
+    ?(ca_filename_prefix="sequme_flow_certificate_authority")
+    ?(ca_cn="Sequme_CA")
+
+    path =
   (* create necessary files *)
-  { path }
+  {
+    openssl_command;
+    dn_country;
+    dn_province;
+    dn_city;
+    dn_org;
+    dn_orgunit;
+    dn_cn;
+    dn_email;
+    rsa_key_size;
+    default_validity;
+    ca_filename_prefix;
+    ca_cn;
+    path
+  }
+
+let openssl_config_file_string t =
+  String.concat ~sep:"\n" [
+    "
+#
+# OpenSSL configuration for ssl-util.
+# Based on sample configuration shipped with OpenVPN.
+#
+";
+    sprintf "RANDFILE  = %s/_rand_file" t.path;
+    "
+openssl_conf           = openssl_init
+[ openssl_init ]
+oid_section            = new_oids
+engines                = engine_section
+[ new_oids ]
+[ engine_section ]
+[ ca ]
+default_ca             = CA_default
+[ CA_default ]";
+    sprintf "dir = %s" t.path;
+    "
+certs                  = $dir
+crl_dir                = $dir
+database               = $dir/index.txt
+new_certs_dir          = $dir";
+    sprintf "certificate = $dir/%s.crt" t.ca_filename_prefix;
+    "
+serial                 = $dir/serial
+crl                    = $dir/crl.pem";
+    sprintf "private_key            = $dir/%s.key" t.ca_filename_prefix;
+    "
+RANDFILE               = $dir/.rand
+x509_extensions        = usr_cert";
+    sprintf "default_days = %d" t.default_validity;
+    sprintf "default_crl_days = %d" t.default_validity;
+    "
+# IMPORTANT: The next must no longer be md5, if used with
+# Debian's OpenLDAP package being compiled against libgnutls.
+default_md             = sha1
+preserve               = no
+policy                 = policy_match
+
+[ policy_match ]
+
+countryName            = match
+stateOrProvinceName    = match
+organizationName       = match
+organizationalUnitName = optional
+commonName             = supplied
+emailAddress           = optional
+
+[ policy_anything ]
+
+countryName            = optional
+stateOrProvinceName    = optional
+localityName           = optional
+organizationName       = optional
+organizationalUnitName = optional
+commonName             = supplied
+emailAddress           = optional
+
+[ req ]
+";
+    sprintf "default_bits = %d" t.rsa_key_size;
+    "
+default_keyfile        = privkey.pem
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+x509_extensions        = v3_ca
+string_mask            = nombstr
+
+[ req_distinguished_name ]
+
+countryName            = Country Name (2 letter code)
+";
+    sprintf "countryName_default    = %S" t.dn_country;
+    "
+countryName_min        = 2
+countryName_max        = 2
+
+stateOrProvinceName    = State or Province Name (full name)
+";
+    sprintf "stateOrProvinceName_default = %S" t.dn_province;
+    "localityName           = Locality Name (eg, city)";
+    sprintf "localityName_default   = %S" t.dn_city;
+    sprintf "0.organizationName = Organization Name (eg, company)";
+    sprintf "0.organizationName_default = %S" t.dn_org;
+    "organizationalUnitName = Organizational Unit Name (eg, section)";
+    sprintf "organizationalUnitName_default = %S" t.dn_orgunit;
+    "commonName = Common Name (eg, your name or your server\'s hostname)";
+    sprintf "commonName_default = %S" t.dn_cn;
+    "
+commonName_max         = 64
+
+emailAddress           = Email Address" ;
+    sprintf "emailAddress_default   = %S" t.dn_email;
+    "
+emailAddress_max       = 40
+
+[ req_attributes ]
+
+challengePassword      = A challenge password
+challengePassword_min  = 4
+challengePassword_max  = 20
+unstructuredName       = An optional company name
+
+[ usr_cert ]
+
+basicConstraints       = CA:FALSE
+nsComment              = \"OpenSSL Generated Certificate\"
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer:always
+extendedKeyUsage       = clientAuth
+keyUsage               = digitalSignature
+
+[ server ]
+
+basicConstraints       = CA:FALSE
+nsCertType             = server
+nsComment              = \"OpenSSL Generated Server Certificate\"
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid,issuer:always
+extendedKeyUsage       = serverAuth
+keyUsage               = digitalSignature, keyEncipherment
+
+[ v3_req ]
+
+basicConstraints       = CA:FALSE
+keyUsage               = nonRepudiation,digitalSignature,keyEncipherment
+
+[ v3_ca ]
+
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer:always
+basicConstraints       = CA:true
+
+[ crl_ext ]
+
+authorityKeyIdentifier = keyid:always,issuer:always
+
+
+" ]
+
+let openssl_config_path t = Filename.concat t.path "openssl.cnf"
+
+let ca_key_path t = Filename.concat t.path (sprintf "%s.key" t.ca_filename_prefix)
+let ca_crt_path t = Filename.concat t.path (sprintf "%s.crt" t.ca_filename_prefix)
+    
+let master_path t = Filename.concat t.path _master_filename
+  
+let establish t =
+  let cmd fmt = ksprintf system_command fmt in
+  cmd "mkdir -p %S" t.path >>= fun () ->
+  let content = openssl_config_file_string t in
+  write_file (openssl_config_path t) ~content >>= fun () ->
+  cmd "CN=%S %s req -batch -config %s -nodes -new -x509 -days %d \
+       -keyout %s -out %s"
+    t.ca_cn t.openssl_command (openssl_config_path t) t.default_validity
+    (ca_key_path t) (ca_crt_path t)
+  >>= fun () ->
+  write_file (master_path t) ~content:(sexp_of_t t |! Sexp.to_string_hum)
+  >>= fun () ->
+  return ()
 
 let load path =
-  (* should read file(s) from there *)
-  { path }
+  let database_file_path = Filename.concat path _master_filename in
+  read_file database_file_path >>= fun str ->
+  wrap ~on_exn:(fun e -> `parse_config_error e)
+    ~f:(fun s -> Sexp.of_string str |! t_of_sexp) str
 
 
 
