@@ -58,3 +58,8 @@ val server_crtkey_path: t -> name:string -> string option
 val server_certificate_and_key_paths: t -> name:string -> (string * string) option
 (** Get the paths to the 'crt' and 'key' files of the server [name]. *)
 
+val server_history: t -> name: string ->
+  (string *
+     [ `created of Core.Std.Time.t
+     | `revoked of Core.Std.Time.t ] list) list option
+(** Get the certification history of a given server. *)

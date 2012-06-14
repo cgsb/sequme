@@ -324,3 +324,10 @@ let server_certificate_and_key_paths t ~name =
             (sprintf "%s.crt" current_certificate.cert_prefix),
           Filename.concat t.path
             (sprintf "%s.key" current_certificate.cert_prefix))
+
+let server_history t ~name =
+  let open Option in
+  String.Map.find t.servers name >>= fun certification ->
+  return (List.map certification.history (fun certificate ->
+    (certificate.cert_prefix, certificate.cert_history)))
+    
