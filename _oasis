@@ -36,6 +36,7 @@ Library sequme
            , Sequme_flow_sys
            , Sequme_flow_io
            , Sequme_flow_certificate_authority
+           , Sequme_flow_net
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
