@@ -1,5 +1,5 @@
 module Tls: sig
-  val init : ?thread_safe:bool -> unit -> unit
+  val init :  unit -> unit
 
   val tls_connect :
     Lwt_unix.file_descr ->
@@ -46,9 +46,21 @@ end
 
 module Client: sig
 
-  val tls_context :
-    ?verification_policy:[ `client_makes_sure | `ok_self_signed ] ->
-    [ `anonymous | `with_pem_certificate of string ] ->
-    (Ssl.context, [> `tls_context_exn of exn ]) Sequme_flow.t
+  type connection_specification = [
+  | `tls of
+      [ `anonymous | `with_certificate of string * string ]
+    * [ `verify_server | `allow_self_signed ]
+  | `plain
+  ]
+    
+  class type ['a] connection =
+  object
+    method in_channel: Lwt_io.input_channel 
+    method out_channel: Lwt_io.output_channel 
+    method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
+  end
 
+  val connect: address:Lwt_unix.sockaddr -> connection_specification ->
+    ([> `io_exn of exn] connection, [> `io_exn of exn | `tls_context_exn of exn ])
+      Sequme_flow.t
 end

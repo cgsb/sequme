@@ -41,7 +41,10 @@ let print_errors_and_unit name m : unit Lwt.t =
      Lwt_io.eprintf "%s: TLS-Context Exn: %s\n" name (Exn.to_string e) 
    | `socket_creation_exn e ->
      Lwt_io.eprintf "%s: TLS-Socket Exn: %s\n" name (Exn.to_string e) 
-     
+   | `bin_send (`message_too_long _) ->
+     Lwt_io.eprintf "%s: Bin-send: message too long\n" name
+   | `bin_send (`exn e) ->
+     Lwt_io.eprintf "%s: Bin-send Exn: %s\n" name (Exn.to_string e) 
     end)
 
 let client () =
@@ -49,31 +52,17 @@ let client () =
   >>= fun () ->
   sleep 1.0
   >>= fun () ->
-  Flow_net.Client.tls_context ~verification_policy:`ok_self_signed `anonymous
-    (* Option.(value_map with_auth ~default:`anonymous *)
-              (* ~f:(fun (_, c) -> `with_pem_certificate c)) *)
-  >>= fun ssl_context ->
-  let socket =
-    Lwt_unix.(
-      try
-      let fd = socket PF_INET SOCK_STREAM 0 in
-      fd
-      with
-      | Unix.Unix_error (e, s, a) as ex ->
-        eprintf "Unix.Unix_error: %s %s %s\n%!" (Unix.error_message e) s a;
-        raise ex
-    ) in
-  wrap_io (Lwt_unix.connect socket) Unix.(ADDR_INET (Inet_addr.localhost, 2000))
-  >>= fun () -> 
+  Flow_net.Client.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 2000))
+    (`tls (`anonymous, `allow_self_signed))
+  >>= fun connection ->
   logc "Connected (unix)" >>= fun () ->
-  Flow_net.Tls.tls_connect socket ssl_context >>= fun socket ->
-  (* let inchan = Lwt_ssl.in_channel_of_descr  socket in *)
-  (* let ouchan = Lwt_ssl.out_channel_of_descr socket in *)
-  logc "Connected (ssl), writing" >>= fun () ->
-  Flow_net.Tls.tls_shutdown socket >>= fun () ->
-  logc "Disconnected (ssl)" >>= fun () ->
+  Sequme_flow_io.bin_send connection#out_channel "Hello !!"
+  >>= fun () ->
   sleep 2. >>= fun () ->
-
+  connection#shutdown
+  >>= fun () ->
+  logc "Disconnected (ssl)" >>= fun () ->
   logc "End."
 
 let server name cert_key =
@@ -81,7 +70,6 @@ let server name cert_key =
   Flow_net.Server.tls_context cert_key >>= fun tls_context ->
   Flow_net.Server.tls_accept_loop tls_context ~port:2000
     (fun client_socket client_kind ->
-      (* let inchan = Lwt_ssl.in_channel_of_descr client_socket in *)
       (* let ouchan = Lwt_ssl.out_channel_of_descr client_socket in *)
       begin match client_kind with
       | `invalid_client `wrong_certificate ->
@@ -94,7 +82,19 @@ let server name cert_key =
         logs "The client has a not-found certificate"
       | `anonymous_client ->
         logs "Reading..." >>= fun () ->
-        return ()
+        let inchan = Lwt_ssl.in_channel_of_descr client_socket in
+        bind_on_error (Sequme_flow_io.bin_recv inchan) (function
+        | `bin_recv (`exn e) ->
+          logs "ERROR: bin-recv: %s (Ssl: %s)" (Exn.to_string e)
+            (Ssl.get_error_string ())
+          >>= fun () ->
+          return "NOTHING"
+        | `bin_recv (`wrong_length (l, s)) ->
+          logs "ERROR: bin-recv: %d" l
+          >>= fun () ->
+          return "NOTHING")
+        >>= fun msg ->
+        logs "Received: %S from client." msg
       | `valid_client cert ->
         (* let login = Certificate_authority.login_of_cert cert in *)
         (* logs "Reading... from %s" (Option.value ~default:"NOT-NAMED" login) *)
