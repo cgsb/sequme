@@ -60,3 +60,10 @@ Executable flow_ca
   BuildDepends: sequme
   CompiledObject: best
   Install: false
+
+Executable flow_net_test
+  Path: src/test/
+  MainIs: flow_net_test.ml
+  BuildDepends: sequme
+  CompiledObject: best
+  Install: false
