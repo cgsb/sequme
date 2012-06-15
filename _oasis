@@ -15,7 +15,8 @@ PostConfCommand: mv myocamlbuild.ml /tmp/sequme_ocamlbuild.ml && \
 Library sequme
   Path: src/lib
   FindlibName: sequme
-  BuildDepends: threads, batteries, core, sexplib.syntax, pgocaml, biocaml, lwt.ssl
+  BuildDepends: threads, batteries, core, sexplib.syntax, pgocaml,
+                biocaml, lwt.ssl, lwt.preemptive
   Install: true
   Modules: Sequme
            , Sequme_std
