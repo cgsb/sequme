@@ -230,7 +230,19 @@ let ca_crt_path t = Filename.concat t.path (sprintf "%s.crt" t.ca_filename_prefi
     
 let master_path t = Filename.concat t.path _master_filename
   
-let cmd fmt = ksprintf system_command fmt
+let cmd ?(verbose=false) fmt =
+  ksprintf (fun s ->
+    get_system_command_output s
+    >>= fun (stdout, stderr) ->
+    if verbose then
+      bind_on_error
+        (catch_io
+           (Lwt_io.printf "<CMD %s>\n<out>%s</out><err>%s</err></CMD>" s stdout)
+           stderr)
+        (fun e -> return ())
+    else
+      return ())
+    fmt
 
 let save t =
   write_file (master_path t) ~content:(sexp_of_t t |! Sexp.to_string_hum)
@@ -267,7 +279,7 @@ let make_server_certificate t ~name =
   let cert_prefix_path = Filename.concat t.path cert_prefix in
   let cert_cn = sprintf "Server%08d %s" t.server_index name in
   t.server_index <- t.server_index + 1;
-  system_command (String.concat ~sep:" " [
+  cmd "%s" (String.concat ~sep:" " [
     sprintf "export CN=%S &&" cert_cn;
     sprintf "%s req -batch" t.openssl_command;
     sprintf "-config %S" (openssl_config_path t);
