@@ -47,7 +47,7 @@ let print_errors_and_unit name m : unit Lwt.t =
 let client () =
   logc "Start!"
   >>= fun () ->
-  wrap_io Lwt_unix.sleep 1.0
+  sleep 1.0
   >>= fun () ->
   Flow_net.Client.tls_context ~verification_policy:`ok_self_signed `anonymous
     (* Option.(value_map with_auth ~default:`anonymous *)
@@ -72,7 +72,7 @@ let client () =
   logc "Connected (ssl), writing" >>= fun () ->
   Flow_net.Tls.tls_shutdown socket >>= fun () ->
   logc "Disconnected (ssl)" >>= fun () ->
-  wrap_io Lwt_unix.sleep 2. >>= fun () ->
+  sleep 2. >>= fun () ->
 
   logc "End."
 

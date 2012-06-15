@@ -22,3 +22,7 @@ let system_command s =
   | Lwt_unix.WSTOPPED n -> error (`system_command_error (s, `stopped n))
   end
 
+let sleep f =
+  wrap_io Lwt_unix.sleep f
+
+    
