@@ -38,8 +38,11 @@ val load :
       | `read_file_error of string * exn ]) Sequme_flow.t
 (** Load a certificate-authority from a given path. *)
 
+val ca_certificate_path: t -> string
+(** Get the path to the CA's certificate. *)
     
-val make_server_certificate : t -> name:string ->
+val make_certificate:
+  ?verbose:bool -> t -> kind:[`server|`client] -> name:string ->
   (unit,
    [> `system_command_error of
        string *
@@ -48,24 +51,24 @@ val make_server_certificate : t -> name:string ->
          | `signaled of int
          | `stopped of int ]
    | `write_file_error of string * exn ]) Sequme_flow.t
-(** Create a certificate for a server of common name [name].
+(** Create a certificate for an entity of common name [name].
     If [name] is already used a new certificate is created for this
     “person”, if not a new entity is created.
 *)
 
-val server_crtkey_path : t -> name:string ->
+val crtkey_path : t -> name:string ->
   (string,
    [> `certificate_revoked of string * Time.t
-   | `server_not_found of string ]) Result.t
+   | `name_not_found of string ]) Result.t
 (** Get the path to the 'crtkey' file of the server [name]. *)
 
-val server_certificate_and_key_paths: t -> name:string ->
+val certificate_and_key_paths: t -> name:string ->
   (string * string,
    [> `certificate_revoked of string * Time.t
-   | `server_not_found of string ]) Result.t
+   | `name_not_found of string ]) Result.t
 (** Get the paths to the 'crt' and 'key' files of the server [name]. *)
 
-val server_history: t -> name: string ->
+val certification_history: t -> name: string ->
   (string *
      [ `created of Core.Std.Time.t
      | `revoked of Core.Std.Time.t ] list) list option

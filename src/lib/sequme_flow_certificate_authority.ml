@@ -18,6 +18,7 @@ type certificate = {
   
 type certification = {
   name: string;
+  mutable kind: [`server | `client ];
   mutable certificate: certificate;
   mutable history : certificate list;
 } with sexp
@@ -42,8 +43,8 @@ type t = {
   ca_filename_prefix: string;
   ca_cn: string;
 
-  mutable servers: certification String.Map.t;
-  mutable server_index : int;
+  mutable entities: certification String.Map.t;
+  mutable entity_index : int;
     
 } with sexp
 
@@ -75,8 +76,8 @@ let create
     default_validity;
     ca_filename_prefix;
     ca_cn;
-    servers = String.Map.empty;
-    server_index = 0;
+    entities = String.Map.empty;
+    entity_index = 0;
     path
   }
 
@@ -227,6 +228,8 @@ let openssl_config_path t = Filename.concat t.path "openssl.cnf"
 
 let ca_key_path t = Filename.concat t.path (sprintf "%s.key" t.ca_filename_prefix)
 let ca_crt_path t = Filename.concat t.path (sprintf "%s.crt" t.ca_filename_prefix)
+
+let ca_certificate_path t = ca_crt_path t
     
 let master_path t = Filename.concat t.path _master_filename
   
@@ -273,23 +276,27 @@ let escape_for_filename =
   | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' | '-' as c -> c
   | _ -> '_')
     
-let make_server_certificate t ~name =
+let make_certificate ?verbose t ~kind ~name =
+  let kindstr = match kind with `server -> "server" | `client -> "client" in
   let cert_prefix =
-    sprintf "Server_%s_%08d" (escape_for_filename name) t.server_index in
+    sprintf "%08d-%s__%s" t.entity_index kindstr (escape_for_filename name) in
   let cert_prefix_path = Filename.concat t.path cert_prefix in
-  let cert_cn = sprintf "Server%08d %s" t.server_index name in
-  t.server_index <- t.server_index + 1;
-  cmd "%s" (String.concat ~sep:" " [
+  let cert_cn = sprintf "%08d-%s %s" t.entity_index kindstr name in
+  t.entity_index <- t.entity_index + 1;
+  let server_extensions =
+    match kind with `server -> "-extensions server" | `client -> "" in
+  cmd ?verbose "%s" (String.concat ~sep:" " [
     sprintf "export CN=%S &&" cert_cn;
     sprintf "%s req -batch" t.openssl_command;
     sprintf "-config %S" (openssl_config_path t);
-    "-nodes -new -extensions server";
+    "-nodes -new";
+    server_extensions;
     sprintf "-keyout %s.key" cert_prefix_path;
     sprintf "-out %s.csr" cert_prefix_path;
     "&&";
     sprintf "%s ca -batch" t.openssl_command;
     sprintf "-config %S" (openssl_config_path t);
-    "-extensions server";
+    server_extensions;
     sprintf "-out %s.crt" cert_prefix_path;
     sprintf "-in %s.csr" cert_prefix_path;
     "&&";
@@ -300,12 +307,13 @@ let make_server_certificate t ~name =
   let new_cert =
     { cert_prefix; cert_cn; cert_history = [];
       cert_status = `created Time.(now ()) } in
-  begin match String.Map.find t.servers name with
+  begin match String.Map.find t.entities name with
   | None ->
-    let data = { name ; certificate = new_cert;
+    let data = { name ; kind = `server; certificate = new_cert;
                  history = [] } in
-    t.servers <- String.Map.add t.servers ~key:name ~data;
+    t.entities <- String.Map.add t.entities ~key:name ~data;
   | Some certification ->
+    certification.kind <- `server;
     certification.history <- certification.certificate :: certification.history;
     certification.certificate <- new_cert;
   end;
@@ -320,34 +328,34 @@ let make_server_certificate t ~name =
     cat "${CERTSDIR}/${1}.crt" "${CERTSDIR}/${1}.key" > "${CERTSDIR}/${1}.crtkey"
 *)
 
-let server_certificate t ~name =
+let find_certificate t ~name =
   let open Option in
-  String.Map.find t.servers name >>= fun certification ->
+  String.Map.find t.entities name >>= fun certification ->
   return certification.certificate
     
-let server_certificate_prefix t ~name =
-  begin match server_certificate t ~name with
-  | None -> Error (`server_not_found name)
+let get_certificate_prefix t ~name =
+  begin match find_certificate t ~name with
+  | None -> Error (`name_not_found name)
   | Some {cert_status = `created _; cert_prefix } ->
     Ok cert_prefix
   | Some {cert_status = `revoked t} ->
     Error (`certificate_revoked (name, t))
   end
     
-let server_crtkey_path t ~name =
+let crtkey_path t ~name =
   let open Result in
-  server_certificate_prefix t ~name >>= fun prefix ->
+  get_certificate_prefix t ~name >>= fun prefix ->
   return (Filename.concat t.path (sprintf "%s.crtkey" prefix))
     
-let server_certificate_and_key_paths t ~name =
+let certificate_and_key_paths t ~name =
   let open Result in
-  server_certificate_prefix t ~name >>= fun prefix ->
+  get_certificate_prefix t ~name >>= fun prefix ->
   return (Filename.concat t.path (sprintf "%s.crt" prefix),
           Filename.concat t.path (sprintf "%s.key" prefix))
 
-let server_history t ~name =
+let certification_history t ~name =
   let open Option in
-  String.Map.find t.servers name >>= fun certification ->
+  String.Map.find t.entities name >>= fun certification ->
   return (List.map (certification.certificate :: certification.history)
             (fun certificate ->
               (certificate.cert_prefix,
