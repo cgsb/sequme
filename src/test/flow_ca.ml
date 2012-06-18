@@ -31,23 +31,23 @@ let do_establishment path =
       path  in
   Flow_CA.establish ca
 
-let server path name =
+let certificate path kind name =
   Flow_CA.load path >>= fun ca ->
-  Flow_CA.make_server_certificate ca ~name >>= fun () ->
-  Flow_CA.server_crtkey_path ca ~name |! of_result
+  Flow_CA.make_certificate ~verbose:true ca ~kind ~name >>= fun () ->
+  Flow_CA.crtkey_path ca ~name |! of_result
   >>= fun p ->
   log "Created: %s" p
   >>= fun () ->
-  Flow_CA.server_certificate_and_key_paths ca ~name |! of_result
+  Flow_CA.certificate_and_key_paths ca ~name |! of_result
   >>= fun (crt, key) ->
   log "And:\n%s\n%s" crt key
 
-let server_info path name =
+let info path name =
   Flow_CA.load path >>= fun ca ->
-  begin match Flow_CA.server_history ca ~name with
-  | None -> log "Server %S not found." name
+  begin match Flow_CA.certification_history ca ~name with
+  | None -> log "%S not found." name
   | Some l ->
-    log "Server %S:\n%s" name
+    log "Entity %S:\n%s" name
       (l |! List.rev |! List.map ~f:(fun (cn, cert_hist) ->
         sprintf "Cert %s:\n%s" cn
           (cert_hist |! List.rev |! List.map ~f:(function
@@ -65,8 +65,9 @@ let main () =
          flow_ca establish <path>\n\
          flow_ca server <path> <common-name>"
   | exec :: "establish" :: path :: [] -> do_establishment path  
-  | exec :: "server" :: path :: name :: [] -> server path name
-  | exec :: "server-info" :: path :: name :: [] -> server_info path name
+  | exec :: "server" :: path :: name :: [] -> certificate path `server name
+  | exec :: "client" :: path :: name :: [] -> certificate path `client name
+  | exec :: "info" :: path :: name :: [] -> info path name
   | exec :: l ->
     log "Don't know what to do with [%s]"
       (l |! List.map ~f:(sprintf "%S") |! String.concat ~sep:", ")
@@ -80,7 +81,7 @@ let () =
   | Error e ->
     begin match e with
     | `io_exn e -> eprintf "End with ERROR: %s\n" (Exn.to_string e)
-    | `server_not_found s ->
+    | `name_not_found s ->
       eprintf "End with ERROR: Server_Not_Found: %S" s
     | `certificate_revoked (n, t) ->
       eprintf "End with ERROR: Certificate_Revoked: %S on %s" n Time.(to_string t)
