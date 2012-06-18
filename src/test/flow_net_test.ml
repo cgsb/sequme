@@ -110,6 +110,15 @@ let clients (client1_name, client1_cert_key) =
   send_and_recv connection >>= fun () ->
   connection#shutdown
   >>= fun () ->
+  Flow_net.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4003))
+    (`tls (`anonymous, `allow_self_signed))
+  >>= fun connection ->
+  logc "Anonymously Connected on 4003 " >>= fun () ->
+  send_and_recv connection
+  >>= fun () ->
+  connection#shutdown
+  >>= fun () ->
   logc "Disconnected."
 
     
