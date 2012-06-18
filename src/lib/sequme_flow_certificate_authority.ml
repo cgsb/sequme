@@ -376,9 +376,15 @@ let identify t tls_cert =
   | Some name ->
     begin match find_certificate t name with
     | Some {cert_status = `created _ } -> `ok name
-    | Some {cert_status = `revoked _ } -> `revoked name
+    | Some {cert_status = `revoked t } -> `revoked (name, t)
     | None -> `entity_not_found name
     end
   | None -> `wrong_subject_format subj
   end
 
+let check_certificate t tls_cert =
+  match identify t tls_cert with
+  | `ok n -> return (`valid n)
+  | `revoked (n, t) -> return (`revoked (n, t))
+  | `entity_not_found n  -> return (`not_found n)
+  | `wrong_subject_format subj as e -> error e

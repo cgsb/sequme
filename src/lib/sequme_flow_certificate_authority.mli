@@ -79,6 +79,16 @@ val identify :
   Ssl.certificate ->
   [> `entity_not_found of string
   | `ok of string
-  | `revoked of string
+  | `revoked of string * Time.t
   | `wrong_subject_format of string ]
 (** Find the name of the entity owning a given certificate. *)
+
+val check_certificate : t -> Ssl.certificate ->
+  ([> `not_found of string
+   | `revoked of string * Core.Std.Time.t
+   | `valid of string ],
+   [> `wrong_subject_format of string ])
+    Sequme_flow.t
+(** A version of [identify] compatible with [Sequme_flow_net]. *)
+
+    
