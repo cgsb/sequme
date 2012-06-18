@@ -47,7 +47,7 @@ let print_errors_and_unit name m : unit Lwt.t =
      Lwt_io.eprintf "%s: Bin-send Exn: %s\n" name (Exn.to_string e) 
     end)
 
-let client () =
+let client (client1_name, client1_cert_key) =
   logc "Start!"
   >>= fun () ->
   sleep 1.0
@@ -56,24 +56,59 @@ let client () =
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 2000))
     (`tls (`anonymous, `allow_self_signed))
   >>= fun connection ->
-  logc "Connected (unix)" >>= fun () ->
+  logc "Anonymously Connected (unix)" >>= fun () ->
   Sequme_flow_io.bin_send connection#out_channel "Hello !!"
   >>= fun () ->
-  sleep 2. >>= fun () ->
+  sleep 4. >>= fun () ->
   connection#shutdown
   >>= fun () ->
-  logc "Disconnected (ssl)" >>= fun () ->
+  logc "Disconnected." >>= fun () ->
+  Flow_net.Client.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 2000))
+    (`tls (`with_certificate client1_cert_key, `allow_self_signed))
+  >>= fun connection ->
+  logc "Connected as %s (unix)" client1_name >>= fun () ->
+  ksprintf (Sequme_flow_io.bin_send connection#out_channel)
+    "Hello, I'm %S !!" client1_name
+  >>= fun () ->
+  sleep 4. >>= fun () ->
+  connection#shutdown
+  >>= fun () ->
+  logc "Disconnected." >>= fun () ->
   logc "End."
 
-let server name cert_key =
+let server name ca_certificate cert_key =
   logs "Start!" >>= fun () ->
-  Flow_net.Server.tls_context cert_key >>= fun tls_context ->
-  Flow_net.Server.tls_accept_loop tls_context ~port:2000
+  Flow_net.Server.tls_context ~ca_certificate cert_key >>= fun tls_context ->
+  let check_client_certificate c =
+    logs "check_client_certificate:\n  Issuer: %s\n  Subject: %s"
+      (Ssl.get_issuer c) (Ssl.get_subject c) >>= fun () ->
+    return `ok
+  in
+  let print_incomming_message inchan =
+    bind_on_error (Sequme_flow_io.bin_recv inchan) (function
+    | `bin_recv (`exn e) ->
+      logs "ERROR: bin-recv: %s (Ssl: %s)" (Exn.to_string e)
+        (Ssl.get_error_string ())
+      >>= fun () ->
+      return "NOTHING"
+    | `bin_recv (`wrong_length (l, s)) ->
+      logs "ERROR: bin-recv: %d" l
+      >>= fun () ->
+      return "NOTHING")
+    >>= fun msg ->
+    logs "Received: %S from client." msg
+  in
+  Flow_net.Server.tls_accept_loop ~check_client_certificate tls_context ~port:2000
     (fun client_socket client_kind ->
       (* let ouchan = Lwt_ssl.out_channel_of_descr client_socket in *)
+      let inchan = Lwt_ssl.in_channel_of_descr client_socket in
       begin match client_kind with
       | `invalid_client `wrong_certificate ->
-        logs "The client has a wrong certificate"
+        logs "The client has a wrong certificate\n(SSL: %s)" 
+            (Ssl.get_error_string ())
+        >>= fun () ->
+        print_incomming_message inchan
       | `invalid_client (`expired_certificate _) ->
         logs "The client has an expired certificate"
       | `invalid_client (`revoked_certificate _) ->
@@ -81,24 +116,14 @@ let server name cert_key =
       | `invalid_client (`certificate_not_found _) ->
         logs "The client has a not-found certificate"
       | `anonymous_client ->
-        logs "Reading..." >>= fun () ->
-        let inchan = Lwt_ssl.in_channel_of_descr client_socket in
-        bind_on_error (Sequme_flow_io.bin_recv inchan) (function
-        | `bin_recv (`exn e) ->
-          logs "ERROR: bin-recv: %s (Ssl: %s)" (Exn.to_string e)
-            (Ssl.get_error_string ())
-          >>= fun () ->
-          return "NOTHING"
-        | `bin_recv (`wrong_length (l, s)) ->
-          logs "ERROR: bin-recv: %d" l
-          >>= fun () ->
-          return "NOTHING")
-        >>= fun msg ->
-        logs "Received: %S from client." msg
+        logs "Reading from anonymous_client..." >>= fun () ->
+        print_incomming_message inchan
       | `valid_client cert ->
         (* let login = Certificate_authority.login_of_cert cert in *)
         (* logs "Reading... from %s" (Option.value ~default:"NOT-NAMED" login) *)
         logs "Reading from authenticated client"
+        >>= fun () ->
+        print_incomming_message inchan
       end)
   >>= fun () ->
   logs "End."
@@ -110,19 +135,29 @@ let certificates () =
   Flow_CA.establish ca
   >>= fun () ->
   let name = "Flow_net_server" in
-  Flow_CA.make_server_certificate ca ~name >>= fun () ->
-  Flow_CA.server_certificate_and_key_paths ca ~name |! of_result
+  Flow_CA.make_certificate ca ~name ~kind:`server >>= fun () ->
+  Flow_CA.certificate_and_key_paths ca ~name |! of_result
   >>= fun (crt, key) ->
   logt "Certification of %s:\n%s\n%s" name crt key
   >>= fun () ->
-  return (name, (crt, key))
+  let server = (name, (crt, key)) in
+  let name = "Flow_net_client_1" in
+  Flow_CA.make_certificate ca ~name ~kind:`client >>= fun () ->
+  Flow_CA.certificate_and_key_paths ca ~name |! of_result
+  >>= fun (crt, key) ->
+  logt "Certification of %s:\n%s\n%s" name crt key
+                >>= fun () ->
+  let client1 = (name, (crt, key)) in
+  let ca_cert = Flow_CA.ca_certificate_path ca in
+  logt "CA Certificate: %s" ca_cert >>= fun () ->
+  return (ca_cert, server, client1)
     
 let main () =
   logt "Start!\n%s" Time.(now () |! to_string) >>= fun () ->
   certificates ()
-  >>= fun (server_name, server_cert_key) ->
-  wrap_io Lwt.pick [client () |! print_errors_and_unit "client";
-                    server server_name server_cert_key
+  >>= fun (ca_cert, (server_name, server_cert_key), client1) ->
+  wrap_io Lwt.pick [client client1 |! print_errors_and_unit "client";
+                    server server_name ca_cert server_cert_key
                     |! print_errors_and_unit "server"]
   
   
@@ -139,7 +174,7 @@ let () =
       eprintf "End with ERROR: Read-file %S failed: %s\n" file (Exn.to_string exn)
     | `write_file_error (file, exn) ->
       eprintf "End with ERROR: Write-file %S failed: %s\n" file (Exn.to_string exn)
-    | `server_not_found s ->
+    | `name_not_found s ->
       eprintf "End with ERROR: Server_Not_Found: %S" s
     | `certificate_revoked (n, t) ->
       eprintf "End with ERROR: Certificate_Revoked: %S on %s" n Time.(to_string t)
