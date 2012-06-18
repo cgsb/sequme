@@ -46,23 +46,22 @@ module Server: sig
 
 end
 
-module Client: sig
-
-  type connection_specification = [
-  | `tls of
-      [ `anonymous | `with_certificate of string * string ]
-    * [ `verify_server | `allow_self_signed ]
-  | `plain
-  ]
-    
-  class type ['a] connection =
-  object
-    method in_channel: Lwt_io.input_channel 
-    method out_channel: Lwt_io.output_channel 
-    method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
-  end
-
-  val connect: address:Lwt_unix.sockaddr -> connection_specification ->
-    ([> `io_exn of exn] connection, [> `io_exn of exn | `tls_context_exn of exn ])
-      Sequme_flow.t
+class type ['a] connection =
+object
+  method in_channel: Lwt_io.input_channel 
+  method out_channel: Lwt_io.output_channel 
+  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
 end
+
+type connection_specification = [
+| `tls of
+    [ `anonymous | `with_certificate of string * string ]
+  * [ `verify_server | `allow_self_signed ]
+| `plain
+]
+    
+
+val connect: address:Lwt_unix.sockaddr -> connection_specification ->
+  ([> `io_exn of exn] connection, [> `io_exn of exn | `tls_context_exn of exn ])
+    Sequme_flow.t
+

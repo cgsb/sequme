@@ -52,7 +52,7 @@ let client (client1_name, client1_cert_key) =
   >>= fun () ->
   sleep 1.0
   >>= fun () ->
-  Flow_net.Client.connect
+  Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 2000))
     (`tls (`anonymous, `allow_self_signed))
   >>= fun connection ->
@@ -63,7 +63,7 @@ let client (client1_name, client1_cert_key) =
   connection#shutdown
   >>= fun () ->
   logc "Disconnected." >>= fun () ->
-  Flow_net.Client.connect
+  Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 2000))
     (`tls (`with_certificate client1_cert_key, `allow_self_signed))
   >>= fun connection ->

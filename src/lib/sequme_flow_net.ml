@@ -60,6 +60,15 @@ module Tls = struct
 
 end
 
+class ['a] connection inchan outchan tls_socket =
+object
+  method in_channel: Lwt_io.input_channel = inchan
+  method out_channel: Lwt_io.output_channel = outchan
+  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
+    = Tls.tls_shutdown tls_socket
+end
+
+
 module Server = struct
 
   let tls_context ?ca_certificate (cert_file, key_file) =
@@ -139,76 +148,67 @@ module Server = struct
 
 end
 
-module Client = struct
 
-  let tls_context ?verification_policy kind =
-    let open Ssl in
-    begin
-      try
-        let c = create_context TLSv1 Client_context in
-        begin match kind with
-        | `anonymous -> ()
-        | `with_certificate (cert, key) ->
-          use_certificate c cert key
-        end;
-        set_cipher_list c "TLSv1";
-        Option.iter verification_policy (function
-        | `verify_server -> 
-          Ssl.set_verify_depth c 99;
-          set_verify c [Verify_peer] (Some client_verify_callback);
-        | `allow_self_signed -> ()
-        );
-        return c
-      with e -> error (`tls_context_exn e)
-    end
 
-  type connection_specification = [
-  | `tls of
-      [ `anonymous | `with_certificate of string * string ]
-    * [ `verify_server | `allow_self_signed ]
-  | `plain
-  ]
-    
-  let unix_connect sockaddr =
-    let socket =
-      Lwt_unix.(
-        try
-          let fd = socket PF_INET SOCK_STREAM 0 in
-          fd
-        with
-        | Unix.Unix_error (e, s, a) as ex ->
-          eprintf "Unix.Unix_error: %s %s %s\n%!" (Unix.error_message e) s a;
-          raise ex
-      ) in
-    wrap_io (Lwt_unix.connect socket) sockaddr
-    >>= fun () ->
-    return socket
-      
-  class ['a] connection inchan outchan tls_socket =
-  object
-    method in_channel: Lwt_io.input_channel = inchan
-    method out_channel: Lwt_io.output_channel = outchan
-    method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
-      = Tls.tls_shutdown tls_socket
+let tls_context ?verification_policy kind =
+  let open Ssl in
+  begin
+    try
+      let c = create_context TLSv1 Client_context in
+      begin match kind with
+      | `anonymous -> ()
+      | `with_certificate (cert, key) ->
+        use_certificate c cert key
+      end;
+      set_cipher_list c "TLSv1";
+      Option.iter verification_policy (function
+      | `verify_server -> 
+        Ssl.set_verify_depth c 99;
+        set_verify c [Verify_peer] (Some client_verify_callback);
+      | `allow_self_signed -> ()
+      );
+      return c
+    with e -> error (`tls_context_exn e)
   end
 
-  let connect ~address specification =
-    begin match specification with
-    | `plain ->
-      unix_connect address >>= fun unix_socket_fd ->
-      let socket_fd = Lwt_ssl.plain unix_socket_fd in
-      let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
-      let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
-      return (new connection inchan outchan socket_fd)
-    | `tls (connection_type, verification_policy) ->
-      unix_connect address >>= fun unix_socket_fd ->
-      tls_context ~verification_policy connection_type >>= fun tls_context ->
-      Tls.tls_connect unix_socket_fd tls_context >>= fun socket_fd ->
-      let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
-      let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
-      return (new connection inchan outchan socket_fd)
-    end
+type connection_specification = [
+| `tls of
+    [ `anonymous | `with_certificate of string * string ]
+  * [ `verify_server | `allow_self_signed ]
+| `plain
+]
+  
+let unix_connect sockaddr =
+  let socket =
+    Lwt_unix.(
+      try
+        let fd = socket PF_INET SOCK_STREAM 0 in
+        fd
+      with
+      | Unix.Unix_error (e, s, a) as ex ->
+        eprintf "Unix.Unix_error: %s %s %s\n%!" (Unix.error_message e) s a;
+        raise ex
+    ) in
+  wrap_io (Lwt_unix.connect socket) sockaddr
+  >>= fun () ->
+  return socket
+    
+let connect ~address specification =
+  begin match specification with
+  | `plain ->
+    unix_connect address >>= fun unix_socket_fd ->
+    let socket_fd = Lwt_ssl.plain unix_socket_fd in
+    let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
+    let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
+    return (new connection inchan outchan socket_fd)
+  | `tls (connection_type, verification_policy) ->
+    unix_connect address >>= fun unix_socket_fd ->
+    tls_context ~verification_policy connection_type >>= fun tls_context ->
+    Tls.tls_connect unix_socket_fd tls_context >>= fun socket_fd ->
+    let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
+    let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
+    return (new connection inchan outchan socket_fd)
+  end
 
 
-      
-end
+    
