@@ -11,8 +11,6 @@ let dbg fmt =
   
 module Tls = struct
 
-  let init = Ssl.init ~thread_safe:true
-    
   let accept socket context =
     bind_on_error
       (catch_io (Lwt_ssl.ssl_accept socket) context)
@@ -57,21 +55,7 @@ module Tls = struct
   let tls_get_certificate = M_ugly_ssl_get_certificate.get_certificate
 
 
-
-end
-
-class ['a] connection inchan outchan tls_socket =
-object
-  method in_channel: Lwt_io.input_channel = inchan
-  method out_channel: Lwt_io.output_channel = outchan
-  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
-    = Tls.tls_shutdown tls_socket
-end
-
-
-module Server = struct
-
-  let tls_context ?ca_certificate (cert_file, key_file) =
+  let server_context ?ca_certificate (cert_file, key_file) =
     let open Ssl in
     try
       let c = create_context TLSv1 Server_context in
@@ -95,14 +79,19 @@ module Server = struct
     with
     | e -> error (`socket_creation_exn e)
 
-  let tls_accept_loop ?check_client_certificate ssl_context ~port f =
+  let accept_loop ?check_client_certificate ?tls_context ~port f =
     server_socket ~port >>= fun socket ->
     let handle_one accepted =
-      Tls.accept (fst accepted) ssl_context >>= fun ssl_accepted ->
-      dbg "Accepted (SSL)" >>= fun () ->
+      begin match tls_context with
+      | Some ssl_context ->
+        accept (fst accepted) ssl_context
+      | None -> return (Lwt_ssl.plain (fst accepted))
+      end
+      >>= fun ssl_accepted ->
+      (* dbg "Accepted (SSL)" >>= fun () -> *)
       begin match check_client_certificate with
       | Some ccc ->
-        double_bind (Tls.tls_get_certificate ssl_accepted)
+        double_bind (tls_get_certificate ssl_accepted)
           ~error:(function
           | `ssl_certificate_error ->
             return (`invalid_client `wrong_certificate)
@@ -122,7 +111,7 @@ module Server = struct
       f ssl_accepted client
     in
     let rec accept_loop c =
-      dbg "Accepting #%d (unix)" c >>= fun () ->
+      (* dbg "Accepting #%d (unix)" c >>= fun () -> *)
       wrap_io (Lwt_unix.accept_n socket) 10
       >>= fun (accepted_list, potential_exn) ->
       dbg "Accepted %d connections (unix)%s" (List.length accepted_list)
@@ -138,38 +127,99 @@ module Server = struct
         | Error e -> eprintf "THERE WERE ERRORS IN THE HANDLER");
         return (Ok ()))
     in
-    let c = Lwt_condition.create () in
-    accept_loop 0
-    >>= fun () ->
-    wrap_io Lwt_condition.wait c
-    >>= fun () ->
-    dbg "END OF ACCEPT_LOOP"
+    accept_loop 0 |! Lwt.ignore_result;
+    (* dbg "ACCEPT_LOOP started" *)
+    return ()
+
+  let client_context ?verification_policy kind =
+    let open Ssl in
+    begin
+      try
+        let c = create_context TLSv1 Client_context in
+        begin match kind with
+        | `anonymous -> ()
+        | `with_certificate (cert, key) ->
+          use_certificate c cert key
+        end;
+        set_cipher_list c "TLSv1";
+        Option.iter verification_policy (function
+        | `verify_server -> 
+          Ssl.set_verify_depth c 99;
+          set_verify c [Verify_peer] (Some client_verify_callback);
+        | `allow_self_signed -> ()
+        );
+        return c
+      with e -> error (`tls_context_exn e)
+    end
 
 
 end
 
+let init_tls = Ssl.init ~thread_safe:true
+    
+class ['a] connection inchan outchan tls_socket =
+object
+  method in_channel: Lwt_io.input_channel = inchan
+  method out_channel: Lwt_io.output_channel = outchan
+  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
+    = Tls.tls_shutdown tls_socket
+end
 
+type client_check_result =
+[ `expired of string * Core.Std.Time.t
+| `not_found of string
+| `revoked of string * Core.Std.Time.t
+| `valid of string ]
 
-let tls_context ?verification_policy kind =
-  let open Ssl in
-  begin
-    try
-      let c = create_context TLSv1 Client_context in
-      begin match kind with
-      | `anonymous -> ()
-      | `with_certificate (cert, key) ->
-        use_certificate c cert key
-      end;
-      set_cipher_list c "TLSv1";
-      Option.iter verification_policy (function
-      | `verify_server -> 
-        Ssl.set_verify_depth c 99;
-        set_verify c [Verify_peer] (Some client_verify_callback);
-      | `allow_self_signed -> ()
-      );
-      return c
-    with e -> error (`tls_context_exn e)
-  end
+type client_kind = 
+[ `anonymous_client
+| `invalid_client of
+    [ `expired of string * Core.Std.Time.t
+    | `not_found of string
+    | `revoked of string * Core.Std.Time.t
+    | `wrong_certificate ]
+| `valid_client of string ]
+
+let plain_server ~port f =
+  Tls.accept_loop ~port
+    (fun socket_fd _ ->
+      let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
+      let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
+      f (new connection inchan outchan socket_fd))
+
+let tls_server ~port ~cert_key f =
+  Tls.server_context cert_key
+  >>= fun tls_context ->
+  Tls.accept_loop ~tls_context ~port
+    (fun socket_fd client_kind ->
+      let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
+      let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
+      f (new connection inchan outchan socket_fd))
+  
+  
+let authenticating_tls_server
+    ~ca_certificate ~check_client_certificate
+    ~port ~cert_key f = 
+  Tls.server_context ~ca_certificate cert_key
+  >>= fun tls_context ->
+  Tls.accept_loop ~check_client_certificate ~tls_context ~port
+    (fun socket_fd client_kind ->
+      let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
+      let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
+      f (new connection inchan outchan socket_fd) client_kind)
+
+let authenticating_tls_server_with_ca
+    ~ca ~port ~cert_key f = 
+  let ca_certificate = Sequme_flow_certificate_authority.ca_certificate_path ca in
+  let check_client_certificate c =
+    dbg "check_client_certificate:\n  Issuer: %s\n  Subject: %s"
+      (Ssl.get_issuer c) (Ssl.get_subject c) >>= fun () ->
+    Sequme_flow_certificate_authority.check_certificate ca c
+  in
+  authenticating_tls_server 
+    ~ca_certificate ~check_client_certificate
+    ~port ~cert_key f
+
 
 type connection_specification = [
 | `tls of
@@ -203,7 +253,7 @@ let connect ~address specification =
     return (new connection inchan outchan socket_fd)
   | `tls (connection_type, verification_policy) ->
     unix_connect address >>= fun unix_socket_fd ->
-    tls_context ~verification_policy connection_type >>= fun tls_context ->
+    Tls.client_context ~verification_policy connection_type >>= fun tls_context ->
     Tls.tls_connect unix_socket_fd tls_context >>= fun socket_fd ->
     let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
     let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
