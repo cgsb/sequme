@@ -360,4 +360,25 @@ let certification_history t ~name =
             (fun certificate ->
               (certificate.cert_prefix,
                certificate.cert_status :: certificate.cert_history)))
+
+let login_of_subject subj =
+  List.find_map (String.split subj ~on:'/') (function
+  | s when String.prefix s 3 = "CN=" ->
+    begin match String.lsplit2 ~on:' ' (String.drop_prefix s 3) with
+    | Some (_, login) -> Some login
+    | _ -> None
+    end
+  | _ -> None)
     
+let identify t tls_cert =
+  let subj = Ssl.get_subject tls_cert in
+  begin match login_of_subject subj with
+  | Some name ->
+    begin match find_certificate t name with
+    | Some {cert_status = `created _ } -> `ok name
+    | Some {cert_status = `revoked _ } -> `revoked name
+    | None -> `entity_not_found name
+    end
+  | None -> `wrong_subject_format subj
+  end
+

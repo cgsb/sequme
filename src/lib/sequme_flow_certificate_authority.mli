@@ -73,3 +73,12 @@ val certification_history: t -> name: string ->
      [ `created of Core.Std.Time.t
      | `revoked of Core.Std.Time.t ] list) list option
 (** Get the certification history of a given server. *)
+
+val identify :
+  t ->
+  Ssl.certificate ->
+  [> `entity_not_found of string
+  | `ok of string
+  | `revoked of string
+  | `wrong_subject_format of string ]
+(** Find the name of the entity owning a given certificate. *)
