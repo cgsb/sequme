@@ -45,8 +45,7 @@ module Tls = struct
         Lwt.(
           catch
             (fun () ->
-              Lwt_preemptive.detach Ssl.get_certificate s
-              >>= fun cert ->
+              Lwt_preemptive.detach Ssl.get_certificate s >>= fun cert ->
               return (Ok cert))
             (function
             | Ssl.Certificate_error ->
@@ -63,21 +62,16 @@ end
 
 module Server = struct
 
-  let tls_context ?with_client_authentication (cert_file, key_file) =
+  let tls_context ?ca_certificate (cert_file, key_file) =
     let open Ssl in
     try
       let c = create_context TLSv1 Server_context in
       use_certificate c cert_file key_file;
       set_cipher_list c "TLSv1";
-      Option.iter with_client_authentication (function
-      | `CA_certificate ca_cert ->
-        set_verify c [ Verify_peer; Verify_fail_if_no_peer_cert ] None;
+      Option.iter ca_certificate (fun ca_cert ->
+        set_verify c [ Verify_peer; ] None;
         set_verify_depth c 99;
         load_verify_locations c ca_cert "";
-      | `CA_path ca_path ->
-        set_verify c [ Verify_peer; Verify_fail_if_no_peer_cert ] None;
-        set_verify_depth c 99;
-        load_verify_locations c "" ca_path;
       );
       return c
     with e -> error (`tls_context_exn e)
@@ -144,19 +138,16 @@ end
 
 module Client = struct
 
-  let tls_context ?verification_policy c =
+  let tls_context ?verification_policy kind =
     let open Ssl in
-    let certificate =
-      match c with
-      | `anonymous -> None
-      | `with_certificate c -> Some c
-    in
     begin
       try
         let c = create_context TLSv1 Client_context in
-        Option.iter certificate (fun (cert, key) ->
+        begin match kind with
+        | `anonymous -> ()
+        | `with_certificate (cert, key) ->
           use_certificate c cert key
-        );
+        end;
         set_cipher_list c "TLSv1";
         Option.iter verification_policy (function
         | `verify_server -> 

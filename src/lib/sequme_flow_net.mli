@@ -12,8 +12,7 @@ end
 module Server: sig
 
   val tls_context :
-    ?with_client_authentication:[ `CA_certificate of string
-                                | `CA_path of string ] ->
+    ?ca_certificate:string ->
     (string * string) ->
     (Ssl.context, [> `tls_context_exn of exn ]) Sequme_flow.t
 
