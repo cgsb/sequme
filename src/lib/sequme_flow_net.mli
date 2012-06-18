@@ -1,5 +1,18 @@
-val init_tls :  unit -> unit
+(** High-level TCP + TLS connection handling. *)
 
+
+val init_tls :  unit -> unit
+(** Initialize the SSL library. *)
+
+(** A connection is full duplex and can be shut down: {v
+class type ['a] connection =
+object
+  method in_channel: Lwt_io.input_channel 
+  method out_channel: Lwt_io.output_channel 
+  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
+end
+v}
+*)
 class type ['a] connection =
 object
   method in_channel: Lwt_io.input_channel 
@@ -13,11 +26,12 @@ type connection_specification = [
   * [ `verify_server | `allow_self_signed ]
 | `plain
 ]
+(** Specification of the kind of connection (for the function [connect]). *)
     
-
 val connect: address:Lwt_unix.sockaddr -> connection_specification ->
   ([> `io_exn of exn] connection, [> `io_exn of exn | `tls_context_exn of exn ])
     Sequme_flow.t
+(** Connect to the server at [address]. *)
 
 val plain_server :
   port:int ->
@@ -27,6 +41,8 @@ val plain_server :
     | `not_an_ssl_socket
     | `tls_accept_error of exn ]) Sequme_flow.t) ->
   (unit, [> `io_exn of exn | `socket_creation_exn of exn ]) Sequme_flow.t
+(** Start a “plain” TCP server on port [port]. This function returns
+    immediately, the “accept-loop” runs in {i Lwt} threads. *)
 
 val tls_server :
   port:int ->
@@ -42,12 +58,15 @@ val tls_server :
    | `socket_creation_exn of exn
    | `tls_context_exn of exn ])
     Sequme_flow.t
+(** Like [plain_server] but with a TLS layer, the server will be
+    authenticated with [cert_key]. *)
 
 type client_check_result =
 [ `expired of string * Core.Std.Time.t
 | `not_found of string
 | `revoked of string * Core.Std.Time.t
 | `valid of string ]
+(** The result type expected from [check_client_certificate] functions. *)
 
 type client_kind = 
 [ `anonymous_client
@@ -57,6 +76,8 @@ type client_kind =
     | `revoked of string * Core.Std.Time.t
     | `wrong_certificate ]
 | `valid_client of string ]
+(** The different kinds of clients that a authenticating TLS server
+    handler has to treat separately. *)
 
 val authenticating_tls_server :
   ca_certificate:string ->
@@ -74,6 +95,10 @@ val authenticating_tls_server :
    [> `io_exn of exn
    | `socket_creation_exn of exn
    | `tls_context_exn of exn ]) Sequme_flow.t
+(** Start an authenticating TLS server,  the [ca_certificate] is used to check
+    client certificates, and the function [check_client_certificate] to
+    decide about the CA-validity of the certificate once it has been validated
+    with respect to the TLS protocol. *)
 
 val authenticating_tls_server_with_ca :
   ca:Sequme_flow_certificate_authority.t ->
@@ -89,3 +114,6 @@ val authenticating_tls_server_with_ca :
    [> `io_exn of exn
    | `socket_creation_exn of exn
    | `tls_context_exn of exn ]) Sequme_flow.t
+(** Do like [authenticating_tls_server] but use a
+    [Sequme_flow_certificate_authority.t] to provide the
+    [ca_certificate] and the [check_client_certificate] function. *)
