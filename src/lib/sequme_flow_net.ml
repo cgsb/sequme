@@ -87,7 +87,7 @@ module Server = struct
     | e -> error (`socket_creation_exn e)
 
   let tls_accept_loop ?check_client_certificate ssl_context ~port f =
-    server_socket ~port:2000 >>= fun socket ->
+    server_socket ~port >>= fun socket ->
     let handle_one accepted =
       Tls.accept (fst accepted) ssl_context >>= fun ssl_accepted ->
       dbg "Accepted (SSL)" >>= fun () ->
@@ -95,15 +95,18 @@ module Server = struct
       | Some ccc ->
         double_bind (Tls.tls_get_certificate ssl_accepted)
           ~error:(function
-          | `ssl_certificate_error -> return (`invalid_client `wrong_certificate)
+          | `ssl_certificate_error ->
+            return (`invalid_client `wrong_certificate)
           | `not_an_ssl_socket | `io_exn _ as e -> error e)
           ~ok:(fun cert ->
             ccc cert >>= function
-            | `ok -> return (`valid_client cert)
-            | `expired -> return (`invalid_client (`expired_certificate cert))
-            | `certificate_not_found ->
-              return (`invalid_client (`certificate_not_found cert))
-            | `revoked -> return (`invalid_client (`revoked_certificate cert)))
+            | `valid name -> return (`valid_client (name: string))
+            | `expired (name, time) ->
+              return (`invalid_client (`expired ((name: string), (time: Time.t))))
+            | `revoked (name, time) ->
+              return (`invalid_client (`revoked ((name: string), (time: Time.t))))
+            | `not_found name ->
+              return (`invalid_client (`not_found (name: string))))
       | None -> return `anonymous_client
       end
       >>= fun client ->

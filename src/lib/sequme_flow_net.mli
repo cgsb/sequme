@@ -19,10 +19,12 @@ module Server: sig
 
   val tls_accept_loop :
     ?check_client_certificate:(Ssl.certificate ->
-                               ([< `certificate_not_found
-                                | `expired
-                                | `ok
-                                | `revoked ],
+                               ([< `expired of
+                                   string * Core.Std.Time.t
+                                | `not_found of string
+                                | `revoked of
+                                    string * Core.Std.Time.t
+                                | `valid of string ],
                                 [> `io_exn of exn
                                 | `not_an_ssl_socket
                                 | `tls_accept_error of exn ]
@@ -33,14 +35,15 @@ module Server: sig
     (Lwt_ssl.socket ->
      [> `anonymous_client
      | `invalid_client of
-         [> `certificate_not_found of Ssl.certificate
-         | `expired_certificate of Ssl.certificate
-         | `revoked_certificate of Ssl.certificate
+         [> `expired of string * Core.Std.Time.t
+         | `not_found of string
+         | `revoked of string * Core.Std.Time.t
          | `wrong_certificate ]
-     | `valid_client of Ssl.certificate ] ->
+     | `valid_client of string ] ->
      (unit, 'a) Sequme_flow.t) ->
     (unit, [> `io_exn of exn | `socket_creation_exn of exn ])
       Sequme_flow.t
+
 end
 
 module Client: sig

@@ -77,13 +77,15 @@ let client (client1_name, client1_cert_key) =
   logc "Disconnected." >>= fun () ->
   logc "End."
 
-let server name ca_certificate cert_key =
+let server name ca cert_key =
   logs "Start!" >>= fun () ->
-  Flow_net.Server.tls_context ~ca_certificate cert_key >>= fun tls_context ->
+  Flow_net.Server.tls_context
+    ~ca_certificate:(Flow_CA.ca_certificate_path ca) cert_key
+  >>= fun tls_context ->
   let check_client_certificate c =
     logs "check_client_certificate:\n  Issuer: %s\n  Subject: %s"
       (Ssl.get_issuer c) (Ssl.get_subject c) >>= fun () ->
-    return `ok
+    Flow_CA.check_certificate ca c
   in
   let print_incomming_message inchan =
     bind_on_error (Sequme_flow_io.bin_recv inchan) (function
@@ -109,20 +111,17 @@ let server name ca_certificate cert_key =
             (Ssl.get_error_string ())
         >>= fun () ->
         print_incomming_message inchan
-      | `invalid_client (`expired_certificate _) ->
-        logs "The client has an expired certificate"
-      | `invalid_client (`revoked_certificate _) ->
-        logs "The client has a revoked certificate"
-      | `invalid_client (`certificate_not_found _) ->
+      | `invalid_client (`expired (n, t)) ->
+        logs "The client %S has a certificate expired since %s" n Time.(to_string t)
+      | `invalid_client (`revoked (n, t)) ->
+        logs "The client %S has a certificate revoked since %s" n Time.(to_string t)
+      | `invalid_client (`not_found n) ->
         logs "The client has a not-found certificate"
       | `anonymous_client ->
         logs "Reading from anonymous_client..." >>= fun () ->
         print_incomming_message inchan
-      | `valid_client cert ->
-        (* let login = Certificate_authority.login_of_cert cert in *)
-        (* logs "Reading... from %s" (Option.value ~default:"NOT-NAMED" login) *)
-        logs "Reading from authenticated client"
-        >>= fun () ->
+      | `valid_client name ->
+        logs "Reading from authenticated client: %S" name >>= fun () ->
         print_incomming_message inchan
       end)
   >>= fun () ->
@@ -148,16 +147,14 @@ let certificates () =
   logt "Certification of %s:\n%s\n%s" name crt key
                 >>= fun () ->
   let client1 = (name, (crt, key)) in
-  let ca_cert = Flow_CA.ca_certificate_path ca in
-  logt "CA Certificate: %s" ca_cert >>= fun () ->
-  return (ca_cert, server, client1)
+  return (ca, server, client1)
     
 let main () =
   logt "Start!\n%s" Time.(now () |! to_string) >>= fun () ->
   certificates ()
-  >>= fun (ca_cert, (server_name, server_cert_key), client1) ->
+  >>= fun (ca, (server_name, server_cert_key), client1) ->
   wrap_io Lwt.pick [client client1 |! print_errors_and_unit "client";
-                    server server_name ca_cert server_cert_key
+                    server server_name ca server_cert_key
                     |! print_errors_and_unit "server"]
   
   
