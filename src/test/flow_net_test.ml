@@ -1,4 +1,16 @@
+(*
 
+  This program is a test for the Flow_net module.
+
+  It launches 3 servers:
+  - TCP on port 4001
+  - TCP + TLS on port 4002
+  - TCP + TLS + Client-certificates on port 4003
+  The servers just log incoming messages and reply to them once.
+  
+  Then successive clients connect, send messages, and disconnect.
+
+*)
 open Core.Std
 open Sequme_flow
 open Sequme_flow_list
@@ -7,6 +19,9 @@ open Sequme_flow_sys
 module Flow_net = Sequme_flow_net
 module Flow_CA = Sequme_flow_certificate_authority
   
+(* -------------------------------------------------------------------------- *)
+(* Logging functions/Utilities: *)
+
 let log_any whoami fmt =
   let prompt = sprintf "𝕱☏-%s: " whoami in
   let prompt_length = String.length prompt - 5 in
@@ -30,6 +45,8 @@ let cmd fmt =
     system_command s)
     fmt
 
+(* -------------------------------------------------------------------------- *)
+(* Receive a message on the connection and reply to it. *)
 let echo_server connection =
   bind_on_error (Sequme_flow_io.bin_recv connection#in_channel) (function
   | `bin_recv (`exn e) ->
@@ -45,6 +62,10 @@ let echo_server connection =
   >>= fun () ->
   Sequme_flow_io.bin_send connection#out_channel (sprintf "%s back ..." msg)
 
+
+(* -------------------------------------------------------------------------- *)
+(* For the authenticated case, display the 'kind' of client and then
+   do the 'echo'. *)
 let client_info_and_echo connection client_kind =
   begin match client_kind with
   | `invalid_client `wrong_certificate ->
@@ -64,6 +85,13 @@ let client_info_and_echo connection client_kind =
   echo_server connection
   
   
+(* -------------------------------------------------------------------------- *)
+(* Launch the 3 servers.
+   - 'name' is unused right now (it is the 'name' associated with the
+     certification.
+   - 'ca' is a Sequme_flow_certificate_authority.t
+   - 'cert_key' is a pair of filenames (certificate, key)
+*)
 let servers name ca cert_key =
   Flow_net.plain_server ~port:4001 echo_server >>= fun () ->
   logs "Plain Server running on 4001" >>= fun () ->
@@ -74,6 +102,8 @@ let servers name ca cert_key =
   logs "Auth-TLS Server running on 4003" >>= fun () ->
   logs "End of preparation."
 
+(* -------------------------------------------------------------------------- *)
+(* As a client, send "Hello" and wait for the reply. *)
 let send_and_recv connection =
   Sequme_flow_io.bin_send connection#out_channel "Hello !!"
   >>= fun () ->
@@ -81,9 +111,12 @@ let send_and_recv connection =
   >>= fun msg ->
   logc "Got %S from server"  msg
   
+(* -------------------------------------------------------------------------- *)
+(* The client-side test. *)
 let clients (client1_name, client1_cert_key) =
   logc "Starting."
   >>= fun () ->
+  (* TCP (`plain) connection to localhost:4001 *) 
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4001)) (`plain)
   >>= fun connection ->
@@ -92,6 +125,9 @@ let clients (client1_name, client1_cert_key) =
   >>= fun () ->
   connection#shutdown
   >>= fun () ->
+  (* TCP + TLS connection to localhost:4002
+     `anonymous -> do not use client-certificates
+     `allow_self_signed -> do not check the server certificate *)
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4002))
     (`tls (`anonymous, `allow_self_signed))
@@ -102,6 +138,9 @@ let clients (client1_name, client1_cert_key) =
   connection#shutdown
   >>= fun () ->
   logc "Disconnected." >>= fun () ->
+  (* TCP + TLS connection to localhost:4003
+     `with_certificate (file.crt, file.key) -> use client-certificates
+     `allow_self_signed -> do not check the server certificate *)
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4003))
     (`tls (`with_certificate client1_cert_key, `allow_self_signed))
@@ -110,6 +149,14 @@ let clients (client1_name, client1_cert_key) =
   send_and_recv connection >>= fun () ->
   connection#shutdown
   >>= fun () ->
+  (* TCP + TLS connection to localhost:4003
+     `anonymous -> do not use client-certificates
+     `allow_self_signed -> do not check the server certificate
+
+     In that case the server expects client-certificates (:4003), so
+     this client will appear as a (`invalid_client `wrong_certificate).
+     The connection is still useful as `anonymous.
+  *)
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4003))
     (`tls (`anonymous, `allow_self_signed))
@@ -121,7 +168,8 @@ let clients (client1_name, client1_cert_key) =
   >>= fun () ->
   logc "Disconnected."
 
-    
+(* ************************************************************************** *) 
+(* Create a certificate authority and a bunch of certificates. *)
 let certificates () =
   let ca_path = "/tmp/flow_net_test_ca" in
   cmd "rm -fr %s" ca_path >>= fun () ->
@@ -144,6 +192,8 @@ let certificates () =
   let client1 = (name, (crt, key)) in
   return (ca, server, client1)
     
+(* -------------------------------------------------------------------------- *)
+(* The Main Lwt thread. *)
 let main () =
   logt "Start!\n%s" Time.(now () |! to_string) >>= fun () ->
   certificates ()
