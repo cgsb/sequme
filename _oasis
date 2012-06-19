@@ -7,12 +7,16 @@ License:     PROP
 Plugins:     META (0.2), DevFiles (0.2)
 BuildTools:  ocamlbuild
 PostConfCommand: mv myocamlbuild.ml /tmp/sequme_ocamlbuild.ml && \
-                 cat /tmp/sequme_ocamlbuild.ml ocamlbuild_ocamldoc.ml > myocamlbuild.ml
+                 cat /tmp/sequme_ocamlbuild.ml ocamlbuild_ocamldoc.ml \
+                    > myocamlbuild.ml  && \
+                 mv _tags /tmp/sequme_tags && \
+                 cat /tmp/sequme_tags custom_tags > _tags
 
 Library sequme
   Path: src/lib
   FindlibName: sequme
-  BuildDepends: threads, batteries, core, pgocaml, biocaml, lwt.ssl
+  BuildDepends: threads, batteries, core, sexplib.syntax, pgocaml,
+                biocaml, lwt.ssl, lwt.preemptive
   Install: true
   Modules: Sequme
            , Sequme_std
@@ -32,6 +36,8 @@ Library sequme
            , Sequme_flow_list
            , Sequme_flow_sys
            , Sequme_flow_io
+           , Sequme_flow_certificate_authority
+           , Sequme_flow_net
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
@@ -49,3 +55,16 @@ Executable test_sequme_flow
   CompiledObject: best
   Install: false
 
+Executable flow_ca
+  Path: src/test/
+  MainIs: flow_ca.ml
+  BuildDepends: sequme
+  CompiledObject: best
+  Install: false
+
+Executable flow_net_test
+  Path: src/test/
+  MainIs: flow_net_test.ml
+  BuildDepends: sequme
+  CompiledObject: best
+  Install: false

@@ -35,6 +35,12 @@ let wrap_io ?(on_exn=fun e -> `io_exn e) f x =
     ~ok:return
     ~error:(fun exn -> error (on_exn exn)) 
 
+let wrap ~on_exn ~f x =
+  let caught = catch_io (fun a -> Lwt.return (f a)) x in
+  double_bind caught
+    ~ok:return
+    ~error:(fun exn -> error (on_exn exn))
+  
 let map_option: 'a option -> f:('a -> ('b, 'error) t) -> ('b option, 'error) t
   = fun o ~f ->
     begin match o with
