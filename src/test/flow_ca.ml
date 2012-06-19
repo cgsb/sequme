@@ -56,6 +56,10 @@ let info path name =
           |! String.concat ~sep:"\n"))
       |! String.concat ~sep:"\n")
   end
+
+let revoke path name =
+  Flow_CA.load path >>= fun ca ->
+  Flow_CA.revoke ca ~name
   
 let main () =
   begin match Array.to_list Sys.argv with
@@ -63,11 +67,15 @@ let main () =
     log "Nothing to do.\n\
          usage: flow_ca <cmd> <args>\n\
          flow_ca establish <path>\n\
-         flow_ca server <path> <common-name>"
+         flow_ca server <path> <common-name>\n\
+         flow_ca client <path> <common-name>\n\
+         flow_ca info <path> <common-name>\n\
+         flow_ca revoke <path> <common-name>"
   | exec :: "establish" :: path :: [] -> do_establishment path  
   | exec :: "server" :: path :: name :: [] -> certificate path `server name
   | exec :: "client" :: path :: name :: [] -> certificate path `client name
   | exec :: "info" :: path :: name :: [] -> info path name
+  | exec :: "revoke" :: path :: name :: [] -> revoke path name
   | exec :: l ->
     log "Don't know what to do with [%s]"
       (l |! List.map ~f:(sprintf "%S") |! String.concat ~sep:", ")
