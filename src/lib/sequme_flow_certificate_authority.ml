@@ -388,3 +388,13 @@ let check_certificate t tls_cert =
   | `revoked (n, t) -> return (`revoked (n, t))
   | `entity_not_found n  -> return (`not_found n)
   | `wrong_subject_format subj as e -> error e
+
+let revoke t ~name =
+  begin match find_certificate t name with
+  | None -> error (`name_not_found name)
+  | Some cert ->
+    cert.cert_status <- (`revoked Time.(now ()));
+    save t
+  end
+
+  

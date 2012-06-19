@@ -91,4 +91,8 @@ val check_certificate : t -> Ssl.certificate ->
     Sequme_flow.t
 (** A version of [identify] compatible with [Sequme_flow_net]. *)
 
-    
+val revoke : t -> name:string ->
+  (unit,
+   [> `name_not_found of 'a Core.Std.String.Map.key_
+   | `write_file_error of string * exn ]) Sequme_flow.t
+(** Revoke [name]'s certificate. *)
