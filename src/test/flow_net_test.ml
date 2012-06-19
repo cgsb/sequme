@@ -113,7 +113,7 @@ let send_and_recv connection =
   
 (* -------------------------------------------------------------------------- *)
 (* The client-side test. *)
-let clients (client1_name, client1_cert_key) =
+let clients ca (client1_name, client1_cert_key) =
   logc "Starting."
   >>= fun () ->
   (* TCP (`plain) connection to localhost:4001 *) 
@@ -162,11 +162,22 @@ let clients (client1_name, client1_cert_key) =
     (`tls (`anonymous, `allow_self_signed))
   >>= fun connection ->
   logc "Anonymously Connected on 4003 " >>= fun () ->
-  send_and_recv connection
-  >>= fun () ->
+  send_and_recv connection >>= fun () ->
+  connection#shutdown >>= fun () ->
+  logc "Disconnected." >>= fun () ->
+  (* Revoke the clients certificate, and try to reconnect on 4003 with it.
+     The server will display something like:
+        "Flow_net_client_1" has a certificate revoked since ...
+     but the ping-pong will be done anyway.
+  *)
+  Flow_CA.revoke ca ~name:client1_name >>= fun () ->
+  Flow_net.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4003))
+    (`tls (`with_certificate client1_cert_key, `allow_self_signed))
+  >>= fun connection ->
+  logc "Connected as %s on 4003" client1_name >>= fun () ->
+  send_and_recv connection >>= fun () ->
   connection#shutdown
-  >>= fun () ->
-  logc "Disconnected."
 
 (* ************************************************************************** *) 
 (* Create a certificate authority and a bunch of certificates. *)
@@ -200,7 +211,7 @@ let main () =
   >>= fun (ca, (server_name, server_cert_key), client1) ->
   servers server_name ca server_cert_key
   >>= fun () ->
-  clients client1
+  clients ca client1
   
 let () =
   Flow_net.init_tls ();
