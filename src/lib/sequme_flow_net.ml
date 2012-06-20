@@ -167,7 +167,10 @@ object
   method in_channel: Lwt_io.input_channel = inchan
   method out_channel: Lwt_io.output_channel = outchan
   method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
-    = Tls.tls_shutdown tls_socket
+    =
+    wrap_io Lwt_io.close inchan >>= fun () ->
+    wrap_io Lwt_io.close outchan >>= fun () ->
+    Tls.tls_shutdown tls_socket
 end
 
 type client_check_result =
