@@ -1,9 +1,11 @@
 (** High-level TCP + TLS connection handling. *)
 
+(** {3 TLS Initialization} *)
 
 val init_tls :  unit -> unit
 (** Initialize the SSL library. *)
 
+(** {3 Generic Connection Handle} *)
 (** A connection is full duplex and can be shut down: {v
 class type ['a] connection =
 object
@@ -20,6 +22,8 @@ object
   method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
 end
 
+(** {3 Client Connection} *)
+
 type connection_specification = [
 | `tls of
     [ `anonymous | `with_certificate of string * string ]
@@ -32,6 +36,8 @@ val connect: address:Lwt_unix.sockaddr -> connection_specification ->
   ([> `io_exn of exn] connection, [> `io_exn of exn | `tls_context_exn of exn ])
     Sequme_flow.t
 (** Connect to the server at [address]. *)
+
+(** {3 Server Establishment} *)
 
 val plain_server :
   port:int ->
