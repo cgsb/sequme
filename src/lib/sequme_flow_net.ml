@@ -79,7 +79,9 @@ module Tls = struct
     with
     | e -> error (`socket_creation_exn e)
 
-  let accept_loop ?check_client_certificate ?tls_context ~port f =
+  let accept_loop
+      ?(on_error: 'a -> (unit, [> ]) Sequme_flow.t =fun e -> return ())
+      ?check_client_certificate ?tls_context ~port f =
     server_socket ~port >>= fun socket ->
     let handle_one accepted =
       begin match tls_context with
@@ -114,6 +116,8 @@ module Tls = struct
       (* dbg "Accepting #%d (unix)" c >>= fun () -> *)
       wrap_io (Lwt_unix.accept_n socket) 10
       >>= fun (accepted_list, potential_exn) ->
+      map_option potential_exn (fun exn -> on_error (`accept_exn exn))
+      >>= fun (_ : unit option) ->
       dbg "Accepted %d connections (unix)%s" (List.length accepted_list)
         (Option.value_map ~default:"" potential_exn
            ~f:(fun e -> sprintf ", Exn: %s" (Exn.to_string e)))
@@ -122,9 +126,10 @@ module Tls = struct
       Lwt.(
         Lwt_list.map_p handle_one accepted_list
         >>= fun res_l ->
-        List.iter res_l (function
-        | Ok () -> ()
-        | Error e -> eprintf "THERE WERE ERRORS IN THE HANDLER");
+        Lwt_list.map_p (function
+        | Ok () -> return (Ok ())
+        | Error e -> on_error e) res_l
+        >>= fun _ ->
         return (Ok ()))
     in
     accept_loop 0 |! Lwt.ignore_result;
@@ -180,17 +185,17 @@ type client_kind =
     | `wrong_certificate ]
 | `valid_client of string ]
 
-let plain_server ~port f =
-  Tls.accept_loop ~port
+let plain_server ?on_error ~port f =
+  Tls.accept_loop ~port ?on_error
     (fun socket_fd _ ->
       let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
       let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
       f (new connection inchan outchan socket_fd))
 
-let tls_server ~port ~cert_key f =
+let tls_server ?on_error ~port ~cert_key f =
   Tls.server_context cert_key
   >>= fun tls_context ->
-  Tls.accept_loop ~tls_context ~port
+  Tls.accept_loop ~tls_context ?on_error ~port
     (fun socket_fd client_kind ->
       let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
       let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
@@ -199,24 +204,24 @@ let tls_server ~port ~cert_key f =
   
 let authenticating_tls_server
     ~ca_certificate ~check_client_certificate
-    ~port ~cert_key f = 
+    ?on_error ~port ~cert_key f = 
   Tls.server_context ~ca_certificate cert_key
   >>= fun tls_context ->
-  Tls.accept_loop ~check_client_certificate ~tls_context ~port
+  Tls.accept_loop ?on_error ~check_client_certificate ~tls_context ~port
     (fun socket_fd client_kind ->
       let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
       let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
       f (new connection inchan outchan socket_fd) client_kind)
 
 let authenticating_tls_server_with_ca
-    ~ca ~port ~cert_key f = 
+    ~ca ?on_error ~port ~cert_key f = 
   let ca_certificate = Sequme_flow_certificate_authority.ca_certificate_path ca in
   let check_client_certificate c =
     dbg "check_client_certificate:\n  Issuer: %s\n  Subject: %s"
       (Ssl.get_issuer c) (Ssl.get_subject c) >>= fun () ->
     Sequme_flow_certificate_authority.check_certificate ca c
   in
-  authenticating_tls_server 
+  authenticating_tls_server  ?on_error
     ~ca_certificate ~check_client_certificate
     ~port ~cert_key f
 
