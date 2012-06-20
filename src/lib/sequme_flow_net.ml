@@ -7,7 +7,7 @@ let dbg fmt =
   ksprintf (fun s ->
     let indented =
       s |! String.split ~on:'\n' |! String.concat ~sep:"\n          " in
-    wrap_io (Lwt_io.eprintf "𝕱☏-DEBUG: %s\n%!") indented) fmt
+    wrap_io (Lwt_io.eprintf "DEBUG:   %s\n%!") indented) fmt
   
 module Tls = struct
 
@@ -85,7 +85,6 @@ module Tls = struct
       | None -> return (Lwt_ssl.plain (fst accepted))
       end
       >>= fun ssl_accepted ->
-      (* dbg "Accepted (SSL)" >>= fun () -> *)
       begin match check_client_certificate with
       | Some ccc ->
         double_bind (tls_get_certificate ssl_accepted)
@@ -108,15 +107,14 @@ module Tls = struct
       f ssl_accepted client
     in
     let rec accept_loop c =
-      (* dbg "Accepting #%d (unix)" c >>= fun () -> *)
       wrap_io (Lwt_unix.accept_n socket) 10
       >>= fun (accepted_list, potential_exn) ->
       map_option potential_exn (fun exn -> on_error (`accept_exn exn))
       >>= fun (_ : unit option) ->
-      dbg "Accepted %d connections (unix)%s" (List.length accepted_list)
-        (Option.value_map ~default:"" potential_exn
-           ~f:(fun e -> sprintf ", Exn: %s" (Exn.to_string e)))
-      >>= fun () ->
+      (* dbg "Accepted %d connections (unix)%s" (List.length accepted_list) *)
+      (*   (Option.value_map ~default:"" potential_exn *)
+      (*      ~f:(fun e -> sprintf ", Exn: %s" (Exn.to_string e))) *)
+      (* >>= fun () -> *)
       accept_loop (c + 1) |! Lwt.ignore_result;
       Lwt.(
         Lwt_list.map_p handle_one accepted_list
@@ -128,7 +126,6 @@ module Tls = struct
         return (Ok ()))
     in
     accept_loop 0 |! Lwt.ignore_result;
-    (* dbg "ACCEPT_LOOP started" *)
     return ()
 
   let client_context ?verification_policy kind =
@@ -216,8 +213,8 @@ let authenticating_tls_server_with_ca
     ~ca ?on_error ~port ~cert_key f = 
   let ca_certificate = Sequme_flow_certificate_authority.ca_certificate_path ca in
   let check_client_certificate c =
-    dbg "check_client_certificate:\n  Issuer: %s\n  Subject: %s"
-      (Ssl.get_issuer c) (Ssl.get_subject c) >>= fun () ->
+    (* dbg "check_client_certificate:\n  Issuer: %s\n  Subject: %s" *)
+      (* (Ssl.get_issuer c) (Ssl.get_subject c) >>= fun () -> *)
     Sequme_flow_certificate_authority.check_certificate ca c
   in
   authenticating_tls_server  ?on_error
