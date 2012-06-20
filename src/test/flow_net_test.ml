@@ -193,7 +193,19 @@ let clients ca (client1_name, client1_cert_key) =
   >>= fun connection ->
   logc "Connected as %s on 4003" client1_name >>= fun () ->
   send_and_recv connection >>= fun () ->
-  connection#shutdown
+  connection#shutdown >>= fun () ->
+  (* Connect to the tls:4002 server
+     and provoke a `message_too_long error by sending a message with
+     wrong format (it is a `bin_recv error in echo_server). *)
+  Flow_net.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4002))
+    (`tls (`anonymous, `allow_self_signed))
+  >>= fun connection ->
+  logc "Anonymously Connected on 4002 and going to send garbage." >>= fun () ->
+  wrap_io (Lwt_io.write connection#out_channel) "\xff\xff\xff\xff"
+  >>= fun () ->
+  connection#shutdown >>= fun () ->
+  return ()
 
 (* ************************************************************************** *) 
 (* Create a certificate authority and a bunch of certificates. *)
