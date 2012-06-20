@@ -30,7 +30,11 @@ module Tls = struct
     wrap_io (Lwt_ssl.ssl_connect socket) ssl_context
 
   let tls_shutdown socket =
-    wrap_io Lwt_ssl.ssl_shutdown socket
+    wrap_io Lwt_ssl.ssl_shutdown socket >>= fun () ->
+    wrap_io (fun  () ->
+      Lwt_ssl.shutdown socket Lwt_unix.SHUTDOWN_ALL;
+      Lwt.return ()) () >>= fun () ->
+    wrap_io Lwt_ssl.close socket
 
   module M_ugly_ssl_get_certificate = struct
     type ttt = Plain | SSL of Ssl.socket
@@ -69,15 +73,6 @@ module Tls = struct
       return c
     with e -> error (`tls_context_exn e)
 
-  let server_socket ~port =
-    let open Lwt_unix in
-    try
-      let fd = socket PF_INET SOCK_STREAM 6 in
-      bind fd (ADDR_INET (Unix.Inet_addr.bind_any, port));
-      listen fd port;
-      return fd
-    with
-    | e -> error (`socket_creation_exn e)
 
   let accept_loop
       ?(on_error: 'a -> (unit, [> ]) Sequme_flow.t =fun e -> return ())
@@ -168,9 +163,10 @@ object
   method out_channel: Lwt_io.output_channel = outchan
   method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
     =
+    Tls.tls_shutdown tls_socket >>= fun () ->
     wrap_io Lwt_io.close inchan >>= fun () ->
     wrap_io Lwt_io.close outchan >>= fun () ->
-    Tls.tls_shutdown tls_socket
+    return ()
 end
 
 type client_check_result =
