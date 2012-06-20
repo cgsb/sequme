@@ -54,13 +54,21 @@ let echo_server connection =
     >>= fun () ->
     return "NOTHING"
   | `bin_recv (`wrong_length (l, s)) ->
-    logs "ERROR: bin-recv: %d" l
+    logs "ERROR: bin-recv: `wrong_length %d" l
     >>= fun () ->
     return "NOTHING")
   >>= fun msg ->
   logs "Received: %S from client." msg
   >>= fun () ->
-  Sequme_flow_io.bin_send connection#out_channel (sprintf "%s back ..." msg)
+  begin match msg with
+  | "magic:error" -> (* error instead of replying *)
+    error (`io_exn (Failure "Expected failure."))
+  | "magic:shutdown" ->  (* shutdown the connection *)
+    connection#shutdown >>= fun () ->
+    logs "Connection shut down"
+  | s ->
+    Sequme_flow_io.bin_send connection#out_channel (sprintf "%s back ..." s)
+  end
 
 
 (* -------------------------------------------------------------------------- *)
@@ -130,9 +138,11 @@ let send_and_recv connection =
 (* -------------------------------------------------------------------------- *)
 (* The client-side test. *)
 let clients ca (client1_name, client1_cert_key) =
+  let title s = logc "  =========== %s ===========" s in
   logc "Starting."
   >>= fun () ->
-  (* TCP (`plain) connection to localhost:4001 *) 
+
+  title "TCP (`plain) connection to localhost:4001" >>= fun () ->
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4001)) (`plain)
   >>= fun connection ->
@@ -141,8 +151,9 @@ let clients ca (client1_name, client1_cert_key) =
   >>= fun () ->
   connection#shutdown
   >>= fun () ->
-  (* TCP + TLS connection to localhost:4002
-     `anonymous -> do not use client-certificates
+
+  title "TCP + TLS connection to localhost:4002" >>= fun () ->
+  (* `anonymous -> do not use client-certificates
      `allow_self_signed -> do not check the server certificate *)
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4002))
@@ -154,8 +165,10 @@ let clients ca (client1_name, client1_cert_key) =
   connection#shutdown
   >>= fun () ->
   logc "Disconnected." >>= fun () ->
-  (* TCP + TLS connection to localhost:4003
-     `with_certificate (file.crt, file.key) -> use client-certificates
+
+  title "TCP + TLS + Auth connection to localhost:4003"
+  >>= fun () ->
+  (* `with_certificate (file.crt, file.key) -> use client-certificates
      `allow_self_signed -> do not check the server certificate *)
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4003))
@@ -165,6 +178,9 @@ let clients ca (client1_name, client1_cert_key) =
   send_and_recv connection >>= fun () ->
   connection#shutdown
   >>= fun () ->
+
+  
+  title "TCP + TLS connection to localhost:4003" >>= fun () ->
   (* TCP + TLS connection to localhost:4003
      `anonymous -> do not use client-certificates
      `allow_self_signed -> do not check the server certificate
@@ -181,6 +197,9 @@ let clients ca (client1_name, client1_cert_key) =
   send_and_recv connection >>= fun () ->
   connection#shutdown >>= fun () ->
   logc "Disconnected." >>= fun () ->
+
+  
+  title "Revoked TCP + TLS + Auth connection to localhost:4003" >>= fun () ->
   (* Revoke the clients certificate, and try to reconnect on 4003 with it.
      The server will display something like:
         "Flow_net_client_1" has a certificate revoked since ...
@@ -194,8 +213,10 @@ let clients ca (client1_name, client1_cert_key) =
   logc "Connected as %s on 4003" client1_name >>= fun () ->
   send_and_recv connection >>= fun () ->
   connection#shutdown >>= fun () ->
+
+  title "tls:4002: `wrong_length on server side" >>= fun () ->
   (* Connect to the tls:4002 server
-     and provoke a `message_too_long error by sending a message with
+     and provoke a `wrong_length error by sending a message with
      wrong format (it is a `bin_recv error in echo_server). *)
   Flow_net.connect
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4002))
@@ -204,8 +225,75 @@ let clients ca (client1_name, client1_cert_key) =
   logc "Anonymously Connected on 4002 and going to send garbage." >>= fun () ->
   wrap_io (Lwt_io.write connection#out_channel) "\xff\xff\xff\xff"
   >>= fun () ->
+  sleep 1.
+  >>= fun () ->
   connection#shutdown >>= fun () ->
-  return ()
+
+  title "tls:4002: Trigger magic:error on server"
+  >>= fun () ->
+  (* Connect to the tls:4002 server and send "magic:error" so that
+     the server's handler pretends to have an error.
+     The on_error handler will print the I/O-Failure "Expected failure".
+  *)
+  Flow_net.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4002))
+    (`tls (`anonymous, `allow_self_signed))
+  >>= fun connection ->
+  logc "Anonymously Connected on 4002 and going to send magic:error." >>= fun () ->
+  Sequme_flow_io.bin_send connection#out_channel "magic:error"
+  >>= fun () ->
+  sleep 2.
+  >>= fun () ->
+  connection#shutdown >>= fun () ->
+
+  title "tls:4002: Trigger magic:shutdown on server" >>= fun () ->
+  (* Connect to the tls:4002 server and send "magic:shutdown" so that
+     the server's handler pretends to have an error.
+     The on_error handler will print the I/O-Failure "Expected failure".
+  *)
+  Flow_net.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4002))
+    (`tls (`anonymous, `allow_self_signed))
+  >>= fun connection ->
+  logc "Anonymously Connected on 4002 and going to send magic:shutdown." >>= fun () ->
+  Sequme_flow_io.bin_send connection#out_channel "magic:shutdown"
+  >>= fun () ->
+  logc "Sleeping for a second and try to re-send something" >>= fun () ->
+  sleep 1. >>= fun () ->
+  bind_on_error (* We need to fill the TCP buffer with something big: *)
+    (Sequme_flow_io.bin_send connection#out_channel String.(make 400000 'B')
+     >>= fun () ->
+     logc "SHOULD NOT DISPLAY THIS" >>= fun () ->
+     failwithf "big bin_send to shut down server not failing")
+    (function
+    | `bin_send (`exn e) ->
+      logc "Expected bin-send error: %s" (Exn.to_string e)
+    | e -> error e)
+  >>= fun () ->
+
+  title "plain:4001: Trigger magic:shutdown on server" >>= fun () ->
+  (* Like the previous but on the TCP (`plain) connection to localhost:4001 *) 
+  Flow_net.connect
+    ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4001)) (`plain)
+  >>= fun connection ->
+  logc "TCP-Connected on 4001 " >>= fun () ->
+  Sequme_flow_io.bin_send connection#out_channel "magic:shutdown"
+  >>= fun () ->
+  logc "Sleeping for a second and try to re-send something" >>= fun () ->
+  sleep 1. >>= fun () ->
+  bind_on_error (* We need to fill the TCP buffer with something big: *)
+    (Sequme_flow_io.bin_send connection#out_channel String.(make 400000 'B')
+     >>= fun () ->
+     logc "SHOULD NOT DISPLAY THIS" >>= fun () ->
+     failwithf "big bin_send to shut down server not failing")
+    (function
+    | `bin_send (`exn e) ->
+      logc "Expected bin-send error: %s" (Exn.to_string e)
+    | e -> error e)
+  >>= fun () ->
+  sleep 3.
+  >>= fun () ->
+  logc "End."
 
 (* ************************************************************************** *) 
 (* Create a certificate authority and a bunch of certificates. *)
@@ -227,14 +315,16 @@ let certificates () =
   Flow_CA.certificate_and_key_paths ca ~name |! of_result
   >>= fun (crt, key) ->
   logt "Certification of %s:\n%s\n%s" name crt key
-                >>= fun () ->
+  >>= fun () ->
   let client1 = (name, (crt, key)) in
   return (ca, server, client1)
     
 (* -------------------------------------------------------------------------- *)
 (* The Main Lwt thread. *)
 let main () =
-  logt "Start!\n%s" Time.(now () |! to_string) >>= fun () ->
+  logt "Start!\n%s\n%d signal handlers"
+    Time.(now () |! to_string) Lwt_unix.(signal_count ())
+  >>= fun () ->
   certificates ()
   >>= fun (ca, (server_name, server_cert_key), client1) ->
   servers server_name ca server_cert_key
@@ -247,6 +337,8 @@ let () =
   | Ok () -> ()
   | Error e ->
     begin match e with
+    | `flow_net_test_error s ->
+      eprintf "End with ERROR: %s\n" s
     | `io_exn e -> eprintf "End with ERROR: %s\n" (Exn.to_string e)
     | `system_command_error (cmd, status) ->
       eprintf "End with ERROR: SYS-COMMAND %S failed\n" (cmd)
