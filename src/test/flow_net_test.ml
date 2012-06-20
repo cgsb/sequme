@@ -37,7 +37,7 @@ let logc fmt = log_any "client" fmt
 let logs fmt = log_any "server" fmt
 
 let failwithf fmt =
-  ksprintf (fun s -> error (`flow_ca_error s)) fmt
+  ksprintf (fun s -> error (`flow_net_test_error s)) fmt
 
 let cmd fmt =
   ksprintf (fun s ->
@@ -93,11 +93,27 @@ let client_info_and_echo connection client_kind =
    - 'cert_key' is a pair of filenames (certificate, key)
 *)
 let servers name ca cert_key =
-  Flow_net.plain_server ~port:4001 echo_server >>= fun () ->
+  let on_error = function
+    | `accept_exn e ->
+      logs "ERROR: Accept-exception: %s" (Exn.to_string e)
+    | `io_exn e ->
+      logs "ERROR: I/O-exception: %s" (Exn.to_string e)
+    | `not_an_ssl_socket ->
+      logs "ERROR: Not an SSL socket"
+    | `tls_accept_error e  ->
+      logs "ERROR: TLS-accept-exception: %s" (Exn.to_string e)
+    | `bin_send  (`exn e) ->
+      logs "ERROR: bin-send-exception: %s" (Exn.to_string e)
+    | `bin_send (`message_too_long s) ->
+      logs "ERROR: bin-send: message too long (%d bytes)" (String.length s)
+    | `wrong_subject_format s ->
+      logs "ERROR: TLS: wrong_subject_format: %s" s
+  in
+  Flow_net.plain_server ~on_error ~port:4001 echo_server >>= fun () ->
   logs "Plain Server running on 4001" >>= fun () ->
-  Flow_net.tls_server ~port:4002 ~cert_key echo_server >>= fun () ->
+  Flow_net.tls_server ~on_error ~port:4002 ~cert_key echo_server >>= fun () ->
   logs "TLS Server running on 4002" >>= fun () ->
-  Flow_net.authenticating_tls_server_with_ca
+  Flow_net.authenticating_tls_server_with_ca ~on_error
     ~ca ~port:4003 ~cert_key client_info_and_echo >>= fun () ->
   logs "Auth-TLS Server running on 4003" >>= fun () ->
   logs "End of preparation."
