@@ -16,14 +16,16 @@ val init_tls :  unit -> unit
 (** Initialize the SSL library. *)
 
 (** {3 Generic Connection Handle} *)
-(** A connection is full duplex and can be shut down: {v
+
+(** A connection is full duplex and can be shut down: {[
 class type ['a] connection =
 object
   method in_channel: Lwt_io.input_channel 
   method out_channel: Lwt_io.output_channel 
   method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
 end
-v}
+]}
+Note that [connection#shutdown] closes the channels.
 *)
 class type ['a] connection =
 object
@@ -65,8 +67,8 @@ val plain_server :
     The function [on_error] is an error handler, it will be called on
     "acceptation" errors (c.f.
     {{:http://ocsigen.org/lwt/api/Lwt_unix#VALaccept_n}Lwt_unix.accept_n})
-    and on the remaining errors of the handler (but errors of the
-    [on_error]function itself will be ignored).
+    {b and} on the remaining errors of the handler (but errors of the
+    [on_error] function itself will be ignored).
 
     Example: {[
     plain_server ~port:4242
@@ -100,7 +102,7 @@ type client_check_result =
 | `valid of string ]
 (** The result type expected from [check_client_certificate] functions. *)
 
-type client_kind = 
+type client_kind =
 [ `anonymous_client
 | `invalid_client of
     [ `expired of string * Core.Std.Time.t
@@ -109,15 +111,17 @@ type client_kind =
     | `wrong_certificate ]
 | `valid_client of string ]
 (** The different kinds of clients that a authenticating TLS server
-    handler has to treat separately. *)
+    handler has to treat separately.
+
+    In the current implementation, the case [`anonymous_client] is
+    never used, clients without certificate are seen as
+    [`invalid_client `wrong_certificate].
+*)
 
 val authenticating_tls_server :
   ca_certificate:string ->
   check_client_certificate:(Ssl.certificate ->
-                            ([< `expired of string * Core.Std.Time.t
-                             | `not_found of string
-                             | `revoked of string * Core.Std.Time.t
-                             | `valid of string ],
+                            (client_check_result,
                              [> `accept_exn of Core.Std.Exn.t
                              | `io_exn of exn
                              | `not_an_ssl_socket
@@ -127,14 +131,7 @@ val authenticating_tls_server :
   ?on_error:('a -> (unit, [> `io_exn of exn ]) Sequme_flow.t) ->
   port:int ->
   cert_key:string * string ->
-  ([> `io_exn of exn ] connection ->
-   [> `anonymous_client
-   | `invalid_client of
-       [> `expired of string * Core.Std.Time.t
-       | `not_found of string
-       | `revoked of string * Core.Std.Time.t
-       | `wrong_certificate ]
-   | `valid_client of string ] ->
+  ([> `io_exn of exn ] connection -> client_kind ->
    (unit, 'a) Sequme_flow.t) ->
   (unit, [> `socket_creation_exn of exn | `tls_context_exn of exn ])
     Sequme_flow.t
@@ -154,17 +151,11 @@ val authenticating_tls_server_with_ca :
              (unit, [> `io_exn of exn ]) Sequme_flow.t) ->
   port:int ->
   cert_key:string * string ->
-  ([> `io_exn of exn ] connection ->
-   [> `anonymous_client
-   | `invalid_client of
-       [> `expired of string * Core.Std.Time.t
-       | `not_found of string
-       | `revoked of string * Core.Std.Time.t
-       | `wrong_certificate ]
-   | `valid_client of string ] ->
+  ([> `io_exn of exn ] connection -> client_kind ->
    (unit, 'a) Sequme_flow.t) ->
   (unit, [> `socket_creation_exn of exn | `tls_context_exn of exn ])
     Sequme_flow.t
 (** Do like [authenticating_tls_server] but use a
     [Sequme_flow_certificate_authority.t] to provide the
     [ca_certificate] and the [check_client_certificate] function. *)
+
