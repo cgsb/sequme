@@ -43,6 +43,7 @@ godi_perform -build apps-oasis
 godi_perform -build godi-ounit
 godi_perform -build godi-pgocaml
 godi_perform -build godi-ocamlscript
+godi_perform -build godi-xmlm
 godi_perform -build godi-pxp
 godi_perform -build godi-bisect   # for batteries
 godi_perform -build godi-res      # for core
