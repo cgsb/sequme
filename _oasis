@@ -6,11 +6,6 @@ Authors:     Ashish Agarwal
 License:     PROP
 Plugins:     META (0.2), DevFiles (0.2)
 BuildTools:  ocamlbuild
-PostConfCommand: mv myocamlbuild.ml /tmp/sequme_ocamlbuild.ml && \
-                 cat /tmp/sequme_ocamlbuild.ml ocamlbuild_ocamldoc.ml \
-                    > myocamlbuild.ml  && \
-                 mv _tags /tmp/sequme_tags && \
-                 cat /tmp/sequme_tags custom_tags > _tags
 
 Library sequme
   Path: src/lib
