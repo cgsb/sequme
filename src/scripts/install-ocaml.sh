@@ -14,6 +14,7 @@
 COMPUTER=$1
 OCAMLPREFIX=$HOME/usr/godi312 # the installation directory
 SCRATCH=/tmp/install-ocaml
+mkdir -p $SCRATCH
 PATH=$OCAMLPREFIX/sbin:$OCAMLPREFIX/bin:$PATH
 
 # cleanup to start from scratch
@@ -144,4 +145,5 @@ cd core-suite-108.00.01
 ./build-and-install
 
 # remove temporary files
+cd $HOME
 rm -rf $SCRATCH
