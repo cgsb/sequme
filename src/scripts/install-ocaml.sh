@@ -57,7 +57,7 @@ ocaml setup.ml -build
 ocaml setup.ml -install
 
 # install ocaml-sqlite3
-if [ COMPUTER = "bowery"]; then
+if [ $COMPUTER = "bowery"]; then
     export C_INCLUDE_PATH=/share/apps/sqlite/3.7.7/intel/include
     export LIBRARY_PATH=/share/apps/sqlite/3.7.7/intel/lib
 fi
@@ -73,7 +73,7 @@ make
 make install
 
 # install ocaml-ssl and lwt
-# if [ COMPUTER="bowery"]; then
+# if [ $COMPUTER="bowery"]; then
 #     download ocaml-ssl from http://sourceforge.net/projects/savonet/files/ocaml-ssl/
       mv ocaml-ssl-0.4.6.tar.gz $SCRATCH
       cd $SCRATCH
@@ -95,7 +95,7 @@ make install
       make 
       make install
 
-# elif [ COMPUTER = "rabbot" ]; then
+# elif [ $COMPUTER = "rabbot" ]; then
       godi_perform -build godi-ocaml-ssl
 
       echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
@@ -105,7 +105,7 @@ make install
       export LIBRARY_PATH=$OCAMLPREFIX/lib
       godi_perform -build godi-lwt
 
-# elif [ COMPUTER = "ashish" ]; then
+# elif [ $COMPUTER = "ashish" ]; then
       godi_perform -build godi-ocaml-ssl
 
       echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
@@ -135,7 +135,7 @@ make install
 # install core
 ocamlfind remove -destdir $OCAMLPREFIX/lib/ocaml/pkg-lib/ type_conv
 cd $SCRATCH
-if [ COMPUTER = "ashish" ]; then
+if [ $COMPUTER = "ashish" ]; then
     wget --no-check-certificate https://bitbucket.org/yminsky/ocaml-core/downloads/core-suite-108.00.01.tar.gz
 else
     wget https://bitbucket.org/yminsky/ocaml-core/downloads/core-suite-108.00.01.tar.gz
