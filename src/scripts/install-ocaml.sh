@@ -84,7 +84,7 @@ make install
       make
       make install
 
-      echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $INSTALL_DIR/lib/ocaml/site-lib/ssl/META
+      echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $OCAMLPREFIX/lib/ocaml/site-lib/ssl/META
 
       cd $SCRATCH
       wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
