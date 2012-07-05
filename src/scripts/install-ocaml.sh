@@ -78,10 +78,9 @@ make
 make install
 
 # install ocaml-ssl and lwt
-# if [ $COMPUTER="bowery"]; then
-#     download ocaml-ssl from http://sourceforge.net/projects/savonet/files/ocaml-ssl/
-      mv ocaml-ssl-0.4.6.tar.gz $SCRATCH
+if [ $COMPUTER="bowery"]; then
       cd $SCRATCH
+      wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download
       tar xzvf ocaml-ssl-0.4.6.tar.gz
       cd ocaml-ssl-0.4.6
       ./configure --prefix $OCAMLPREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include
@@ -100,7 +99,7 @@ make install
       make 
       make install
 
-# elif [ $COMPUTER = "rabbot" ]; then
+elif [ $COMPUTER = "rabbot" ]; then
       godi_perform -build godi-ocaml-ssl
 
       echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
@@ -110,7 +109,7 @@ make install
       export LIBRARY_PATH=$OCAMLPREFIX/lib
       godi_perform -build godi-lwt
 
-# elif [ $COMPUTER = "ashish" ]; then
+elif [ $COMPUTER = "ashish" ]; then
       godi_perform -build godi-ocaml-ssl
 
       echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
@@ -126,7 +125,7 @@ make install
       make 
       make install
 
-# fi
+fi
 
 # install batteries
 cd $SCRATCH
