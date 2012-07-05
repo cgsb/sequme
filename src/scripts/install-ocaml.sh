@@ -79,51 +79,51 @@ make install
 
 # install ocaml-ssl and lwt
 if [ $COMPUTER="bowery"]; then
-      cd $SCRATCH
-      wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download
-      tar xzvf ocaml-ssl-0.4.6.tar.gz
-      cd ocaml-ssl-0.4.6
-      ./configure --prefix $OCAMLPREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include
-      make
-      make install
+    cd $SCRATCH
+    wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download
+    tar xzvf ocaml-ssl-0.4.6.tar.gz
+    cd ocaml-ssl-0.4.6
+    ./configure --prefix $OCAMLPREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include
+    make
+    make install
 
-      echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $OCAMLPREFIX/lib/ocaml/site-lib/ssl/META
+    echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $OCAMLPREFIX/lib/ocaml/site-lib/ssl/META
 
-      cd $SCRATCH
-      wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
-      tar xzvf lwt-2.3.2.tar.gz
-      cd lwt-2.3.2
-      export C_INCLUDE_PATH=$OCAMLPREFIX/include
-      export LIBRARY_PATH=$OCAMLPREFIX/lib
-      ./configure --prefix $OCAMLPREFIX --enable-ssl
-      make 
-      make install
+    cd $SCRATCH
+    wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
+    tar xzvf lwt-2.3.2.tar.gz
+    cd lwt-2.3.2
+    export C_INCLUDE_PATH=$OCAMLPREFIX/include
+    export LIBRARY_PATH=$OCAMLPREFIX/lib
+    ./configure --prefix $OCAMLPREFIX --enable-ssl
+    make 
+    make install
 
 elif [ $COMPUTER = "rabbot" ]; then
-      godi_perform -build godi-ocaml-ssl
+    godi_perform -build godi-ocaml-ssl
 
-      echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
-      echo GODI_LWT_OCAMLTEXT=no >> $OCAMLPREFIX/etc/godi.conf
+    echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
+    echo GODI_LWT_OCAMLTEXT=no >> $OCAMLPREFIX/etc/godi.conf
 
-      export C_INCLUDE_PATH=$OCAMLPREFIX/include
-      export LIBRARY_PATH=$OCAMLPREFIX/lib
-      godi_perform -build godi-lwt
+    export C_INCLUDE_PATH=$OCAMLPREFIX/include
+    export LIBRARY_PATH=$OCAMLPREFIX/lib
+    godi_perform -build godi-lwt
 
 elif [ $COMPUTER = "ashish" ]; then
-      godi_perform -build godi-ocaml-ssl
+    godi_perform -build godi-ocaml-ssl
 
-      echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
-      echo GODI_LWT_OCAMLTEXT=no >> $OCAMLPREFIX/etc/godi.conf
+    echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
+    echo GODI_LWT_OCAMLTEXT=no >> $OCAMLPREFIX/etc/godi.conf
 
-      cd $SCRATCH
-      wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
-      tar xzvf lwt-2.3.2.tar.gz
-      cd lwt-2.3.2
-      export C_INCLUDE_PATH=$OCAMLPREFIX/include
-      export LIBRARY_PATH=$OCAMLPREFIX/lib
-      ./configure --prefix $OCAMLPREFIX --enable-ssl
-      make 
-      make install
+    cd $SCRATCH
+    wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
+    tar xzvf lwt-2.3.2.tar.gz
+    cd lwt-2.3.2
+    export C_INCLUDE_PATH=$OCAMLPREFIX/include
+    export LIBRARY_PATH=$OCAMLPREFIX/lib
+    ./configure --prefix $OCAMLPREFIX --enable-ssl
+    make 
+    make install
 
 fi
 
