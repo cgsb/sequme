@@ -1,4 +1,4 @@
-(** Module used as “Parvasive” in the library.  *)
+(** Module used as “Pervasive” in the library.  *)
 
 
 include BatPervasives
