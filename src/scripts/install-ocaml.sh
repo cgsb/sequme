@@ -61,8 +61,12 @@ ocaml setup.ml -install
 if [ $COMPUTER = "bowery"]; then
     export C_INCLUDE_PATH=/share/apps/sqlite/3.7.7/intel/include
     export LIBRARY_PATH=/share/apps/sqlite/3.7.7/intel/lib
+    godi_perform -build godi-sqlite3
+    echo linkopts = \"-cclib -L/share/apps/sqlite/3.7.7/intel/lib\" >> $OCAMLPREFIX/lib/ocaml/pkg-lib/sqlite3
+else
+    godi_perform -build godi-sqlite3
 fi
-godi_perform -build godi-sqlite3
+
 
 # install libev, needed for lwt
 cd $SCRATCH
