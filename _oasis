@@ -33,7 +33,7 @@ Library sequme
            , Sequme_flow_io
            , Sequme_flow_certificate_authority
            , Sequme_flow_net
-           , Sequme_PGOcaml
+           , Sequme_psql
   
 Document sequmedoc
   Title:      Documentation of the Sequme library
