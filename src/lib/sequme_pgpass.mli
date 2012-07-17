@@ -9,7 +9,7 @@ type 'a star =
     | Val of 'a
     | Star
 
-(** Database connection parameters. [None] corresponds to *)
+(** Database connection parameters. *)
 type record = private {
   hostname : string star;
   port : int star;
