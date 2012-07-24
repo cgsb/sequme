@@ -29,8 +29,11 @@ module String = struct
 end
 
 module Char = struct
-  include Char
   include BatChar
+end
+
+module Int = struct
+  include BatInt
 end
 
 module Array = struct
@@ -54,7 +57,11 @@ module File = struct
 end
 
 module Map = BatMap
+module StringMap = Map.Make(String)
+module IntMap = Map.Make(Int)
+
 module Set = BatSet
+module StringSet = Set.Make(String)
 
 module Buffer = struct
   include BatBuffer

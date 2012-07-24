@@ -81,7 +81,7 @@ module SampleSheet : sig
   type t = record list
 
   val of_file : string -> t
-  val group_by_sample_id : t -> record list BatMap.StringMap.t
+  val group_by_sample_id : t -> record list Sequme_std.StringMap.t
   val find_lane_barcode : t -> int -> Barcode.t -> record option
 end
 

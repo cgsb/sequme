@@ -1,7 +1,5 @@
 open Sequme_std
 
-module StringMap = Map.StringMap
-
 (** Like [int_of_string] but with a better error message. *)
 let int s =
   try int_of_string s
@@ -114,10 +112,6 @@ end
 module Barcode = struct
   exception Error of string
 
-  module IntMap = Map.IntMap
-  module StringMap = Map.StringMap
-  module S = Set.Make(String)
-
   let code_seqs_list =
     [
       1, "ATCACG";
@@ -137,7 +131,7 @@ module Barcode = struct
   (* Different representations of the same barcodes. *)
   let code_seqs = code_seqs_list |> List.enum |> IntMap.of_enum
   let seq_codes = code_seqs_list |> List.enum |> Enum.map ~f:(fun (x,y) -> y,x) |> StringMap.of_enum
-  let barcodes = code_seqs_list |> List.enum |> Enum.map ~f:snd |> S.of_enum
+  let barcodes = code_seqs_list |> List.enum |> Enum.map ~f:snd |> StringSet.of_enum
 
   type t = string
 
@@ -150,7 +144,7 @@ module Barcode = struct
     with Failure _ | Error _ -> Error (sprintf "invalid index %s" x) |> raise
 
   let of_seq x =
-    if S.mem x barcodes then x
+    if StringSet.mem x barcodes then x
     else Error (sprintf "invalid index %s" x) |> raise
 
   let to_ad_code t =
