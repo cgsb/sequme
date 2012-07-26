@@ -70,7 +70,10 @@ let parse ?(pedantic=true) file_content =
       if pedantic then raise (Parsing_error (`unknown_xml_tag unknown))
       else continue tl go_through_list 
     | `D s ->
-      if pedantic then raise (Parsing_error (`unexpected_text s)) else []
+      if pedantic
+        && String.exists s
+          (function ' ' | '\t' | '\n' | '\r' -> false | _ -> true)
+      then raise (Parsing_error (`unexpected_text s)) else []
   and go_through = function
     | `E (((_,"content"), _), inside) -> continue inside go_through
     | `E (((_, h_something), attrs), inside)
