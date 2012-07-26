@@ -175,6 +175,14 @@ let table_of_contents (document: document) =
   store_level_1 ();
   (List.rev !level_1, with_ids)
 
+let rec toc_to_numbered_list toc =
+  Numbered_list
+    (List.map toc (function
+    | Toc (id, content, subtoc) ->
+      `item [Inline [Link ([`local id], content)];
+             toc_to_numbered_list subtoc]))
+
+    
 let to_html ?(map_section_levels=ident) (v: document) =
   let buf = Buffer.create 42 in
   let str s = Buffer.add_string buf s in

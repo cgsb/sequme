@@ -30,5 +30,7 @@ type table_of_contents_item =
 and table_of_contents = table_of_contents_item list
 
 val table_of_contents: document -> table_of_contents * document
+
+val toc_to_numbered_list: table_of_contents -> structural
   
 val to_html: ?map_section_levels:(int -> int) -> document -> string
