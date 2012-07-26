@@ -125,7 +125,7 @@ type table_of_contents_item =
 | Toc of string * inline list * table_of_contents
 and table_of_contents = table_of_contents_item list
     
-let table_of_contents (document: document) =
+let table_of_contents_raw (document: document) =
   let level_1 = ref [] in
   let current_1 = ref None in
   let level_2 = ref [] in
@@ -195,6 +195,16 @@ let table_of_contents (document: document) =
   in
   store_level_1 ();
   (List.rev !level_1, with_ids)
+
+let table_of_contents ?(toplevel:[`one|`two]=`one) (document: document) =
+  match toplevel with
+  | `one -> table_of_contents_raw document
+  | `two ->
+    let super = (Section (`one, None, []) :: document) in
+    begin match table_of_contents_raw super with
+    | (Toc (_, _, toc) :: _, doc) -> (toc, doc)
+    | empty -> empty
+    end
 
 let rec toc_to_numbered_list toc =
   Numbered_list

@@ -30,7 +30,8 @@ type table_of_contents_item =
 | Toc of string * inline list * table_of_contents
 and table_of_contents = table_of_contents_item list
 
-val table_of_contents: document -> table_of_contents * document
+val table_of_contents: ?toplevel:[`one | `two] ->
+  document -> table_of_contents * document
 
 val toc_to_numbered_list: table_of_contents -> structural
   
