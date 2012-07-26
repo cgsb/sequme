@@ -12,7 +12,7 @@ type inline =
 | Bold of inline list
 | Italic of inline list
 | Code of inline list 
-| Link of [`url of string] list * inline list
+| Link of [`url of string | `local of string] list * inline list
 | Text of string
 
 type structural =
@@ -53,7 +53,9 @@ let parse ?(pedantic=true) file_content =
     | `E (((_, "t"), _), inside) -> [Code (continue inside go_through_inline)]
     | `E (((_, "link"), attr), inside) ->
       let options = List.filter_opt [
-        Option.map (find_attr "url" attr) (fun s -> `url s) ] in
+        Option.map (find_attr "url" attr) (fun s -> `url s);
+        Option.map (find_attr "local" attr) (fun s -> `local s);
+      ] in
       [Link (options, continue inside go_through_inline)]
     | `E (((_, unknown), _), tl) ->
       if pedantic then
@@ -187,7 +189,9 @@ let to_html ?(map_section_levels=ident) (v: document) =
       str "<code>"; List.iter inside inline; str "</code>"
     | Link (options, inside) ->
       strf "<a %s>"
-        (List.map options (function `url url -> sprintf "href=%S" url)
+        (List.map options (function
+        | `url url -> sprintf "href=%S" url
+        | `local id -> sprintf "href=\"#%s\"" id)
          |! String.concat ~sep:" ");
       List.iter inside inline;
       str "</a>"

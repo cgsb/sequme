@@ -3,7 +3,7 @@ type inline =
 | Bold of inline list
 | Italic of inline list
 | Code of inline list 
-| Link of [`url of string] list * inline list
+| Link of [`url of string | `local of string] list * inline list
 | Text of string
 
 type structural =
