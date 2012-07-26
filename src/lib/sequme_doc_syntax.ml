@@ -98,6 +98,80 @@ let parse ?(pedantic=true) file_content =
   with
     Parsing_error e -> fail e
 
+type table_of_contents_item =
+| Toc of string * inline list * table_of_contents
+and table_of_contents = table_of_contents_item list
+    
+let table_of_contents (document: document) =
+  let level_1 = ref [] in
+  let current_1 = ref None in
+  let level_2 = ref [] in
+  let current_2 = ref None in
+  let level_3 = ref [] in
+  let current_3 = ref None in
+  let level_4 = ref [] in
+  let current_4 = ref None in
+  let store_level_4 () =
+    Option.iter !current_4 (fun (id, content) ->
+      level_4 := Toc (id, content, []) :: !level_4;
+    ); in
+  let store_level_3 () =
+    store_level_4 ();
+    Option.iter !current_3 (fun (id, content) ->
+      level_3 := Toc (id, content, List.rev !level_4) :: !level_3;
+    );
+    level_4 := [];
+  in
+  let store_level_2 () =
+    store_level_3 ();
+    Option.iter !current_2 (fun (id, content) ->
+      level_2 := Toc (id, content, List.rev !level_3) :: !level_2;
+    );
+    level_3 := [];
+    level_4 := [];
+  in
+  let store_level_1 () =
+    store_level_2 ();
+    Option.iter !current_1 (fun (id, content) ->
+      level_1 := Toc (id, content, List.rev !level_2) :: !level_1;
+    );
+    level_2 := [];
+    level_3 := [];
+    level_4 := [];
+  in
+  let with_ids =
+    let new_id =
+      let count = ref 0 in
+      fun () -> incr count; !count in
+    List.map document (function
+    | Section (level, id, content) ->
+      let actual_id =
+        match id with Some s -> s | None -> sprintf "section%d" (new_id ()) in
+      begin match level with
+      | `one ->
+        store_level_1 ();
+        current_1 := Some (actual_id, content);
+        current_2 := None;
+        current_3 := None;
+        current_4 := None;
+      | `two ->
+        store_level_2 ();
+        current_2 := Some (actual_id, content);
+        current_3 := None;
+        current_4 := None;
+      | `three ->
+        store_level_3 ();
+        current_3 := Some (actual_id, content);
+        current_4 := None;
+      | `four ->
+        store_level_4 ();
+        current_4 := Some (actual_id, content);
+      end;
+      Section (level, Some actual_id, content)
+    | e -> e)
+  in
+  store_level_1 ();
+  (List.rev !level_1, with_ids)
 
 let to_html ?(map_section_levels=ident) (v: document) =
   let buf = Buffer.create 42 in
