@@ -26,6 +26,7 @@ Library sequme
            , Sequme_syscall
            , Sequme_postgres
            , Sequme_pgpass
+           , Sequme_doc_syntax
            , Sequme_flow_monad
            , Sequme_flow
            , Sequme_flow_list
