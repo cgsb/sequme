@@ -100,6 +100,27 @@ let parse ?(pedantic=true) file_content =
   with
     Parsing_error e -> fail e
 
+let extract_level_one document =
+  let current_head = ref None in
+  let current_doc = ref [] in
+  let res = ref [] in
+  List.iter document (function
+  | Section (`one, id, content) ->
+    Option.iter !current_head (fun (id, content) ->
+      res := (id, content, List.rev !current_doc) :: !res;
+    );
+    current_doc := [];
+    current_head := Some (id, content);
+  | any_other ->
+    current_doc := any_other :: !current_doc);
+  Option.iter !current_head (fun (id, content) ->
+    res := (id, content, List.rev !current_doc) :: !res;
+  );
+  List.rev !res
+    
+
+
+      
 type table_of_contents_item =
 | Toc of string * inline list * table_of_contents
 and table_of_contents = table_of_contents_item list

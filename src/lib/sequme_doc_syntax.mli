@@ -24,6 +24,7 @@ type parsing_error = [
 ]
 val parse: ?pedantic:bool -> string -> (document, parsing_error) Core.Std.Result.t
 
+val extract_level_one: document -> (string option * inline list * document) list
 
 type table_of_contents_item =
 | Toc of string * inline list * table_of_contents
