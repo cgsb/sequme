@@ -68,6 +68,13 @@ else
     godi_perform -build godi-sqlite3
 fi
 
+# install otags
+wget http://askra.de/software/otags/otags-3.12.5.tar.gz
+tar xzvf otags-3.12.5.tar.gz
+cd otags-3.12.5
+./configure --prefix $OCAMLPREFIX
+make all
+make install
 
 # install libev, needed for lwt
 cd $SCRATCH
