@@ -46,6 +46,7 @@ godi_perform -build godi-ocamlscript
 godi_perform -build godi-xmlm
 godi_perform -build godi-pxp
 godi_perform -build godi-zip
+godi_perform -build godi-getopt
 godi_perform -build godi-bisect   # for batteries
 godi_perform -build godi-res      # for core
 
