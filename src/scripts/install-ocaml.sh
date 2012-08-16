@@ -50,6 +50,7 @@ godi_perform -build godi-bisect   # for batteries
 godi_perform -build godi-res      # for core
 
 # install oasis
+cd $SCRATCH
 wget https://forge.ocamlcore.org/frs/download.php/918/oasis-0.3.0.tar.gz
 tar xzvf oasis-0.3.0.tar.gz
 cd oasis-0.3.0
@@ -77,6 +78,7 @@ else
 fi
 
 # install otags
+cd $SCRATCH
 wget http://askra.de/software/otags/otags-3.12.5.tar.gz
 tar xzvf otags-3.12.5.tar.gz
 cd otags-3.12.5
