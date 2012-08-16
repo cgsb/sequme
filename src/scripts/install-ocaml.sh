@@ -51,7 +51,7 @@ godi_perform -build godi-res      # for core
 
 # install oasis
 cd $SCRATCH
-wget https://forge.ocamlcore.org/frs/download.php/918/oasis-0.3.0.tar.gz
+wget --no-check-certificate https://forge.ocamlcore.org/frs/download.php/918/oasis-0.3.0.tar.gz
 tar xzvf oasis-0.3.0.tar.gz
 cd oasis-0.3.0
 ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-docs --enable-libraries
