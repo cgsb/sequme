@@ -1,4 +1,4 @@
-######################################################################
+################################################################################
 # Commands to install OCaml and related libraries as needed for NYU
 # projects.
 #
@@ -11,44 +11,97 @@
 # commands that will need to be entered manually.
 
 # variables used throughout script
+if [ $# -ne 2 ] ; then
+    echo "usage: $0 <computer-flavor> <install-path>"
+    exit 2
+fi
 COMPUTER=$1
-OCAMLPREFIX=$HOME/usr/godi312 # the installation directory
-SCRATCH=/tmp/install-ocaml
+GODI_PREFIX=$2
+SCRATCH=/tmp/install-ocaml-$$
+rm -fr $SCRATCH
 mkdir -p $SCRATCH
-PATH=$OCAMLPREFIX/sbin:$OCAMLPREFIX/bin:$PATH
 
-# cleanup to start from scratch
-rm -rf $OCAMLPREFIX
+#DATETAG=`date +%Y%m%d`
+#export GODI_PREFIX=$HOME/usr/godi$DATETAG # the installation directory for GODI
+export PATH=$GODI_PREFIX/sbin:$GODI_PREFIX/bin:$PATH
 
-
-if [ $COMPUTER = "bowery" ]; then
+if [ "$COMPUTER" = "bowery" ]; then
     unset ARCHIVE
 fi
 
-# install godi
-cd $SCRATCH
-wget http://download.camlcity.org/download/godi-rocketboost-20110811.tar.gz
-tar xzvf godi-rocketboost-20110811.tar.gz
-cd godi-rocketboost-20110811
+do_smth () {
+    tmp1=`mktemp`
+    $1 > $tmp1 2>&1
+    if [ $? -ne 0 ]; then
+        echo "$1 ---> Not 0 (`cat $tmp1`)"
+        tmp3=`mktemp`
+        eval "$2" > $tmp3 2>&1
+        tmp2=`mktemp`
+        $1 > $tmp2 2>&1
+        if [ $? -ne 0 ]; then
+            echo "$1 ---> Not 0 Again (`cat $tmp2`)\n  and $2 said\n (`cat $tmp3`)\n"
+            exit 2
+        else
+            echo "$1 ----> SUCCESS!"
+        fi
+    else
+        echo "$1  ------>  OK!"
+    fi
+}
 
-./bootstrap --prefix=$OCAMLPREFIX
+root_method="sudo"
+if [ "$COMPUTER" = "bowery" ]; then
+    root_method="echo"
+fi
+if [ "$COMPUTER" = "rabbot" ]; then
+    root_method="echo"
+fi
+do_smth "$GODI_PREFIX/sbin/godi_perform -help" "
+    rm -rf $GODI_PREFIX
+    cd $SCRATCH
+    wget http://download.camlcity.org/download/godi-rocketboost-20110811.tar.gz
+    tar xzvf godi-rocketboost-20110811.tar.gz
+    cd godi-rocketboost-20110811
+
+    ./bootstrap --prefix=$GODI_PREFIX --section 3.12 --batch --root-method $root_method
+    "
+
 # if [ $COMPUTER = "bowery" ]; then
 #     When prompted with message regarding missing ncurses package,
 #     simply select option 4 and continue without installing it. Things
 #     work anyway for some reason.
 # fi
 
-godi_perform -build apps-ledit
-godi_perform -build godi-ounit
-godi_perform -build godi-pgocaml
-godi_perform -build godi-ocamlscript
-godi_perform -build godi-xmlm
-godi_perform -build godi-pxp
-godi_perform -build godi-zip
-godi_perform -build godi-getopt
-godi_perform -build godi-bisect   # for batteries
-godi_perform -build godi-res      # for core
+do_smth "ledit -v" " godi_perform -build apps-ledit "
 
+#godi_perform -build apps-oasis
+do_smth "ocamlfind query oUnit" "godi_perform -build godi-ounit"
+
+do_smth "ocamlfind query pgocaml" "godi_perform -build godi-pgocaml"
+
+do_smth "ocamlscript -version" "godi_perform -build godi-ocamlscript"
+
+do_smth "ocamlfind query xmlm" "godi_perform -build godi-xmlm"
+do_smth "ocamlfind query pxp" "godi_perform -build godi-pxp"
+
+do_smth "ocamlfind query getopt" "godi_perform -build godi-getopt"
+
+do_smth "ocamlfind query bisect"  "godi_perform -build godi-bisect"   # for batteries
+do_smth "ocamlfind query res" "godi_perform -build godi-res"      # for core
+
+do_smth "ocamlfind query odn" "godi_perform -build godi-ocaml-data-notation"
+
+
+do_smth "ocamlmod -help" "godi_perform -build apps-ocamlmod"
+
+do_smth "ocamlify -help"  "godi_perform -build apps-ocamlify"
+
+do_smth "ocamlfind query zip" "
+godi_perform -build godi-zip
+cp -r $GODI_PREFIX/lib/ocaml/pkg-lib/camlzip $GODI_PREFIX/lib/ocaml/pkg-lib/zip
+"
+
+do_smth "oasis version" "
 # install oasis
 cd $SCRATCH
 wget http://cims.nyu.edu/~agarwal/download/oasis-6c6b33b2f6b7fe84edd384641ba334ce.tgz
@@ -57,27 +110,33 @@ cd oasis-6c6b33b2f6b7fe84edd384641ba334ce
 ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-docs --enable-libraries
 ocaml setup.ml -build
 ocaml setup.ml -reinstall
+"
 
 # install cmdliner
+do_smth "ocamlfind query cmdliner" "
 cd $SCRATCH
 wget http://erratique.ch/software/cmdliner/releases/cmdliner-0.9.1.tbz
 tar xjvf cmdliner-0.9.1.tbz
 cd cmdliner-0.9.1
-ocaml setup.ml -configure --prefix $OCAMLPREFIX
+ocaml setup.ml -configure --prefix $GODI_PREFIX
 ocaml setup.ml -build
 ocaml setup.ml -install
+"
 
 # install ocaml-sqlite3
-if [ $COMPUTER = "bowery"]; then
+do_smth "ocamlfind query sqlite3" "
+if [ \"$COMPUTER\" = \"bowery\"]; then
     export C_INCLUDE_PATH=/share/apps/sqlite/3.7.7/intel/include
     export LIBRARY_PATH=/share/apps/sqlite/3.7.7/intel/lib
     godi_perform -build godi-sqlite3
-    echo linkopts = \"-cclib -L/share/apps/sqlite/3.7.7/intel/lib\" >> $OCAMLPREFIX/lib/ocaml/pkg-lib/sqlite3
+    echo 'linkopts = \"-cclib -L/share/apps/sqlite/3.7.7/intel/lib\"' >> $GODI_PREFIX/lib/ocaml/pkg-lib/sqlite3
 else
     godi_perform -build godi-sqlite3
 fi
+"
 
 # install otags
+do_smth "otags -version" "
 cd $SCRATCH
 wget http://askra.de/software/otags/otags-3.12.5.tar.gz
 tar xzvf otags-3.12.5.tar.gz
@@ -85,13 +144,36 @@ cd otags-3.12.5
 ./configure --prefix $OCAMLPREFIX
 make all
 make install
+"
+# install batteries
+do_smth "ocamlfind query batteries" "
+cd $SCRATCH
+git clone git://github.com/ocaml-batteries-team/batteries-included.git
+cd batteries-included/
+git checkout -b nyu-compatible 91a9464bf7f2d153eeaa576fe232ab2ba0eb5fc2
+ocaml setup.ml -configure --prefix $GODI_PREFIX
+make
+make install
+"
 
+# install core
+CORE_URL=https://ocaml.janestreet.com/ocaml-core/108.00.02/core-suite-108.00.02.tar.gz
+do_smth "ocamlfind query async" "
+ocamlfind remove -destdir $GODI_PREFIX/lib/ocaml/pkg-lib/ type_conv
+cd $SCRATCH
+wget --no-check-certificate $CORE_URL
+tar xzvf core-suite-108.00.02.tar.gz
+cd ocaml-core-108.00.02
+./build-and-install
+"
+
+exit 2
 # install libev, needed for lwt
 cd $SCRATCH
 wget http://dist.schmorp.de/libev/libev-4.11.tar.gz
 tar xzvf libev-4.11.tar.gz
 cd libev-4.11
-./configure --prefix=$OCAMLPREFIX
+./configure --prefix=$GODI_PREFIX
 make
 make install
 
@@ -101,70 +183,49 @@ if [ $COMPUTER="bowery"]; then
     wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download
     tar xzvf ocaml-ssl-0.4.6.tar.gz
     cd ocaml-ssl-0.4.6
-    ./configure --prefix $OCAMLPREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include
+    ./configure --prefix $GODI_PREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include
     make
     make install
 
-    echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $OCAMLPREFIX/lib/ocaml/site-lib/ssl/META
+    echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $GODI_PREFIX/lib/ocaml/site-lib/ssl/META
 
     cd $SCRATCH
     wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
     tar xzvf lwt-2.3.2.tar.gz
     cd lwt-2.3.2
-    export C_INCLUDE_PATH=$OCAMLPREFIX/include
-    export LIBRARY_PATH=$OCAMLPREFIX/lib
-    ./configure --prefix $OCAMLPREFIX --enable-ssl
+    export C_INCLUDE_PATH=$GODI_PREFIX/include
+    export LIBRARY_PATH=$GODI_PREFIX/lib
+    ./configure --prefix $GODI_PREFIX --enable-ssl
     make 
     make install
 
 elif [ $COMPUTER = "rabbot" ]; then
     godi_perform -build godi-ocaml-ssl
 
-    echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
-    echo GODI_LWT_OCAMLTEXT=no >> $OCAMLPREFIX/etc/godi.conf
+    echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
+    echo GODI_LWT_OCAMLTEXT=no >> $GODI_PREFIX/etc/godi.conf
 
-    export C_INCLUDE_PATH=$OCAMLPREFIX/include
-    export LIBRARY_PATH=$OCAMLPREFIX/lib
+    export C_INCLUDE_PATH=$GODI_PREFIX/include
+    export LIBRARY_PATH=$GODI_PREFIX/lib
     godi_perform -build godi-lwt
 
 elif [ $COMPUTER = "ashish" ]; then
     godi_perform -build godi-ocaml-ssl
 
-    echo GODI_LWT_GLIB=no >> $OCAMLPREFIX/etc/godi.conf
-    echo GODI_LWT_OCAMLTEXT=no >> $OCAMLPREFIX/etc/godi.conf
+    echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
+    echo GODI_LWT_OCAMLTEXT=no >> $GODI_PREFIX/etc/godi.conf
 
     cd $SCRATCH
     wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
     tar xzvf lwt-2.3.2.tar.gz
     cd lwt-2.3.2
-    export C_INCLUDE_PATH=$OCAMLPREFIX/include
-    export LIBRARY_PATH=$OCAMLPREFIX/lib
-    ./configure --prefix $OCAMLPREFIX --enable-ssl
+    export C_INCLUDE_PATH=$GODI_PREFIX/include
+    export LIBRARY_PATH=$GODI_PREFIX/lib
+    ./configure --prefix $GODI_PREFIX --enable-ssl
     make 
     make install
 
 fi
-
-# install batteries
-cd $SCRATCH
-git clone git://github.com/ocaml-batteries-team/batteries-included.git
-cd batteries-included/
-git checkout -b nyu-compatible 91a9464bf7f2d153eeaa576fe232ab2ba0eb5fc2
-ocaml setup.ml -configure --prefix $OCAMLPREFIX
-make
-make install
-
-# install core
-ocamlfind remove -destdir $OCAMLPREFIX/lib/ocaml/pkg-lib/ type_conv
-cd $SCRATCH
-if [ $COMPUTER = "ashish" ]; then
-    wget --no-check-certificate https://bitbucket.org/yminsky/ocaml-core/downloads/core-suite-108.00.01.tar.gz
-else
-    wget https://bitbucket.org/yminsky/ocaml-core/downloads/core-suite-108.00.01.tar.gz
-fi
-tar xzvf core-suite-108.00.01.tar.gz
-cd core-suite-108.00.01
-./build-and-install
 
 # remove temporary files
 cd $HOME
