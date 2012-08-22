@@ -98,7 +98,9 @@ do_smth "ocamlify -help"  "godi_perform -build apps-ocamlify"
 
 do_smth "ocamlfind query zip" "
 godi_perform -build godi-zip
-cp -r $GODI_PREFIX/lib/ocaml/pkg-lib/camlzip $GODI_PREFIX/lib/ocaml/pkg-lib/zip
+mkdir -p  $GODI_PREFIX/lib/ocaml/pkg-lib/zip
+echo 'directory = \"$GODI_PREFIX/lib/ocaml/pkg-lib/camlzip\" ' > \
+          $GODI_PREFIX/lib/ocaml/pkg-lib/zip/META
 "
 
 do_smth "oasis version" "
