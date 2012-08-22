@@ -167,6 +167,21 @@ cd ocaml-core-108.00.02
 ./build-and-install
 "
 
+if [ "$COMPUTER" = "sebastien" ]; then
+    if [ `dpkg -l | egrep 'ii *libev-dev' | wc -l` -ne 1 ] ; then
+        echo 'Please install libev-dev and restart this'
+        echo '===='
+        exit 2
+    fi
+    do_smth "ocamlfind query ssl" "godi_perform -build godi-ocaml-ssl"
+    do_smth "ocamlfind query text" "godi_perform -build godi-ocaml-text"
+
+    do_smth "ocamlfind query lwt" "
+    echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
+    godi_perform -build godi-lwt
+    "
+fi
+
 exit 2
 # install libev, needed for lwt
 cd $SCRATCH
