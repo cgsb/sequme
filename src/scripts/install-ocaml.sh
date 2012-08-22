@@ -4,7 +4,7 @@
 #
 # Desired usage:
 #
-#     install-ocaml.sh (bowery | rabbot | ashish | sebastien)
+#     install-ocaml.sh (bowery | rabbot | ashish | sebastien | wso) /installation/path
 #
 # but unfortunately it is difficult to fully automate the
 # installation. More realistically, this script serves as a guide to
@@ -13,6 +13,7 @@
 # variables used throughout script
 if [ $# -ne 2 ] ; then
     echo "usage: $0 <computer-flavor> <install-path>"
+    echo "where computer-flavor may be bowery, rabbot, ashish, sebastien, or wso." 
     exit 2
 fi
 COMPUTER=$1
