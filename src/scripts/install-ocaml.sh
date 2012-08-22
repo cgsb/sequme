@@ -175,12 +175,26 @@ cd ocaml-core-108.00.02
 ./build-and-install
 "
 
-if [ "$COMPUTER" = "sebastien" ]; then
+if [ "$COMPUTER" = "sebastien" ] ; then
     if [ `dpkg -l | egrep 'ii *libev-dev' | wc -l` -ne 1 ] ; then
         echo 'Please install libev-dev and restart this'
         echo '===='
         exit 2
     fi
+fi 
+if [ "$COMPUTER" = "wso" ] ; then
+    if ls /usr/include/libev/ev.h ; then
+        echo 'Found libev!'
+    else
+        echo 'Please install libev-devel and restart this'
+        echo '===='
+        exit 2
+    fi
+    export C_INCLUDE_PATH=/usr/include/libev
+    export LIBRARY_PATH=/usr/lib 
+fi
+
+if [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] ; then
     do_smth "ocamlfind query ssl" "godi_perform -build godi-ocaml-ssl"
     do_smth "ocamlfind query text" "godi_perform -build godi-ocaml-text"
 
@@ -212,7 +226,7 @@ if [ "$COMPUTER" = "sebastien" ]; then
     "
 fi
 
-if [ $COMPUTER="bowery" ]; then
+if [ "$COMPUTER" = "bowery" ]; then
    do_smth "ls $GODI_PREFIX/include/ev.h" "
     cd $SCRATCH
     wget http://dist.schmorp.de/libev/libev-4.11.tar.gz && \
@@ -247,7 +261,13 @@ if [ $COMPUTER="bowery" ]; then
 fi
 
 echo "SCRATCH was $SCRATCH"
+
+################################################################################
+# Official end of the script
 exit 2
+
+# Here follow some notes from previous configurations or for other computers;
+
 # install ocaml-ssl and lwt
 if [ $COMPUTER="bowery" ]; then
     # install libev, needed for lwt
