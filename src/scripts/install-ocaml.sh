@@ -178,12 +178,35 @@ if [ "$COMPUTER" = "sebastien" ]; then
     do_smth "ocamlfind query ssl" "godi_perform -build godi-ocaml-ssl"
     do_smth "ocamlfind query text" "godi_perform -build godi-ocaml-text"
 
-    do_smth "ocamlfind query lwt" "
-    echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
-    godi_perform -build godi-lwt
+#    do_smth "ocamlfind query lwt" "
+#    echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
+#    godi_perform -build godi-lwt
+#    "
+
+    do_smth "ocamlfind query react" "godi_perform -build godi-react"
+    do_smth "ocamlfind query cryptokit" "godi_perform -build godi-cryptokit"
+    
+
+    OCSIGEN_BUNDLE=ocsigen-bundle-2.2.2
+    OCSIGEN_URL=http://ocsigen.org/download/$OCSIGEN_BUNDLE.tar.gz
+    do_smth "ocamlfind query eliom" "
+      cd $SCRATCH
+      wget $OCSIGEN_URL
+      tar xvfz $OCSIGEN_BUNDLE.tar.gz
+      cd $OCSIGEN_BUNDLE
+      ./configure --prefix $OCAMLPREFIX \
+         OCSIGEN_USER=${USER} OCSIGEN_GROUP=${USER}  \
+         --enable-oclosure --with-ocamldsort
+      echo 'SITELIB := \${exec_prefix}/lib/ocaml/site-lib' > Makefile.local
+      echo 'LDCONF  := \${exec_prefix}/etc/ld.conf' >> Makefile.local
+      echo 'STUBDIR := \${SITELIB}/stublibs' >> Makefile.local
+      make pull
+      make
+      make install
     "
 fi
 
+echo "SCRATCH was $SCRATCH"
 exit 2
 # install libev, needed for lwt
 cd $SCRATCH
