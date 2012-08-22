@@ -27,6 +27,8 @@ export PATH=$GODI_PREFIX/sbin:$GODI_PREFIX/bin:$PATH
 
 if [ "$COMPUTER" = "bowery" ]; then
     unset ARCHIVE
+    . /share/apps/git/1.7.6.3/intel/env.sh
+    module add postgresql
 fi
 
 do_smth () {
@@ -109,7 +111,7 @@ cd $SCRATCH
 wget http://cims.nyu.edu/~agarwal/download/oasis-6c6b33b2f6b7fe84edd384641ba334ce.tgz
 tar xzvf oasis-6c6b33b2f6b7fe84edd384641ba334ce.tgz
 cd oasis-6c6b33b2f6b7fe84edd384641ba334ce
-ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-docs --enable-libraries
+ocaml setup.ml -configure --prefix $GODI_PREFIX --enable-docs --enable-libraries
 ocaml setup.ml -build
 ocaml setup.ml -reinstall
 "
@@ -126,16 +128,20 @@ ocaml setup.ml -install
 "
 
 # install ocaml-sqlite3
+if [ "$COMPUTER" = "bowery" ]; then
 do_smth "ocamlfind query sqlite3" "
-if [ \"$COMPUTER\" = \"bowery\"]; then
+    module load sqlite
     export C_INCLUDE_PATH=/share/apps/sqlite/3.7.7/intel/include
     export LIBRARY_PATH=/share/apps/sqlite/3.7.7/intel/lib
-    godi_perform -build godi-sqlite3
-    echo 'linkopts = \"-cclib -L/share/apps/sqlite/3.7.7/intel/lib\"' >> $GODI_PREFIX/lib/ocaml/pkg-lib/sqlite3
-else
-    godi_perform -build godi-sqlite3
-fi
+    godi_perform -build godi-sqlite3 && \
+    echo 'linkopts = \"-cclib -L/share/apps/sqlite/3.7.7/intel/lib\"' >> $GODI_PREFIX/lib/ocaml/pkg-lib/sqlite3/META
 "
+else
+do_smth "ocamlfind query sqlite3" "
+    godi_perform -build godi-sqlite3
+"
+fi
+
 
 # install otags
 do_smth "otags -version" "
@@ -143,7 +149,7 @@ cd $SCRATCH
 wget http://askra.de/software/otags/otags-3.12.5.tar.gz
 tar xzvf otags-3.12.5.tar.gz
 cd otags-3.12.5
-./configure --prefix $OCAMLPREFIX
+./configure --prefix $GODI_PREFIX
 make all
 make install
 "
@@ -152,9 +158,9 @@ do_smth "ocamlfind query batteries" "
 cd $SCRATCH
 git clone git://github.com/ocaml-batteries-team/batteries-included.git
 cd batteries-included/
-git checkout -b nyu-compatible 91a9464bf7f2d153eeaa576fe232ab2ba0eb5fc2
-ocaml setup.ml -configure --prefix $GODI_PREFIX
-make
+git checkout -b nyu-compatible 91a9464bf7f2d153eeaa576fe232ab2ba0eb5fc2 && \
+ocaml setup.ml -configure --prefix $GODI_PREFIX && \
+make && \
 make install
 "
 
@@ -194,7 +200,7 @@ if [ "$COMPUTER" = "sebastien" ]; then
       wget $OCSIGEN_URL
       tar xvfz $OCSIGEN_BUNDLE.tar.gz
       cd $OCSIGEN_BUNDLE
-      ./configure --prefix $OCAMLPREFIX \
+      ./configure --prefix $GODI_PREFIX \
          OCSIGEN_USER=${USER} OCSIGEN_GROUP=${USER}  \
          --enable-oclosure --with-ocamldsort
       echo 'SITELIB := \${exec_prefix}/lib/ocaml/site-lib' > Makefile.local
@@ -206,19 +212,53 @@ if [ "$COMPUTER" = "sebastien" ]; then
     "
 fi
 
+if [ $COMPUTER="bowery" ]; then
+   do_smth "ls $GODI_PREFIX/include/ev.h" "
+    cd $SCRATCH
+    wget http://dist.schmorp.de/libev/libev-4.11.tar.gz && \
+    tar xzvf libev-4.11.tar.gz && \
+    cd libev-4.11 && \
+    ./configure --prefix=$GODI_PREFIX && \
+    make && \
+    make install
+   "
+   do_smth "ocamlfind query ssl" "
+    cd $SCRATCH
+    wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download && \
+    tar xzvf ocaml-ssl-0.4.6.tar.gz && \
+    cd ocaml-ssl-0.4.6 && \
+    ./configure --prefix $GODI_PREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include && \
+    make && \
+    make install && \
+    echo 'linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\"' >> $GODI_PREFIX/lib/ocaml/site-lib/ssl/META
+   "
+   LWT_VERSION="2.4.1"
+   do_smth "ocamlfind query lwt" "
+    cd $SCRATCH
+    wget http://ocsigen.org/download/lwt-$LWT_VERSION.tar.gz && \
+    tar xzvf lwt-$LWT_VERSION.tar.gz && \
+    cd lwt-$LWT_VERSION && \
+    export C_INCLUDE_PATH=$GODI_PREFIX/include && \
+    export LIBRARY_PATH=$GODI_PREFIX/lib && \
+    ./configure --prefix $GODI_PREFIX --enable-ssl && \
+    make  && \
+    make install
+   "
+fi
+
 echo "SCRATCH was $SCRATCH"
 exit 2
-# install libev, needed for lwt
-cd $SCRATCH
-wget http://dist.schmorp.de/libev/libev-4.11.tar.gz
-tar xzvf libev-4.11.tar.gz
-cd libev-4.11
-./configure --prefix=$GODI_PREFIX
-make
-make install
-
 # install ocaml-ssl and lwt
-if [ $COMPUTER="bowery"]; then
+if [ $COMPUTER="bowery" ]; then
+    # install libev, needed for lwt
+    cd $SCRATCH
+    wget http://dist.schmorp.de/libev/libev-4.11.tar.gz
+    tar xzvf libev-4.11.tar.gz
+    cd libev-4.11
+    ./configure --prefix=$GODI_PREFIX
+    make
+    make install
+
     cd $SCRATCH
     wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download
     tar xzvf ocaml-ssl-0.4.6.tar.gz
@@ -230,7 +270,7 @@ if [ $COMPUTER="bowery"]; then
     echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $GODI_PREFIX/lib/ocaml/site-lib/ssl/META
 
     cd $SCRATCH
-    wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
+    wget http://ocsigen.org/download/lwt-2.4.1.tar.gz
     tar xzvf lwt-2.3.2.tar.gz
     cd lwt-2.3.2
     export C_INCLUDE_PATH=$GODI_PREFIX/include
