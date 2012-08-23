@@ -31,6 +31,13 @@ if [ "$COMPUTER" = "bowery" ]; then
     . /share/apps/git/1.7.6.3/intel/env.sh
     module add postgresql
 fi
+if [ "$COMPUTER" = "rabbot" ]; then
+    module () { 
+        eval `/opt/modules/bin/modulecmd bash $*`
+    }
+    module load git
+    module load postgresql
+fi
 
 do_smth () {
     tmp1=`mktemp`
@@ -261,6 +268,31 @@ if [ "$COMPUTER" = "bowery" ]; then
    "
 fi
 
+if [ "$COMPUTER" = "rabbot" ]; then
+   do_smth "ls $GODI_PREFIX/include/ev.h" "
+    cd $SCRATCH
+    wget http://dist.schmorp.de/libev/libev-4.11.tar.gz && \
+    tar xzvf libev-4.11.tar.gz && \
+    cd libev-4.11 && \
+    ./configure --prefix=$GODI_PREFIX && \
+    make && \
+    make install
+   "
+   do_smth "ocamlfind query ssl" "godi_perform -build godi-ocaml-ssl"
+
+   LWT_VERSION="2.4.1"
+   do_smth "ocamlfind query lwt" "
+    cd $SCRATCH
+    wget http://ocsigen.org/download/lwt-$LWT_VERSION.tar.gz && \
+    tar xzvf lwt-$LWT_VERSION.tar.gz && \
+    cd lwt-$LWT_VERSION && \
+    export C_INCLUDE_PATH=$GODI_PREFIX/include && \
+    export LIBRARY_PATH=$GODI_PREFIX/lib && \
+    ./configure --prefix $GODI_PREFIX --enable-ssl && \
+    make  && \
+    make install
+   "
+fi
 echo "SCRATCH was $SCRATCH"
 
 ################################################################################
