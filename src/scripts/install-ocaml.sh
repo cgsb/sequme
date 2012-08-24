@@ -40,14 +40,23 @@ if [ "$COMPUTER" = "rabbot" ]; then
     module load postgresql
 fi
 
+function mktmp {
+    if [ "$COMPUTER" = "ashish" ]; then
+        local a=`mktemp /tmp/tmp.XXXXXXXXXX`
+    else
+        local a=`mktemp`
+    fi
+    echo $a
+}
+
 do_smth () {
-    tmp1=`mktemp`
+    tmp1=`mktmp`
     $1 > $tmp1 2>&1
     if [ $? -ne 0 ]; then
         echo "$1 ---> Not 0 (`cat $tmp1`)"
-        tmp3=`mktemp`
+        tmp3=`mktmp`
         eval "$2" > $tmp3 2>&1
-        tmp2=`mktemp`
+        tmp2=`mktmp`
         $1 > $tmp2 2>&1
         if [ $? -ne 0 ]; then
             echo "$1 ---> Not 0 Again (`cat $tmp2`)\n  and $2 said\n (`cat $tmp3`)\n"
