@@ -1,3 +1,4 @@
+#! /bin/sh
 ################################################################################
 # Commands to install OCaml and related libraries as needed for NYU
 # projects.
