@@ -111,6 +111,7 @@ do_smth "ocamlfind query res" "godi_perform -build godi-res"      # for core
 
 do_smth "ocamlfind query odn" "godi_perform -build godi-ocaml-data-notation"
 
+do_smth "ocamlfind query rss" "godi_perform -build godi-ocamlrss"
 
 do_smth "ocamlmod -help" "godi_perform -build apps-ocamlmod"
 
