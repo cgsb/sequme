@@ -268,7 +268,7 @@ if [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] ; then
     "
 fi
 
-if [ "$COMPUTER" = "bowery" ]; then
+if [ "$COMPUTER" = "bowery" ] || [ "$COMPUTER" = "rabbot" ]  || [ "$COMPUTER" = "ashish" ] ; then
    LWT_VERSION="2.4.1"
    do_smth "ocamlfind query lwt" "
     cd $SCRATCH
@@ -283,21 +283,6 @@ if [ "$COMPUTER" = "bowery" ]; then
    "
 fi
 
-if [ "$COMPUTER" = "rabbot" ]; then
-
-   LWT_VERSION="2.4.1"
-   do_smth "ocamlfind query lwt" "
-    cd $SCRATCH
-    wget http://ocsigen.org/download/lwt-$LWT_VERSION.tar.gz && \
-    tar xzvf lwt-$LWT_VERSION.tar.gz && \
-    cd lwt-$LWT_VERSION && \
-    export C_INCLUDE_PATH=$GODI_PREFIX/include && \
-    export LIBRARY_PATH=$GODI_PREFIX/lib && \
-    ./configure --prefix $GODI_PREFIX --enable-ssl && \
-    make  && \
-    make install
-   "
-fi
 echo "SCRATCH was $SCRATCH"
 
 ################################################################################
