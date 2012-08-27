@@ -220,8 +220,24 @@ elif [ "$COMPUTER" = "bowery" ] || [ "$COMPUTER" = "rabbot" ] || [ "$COMPUTER" =
    "
 fi
 
-if [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] ; then
+# install ocaml-ssl
+if [ "$COMPUTER" = "bowery" ]; then
+   do_smth "ocamlfind query ssl" "
+    cd $SCRATCH
+    wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download && \
+    tar xzvf ocaml-ssl-0.4.6.tar.gz && \
+    cd ocaml-ssl-0.4.6 && \
+    ./configure --prefix $GODI_PREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include && \
+    make && \
+    make install && \
+    echo 'linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\"' >> $GODI_PREFIX/lib/ocaml/site-lib/ssl/META
+   "
+
+elif [ "$COMPUTER" = "rabbot" ] || [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] || [ "$COMPUTER" = "ashish" ]; then
     do_smth "ocamlfind query ssl" "godi_perform -build godi-ocaml-ssl"
+fi
+
+if [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] ; then
     do_smth "ocamlfind query text" "godi_perform -build godi-ocaml-text"
 
 #    do_smth "ocamlfind query lwt" "
@@ -253,16 +269,6 @@ if [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] ; then
 fi
 
 if [ "$COMPUTER" = "bowery" ]; then
-   do_smth "ocamlfind query ssl" "
-    cd $SCRATCH
-    wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download && \
-    tar xzvf ocaml-ssl-0.4.6.tar.gz && \
-    cd ocaml-ssl-0.4.6 && \
-    ./configure --prefix $GODI_PREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include && \
-    make && \
-    make install && \
-    echo 'linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\"' >> $GODI_PREFIX/lib/ocaml/site-lib/ssl/META
-   "
    LWT_VERSION="2.4.1"
    do_smth "ocamlfind query lwt" "
     cd $SCRATCH
@@ -278,7 +284,6 @@ if [ "$COMPUTER" = "bowery" ]; then
 fi
 
 if [ "$COMPUTER" = "rabbot" ]; then
-   do_smth "ocamlfind query ssl" "godi_perform -build godi-ocaml-ssl"
 
    LWT_VERSION="2.4.1"
    do_smth "ocamlfind query lwt" "
@@ -303,15 +308,6 @@ exit 2
 
 # install ocaml-ssl and lwt
 if [ $COMPUTER="bowery" ]; then
-    cd $SCRATCH
-    wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download
-    tar xzvf ocaml-ssl-0.4.6.tar.gz
-    cd ocaml-ssl-0.4.6
-    ./configure --prefix $GODI_PREFIX LDFLAGS=-L/share/apps/openssl/1.0.0d/gnu/lib CFLAGS=-I/share/apps/openssl/1.0.0d/gnu/include
-    make
-    make install
-
-    echo linkopts = \"-cclib -L/share/apps/openssl/1.0.0d/gnu/lib\" >> $GODI_PREFIX/lib/ocaml/site-lib/ssl/META
 
     cd $SCRATCH
     wget http://ocsigen.org/download/lwt-2.4.1.tar.gz
@@ -324,8 +320,6 @@ if [ $COMPUTER="bowery" ]; then
     make install
 
 elif [ $COMPUTER = "rabbot" ]; then
-    godi_perform -build godi-ocaml-ssl
-
     echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
     echo GODI_LWT_OCAMLTEXT=no >> $GODI_PREFIX/etc/godi.conf
 
@@ -334,8 +328,6 @@ elif [ $COMPUTER = "rabbot" ]; then
     godi_perform -build godi-lwt
 
 elif [ $COMPUTER = "ashish" ]; then
-    godi_perform -build godi-ocaml-ssl
-
     echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
     echo GODI_LWT_OCAMLTEXT=no >> $GODI_PREFIX/etc/godi.conf
 
