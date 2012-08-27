@@ -208,7 +208,7 @@ elif [ "$COMPUTER" = "wso" ] ; then
     export C_INCLUDE_PATH=/usr/include/libev
     export LIBRARY_PATH=/usr/lib 
 
-elif [ "$COMPUTER" = "bowery" ] || [ "$COMPUTER" = "rabbot" ]; then
+elif [ "$COMPUTER" = "bowery" ] || [ "$COMPUTER" = "rabbot" ] || [ "$COMPUTER" = "ashish" ]; then
    do_smth "ls $GODI_PREFIX/include/ev.h" "
     cd $SCRATCH
     wget http://dist.schmorp.de/libev/libev-4.11.tar.gz && \
