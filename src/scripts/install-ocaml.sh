@@ -189,14 +189,15 @@ cd ocaml-core-108.00.02
 ./build-and-install
 "
 
+# install libev
 if [ "$COMPUTER" = "sebastien" ] ; then
     if [ `dpkg -l | egrep 'ii *libev-dev' | wc -l` -ne 1 ] ; then
         echo 'Please install libev-dev and restart this'
         echo '===='
         exit 2
     fi
-fi 
-if [ "$COMPUTER" = "wso" ] ; then
+
+elif [ "$COMPUTER" = "wso" ] ; then
     if ls /usr/include/libev/ev.h ; then
         echo 'Found libev!'
     else
@@ -206,6 +207,17 @@ if [ "$COMPUTER" = "wso" ] ; then
     fi
     export C_INCLUDE_PATH=/usr/include/libev
     export LIBRARY_PATH=/usr/lib 
+
+elif [ "$COMPUTER" = "bowery" ] || [ "$COMPUTER" = "rabbot" ]; then
+   do_smth "ls $GODI_PREFIX/include/ev.h" "
+    cd $SCRATCH
+    wget http://dist.schmorp.de/libev/libev-4.11.tar.gz && \
+    tar xzvf libev-4.11.tar.gz && \
+    cd libev-4.11 && \
+    ./configure --prefix=$GODI_PREFIX && \
+    make && \
+    make install
+   "
 fi
 
 if [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] ; then
@@ -241,15 +253,6 @@ if [ "$COMPUTER" = "sebastien" ] || [ "$COMPUTER" = "wso" ] ; then
 fi
 
 if [ "$COMPUTER" = "bowery" ]; then
-   do_smth "ls $GODI_PREFIX/include/ev.h" "
-    cd $SCRATCH
-    wget http://dist.schmorp.de/libev/libev-4.11.tar.gz && \
-    tar xzvf libev-4.11.tar.gz && \
-    cd libev-4.11 && \
-    ./configure --prefix=$GODI_PREFIX && \
-    make && \
-    make install
-   "
    do_smth "ocamlfind query ssl" "
     cd $SCRATCH
     wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download && \
@@ -275,15 +278,6 @@ if [ "$COMPUTER" = "bowery" ]; then
 fi
 
 if [ "$COMPUTER" = "rabbot" ]; then
-   do_smth "ls $GODI_PREFIX/include/ev.h" "
-    cd $SCRATCH
-    wget http://dist.schmorp.de/libev/libev-4.11.tar.gz && \
-    tar xzvf libev-4.11.tar.gz && \
-    cd libev-4.11 && \
-    ./configure --prefix=$GODI_PREFIX && \
-    make && \
-    make install
-   "
    do_smth "ocamlfind query ssl" "godi_perform -build godi-ocaml-ssl"
 
    LWT_VERSION="2.4.1"
