@@ -303,15 +303,6 @@ exit 2
 
 # install ocaml-ssl and lwt
 if [ $COMPUTER="bowery" ]; then
-    # install libev, needed for lwt
-    cd $SCRATCH
-    wget http://dist.schmorp.de/libev/libev-4.11.tar.gz
-    tar xzvf libev-4.11.tar.gz
-    cd libev-4.11
-    ./configure --prefix=$GODI_PREFIX
-    make
-    make install
-
     cd $SCRATCH
     wget http://sourceforge.net/projects/savonet/files/ocaml-ssl/0.4.6/ocaml-ssl-0.4.6.tar.gz/download
     tar xzvf ocaml-ssl-0.4.6.tar.gz
