@@ -285,49 +285,6 @@ fi
 
 echo "SCRATCH was $SCRATCH"
 
-################################################################################
-# Official end of the script
-exit 2
-
-# Here follow some notes from previous configurations or for other computers;
-
-# install ocaml-ssl and lwt
-if [ $COMPUTER="bowery" ]; then
-
-    cd $SCRATCH
-    wget http://ocsigen.org/download/lwt-2.4.1.tar.gz
-    tar xzvf lwt-2.3.2.tar.gz
-    cd lwt-2.3.2
-    export C_INCLUDE_PATH=$GODI_PREFIX/include
-    export LIBRARY_PATH=$GODI_PREFIX/lib
-    ./configure --prefix $GODI_PREFIX --enable-ssl
-    make 
-    make install
-
-elif [ $COMPUTER = "rabbot" ]; then
-    echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
-    echo GODI_LWT_OCAMLTEXT=no >> $GODI_PREFIX/etc/godi.conf
-
-    export C_INCLUDE_PATH=$GODI_PREFIX/include
-    export LIBRARY_PATH=$GODI_PREFIX/lib
-    godi_perform -build godi-lwt
-
-elif [ $COMPUTER = "ashish" ]; then
-    echo GODI_LWT_GLIB=no >> $GODI_PREFIX/etc/godi.conf
-    echo GODI_LWT_OCAMLTEXT=no >> $GODI_PREFIX/etc/godi.conf
-
-    cd $SCRATCH
-    wget http://ocsigen.org/download/lwt-2.3.2.tar.gz
-    tar xzvf lwt-2.3.2.tar.gz
-    cd lwt-2.3.2
-    export C_INCLUDE_PATH=$GODI_PREFIX/include
-    export LIBRARY_PATH=$GODI_PREFIX/lib
-    ./configure --prefix $GODI_PREFIX --enable-ssl
-    make 
-    make install
-
-fi
-
 # remove temporary files
 cd $HOME
 rm -rf $SCRATCH
