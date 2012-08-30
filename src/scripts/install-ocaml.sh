@@ -119,6 +119,10 @@ do_smth "ocamlify -help"  "godi_perform -build apps-ocamlify"
 
 do_smth "ocamlfind query zip" "godi_perform -build godi-zip"
 
+if [ "$COMPUTER" = "ashish" ]; then
+    do_smth "ls $GODI_PREFIX/doc/godi-ocaml-manual/html/index.html" "godi_perform -build godi-ocaml-manual" 
+fi
+
 do_smth "oasis version" "
 # install oasis
 cd $SCRATCH
