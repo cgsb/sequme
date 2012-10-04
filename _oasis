@@ -10,7 +10,7 @@ BuildTools:  ocamlbuild
 Library sequme
   Path: src/lib
   FindlibName: sequme
-  BuildDepends: threads, batteries, core, sexplib.syntax, pgocaml,
+  BuildDepends: threads, batteries, core, core_extended, sexplib.syntax, pgocaml,
                 biocaml, lwt.ssl, lwt.preemptive
   Install: true
   Modules: Sequme
@@ -34,6 +34,7 @@ Library sequme
            , Sequme_flow_io
            , Sequme_flow_certificate_authority
            , Sequme_flow_net
+           , Sequme_flow_app_util
            , Sequme_psql
   
 Document sequmedoc
