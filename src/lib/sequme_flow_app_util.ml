@@ -40,7 +40,8 @@ module Messages = struct
     begin match !log_function with
     | None -> return ()
     | Some f ->
-      wrap_io f (sprintf "[%s] %s" Time.(now () |! to_string) s)
+      wrap_io f (sprintf "%s %s" Time.(now () |! to_string)
+                   (format_message ": " s))
     end
       
 end
