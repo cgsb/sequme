@@ -17,22 +17,13 @@ val init_tls :  unit -> unit
 
 (** {3 Generic Connection Handle} *)
 
-(** A connection is full duplex and can be shut down: {[
-class type ['a] connection =
-object
-  method in_channel: Lwt_io.input_channel 
-  method out_channel: Lwt_io.output_channel 
-  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
-end
-]}
-Note that [connection#shutdown] closes the channels.
-*)
-class type ['a] connection =
-object
-  method in_channel: Lwt_io.input_channel 
-  method out_channel: Lwt_io.output_channel 
-  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
-end
+(** A connection is full duplex and can be shut down. *)
+type connection
+val in_channel: connection -> Lwt_io.input_channel 
+val out_channel: connection -> Lwt_io.output_channel 
+
+(**  Note that [shutdown connection] closes the channels. *) 
+val shutdown : connection -> (unit, [> `io_exn of exn ]) Sequme_flow.t
 
 (** {3 Client Connection} *)
 
@@ -45,8 +36,7 @@ type connection_specification = [
 (** Specification of the kind of connection (for the function [connect]). *)
     
 val connect: address:Lwt_unix.sockaddr -> connection_specification ->
-  ([> `io_exn of exn] connection, [> `io_exn of exn | `tls_context_exn of exn ])
-    Sequme_flow.t
+  (connection, [> `io_exn of exn | `tls_context_exn of exn ]) Sequme_flow.t
 (** Connect to the server at [address]. *)
 
 (** {3 Server Establishment} *)
@@ -59,7 +49,7 @@ val plain_server :
                  as 'errors) ->
              (unit, [> `io_exn of exn ]) Sequme_flow.t) ->
   port:int ->
-  ([> `io_exn of exn ] connection -> (unit, 'errors) Sequme_flow.t) ->
+  (connection -> (unit, 'errors) Sequme_flow.t) ->
   (unit, [> `io_exn of exn | `socket_creation_exn of exn ]) Sequme_flow.t
 (** Start a “plain” TCP server on port [port]. This function returns
     immediately, the “accept-loop” runs in {i Lwt} threads.
@@ -89,7 +79,7 @@ val tls_server :
              (unit, [> `io_exn of exn ]) Sequme_flow.t) ->
   port:int ->
   cert_key:string * string ->
-  ([> `io_exn of exn ] connection -> (unit, 'a) Sequme_flow.t) ->
+  (connection -> (unit, 'a) Sequme_flow.t) ->
   (unit, [> `socket_creation_exn of exn | `tls_context_exn of exn ])
            Sequme_flow.t
 (** Like [plain_server] but with a TLS layer, the server will be
@@ -131,7 +121,7 @@ val authenticating_tls_server :
   ?on_error:('a -> (unit, [> `io_exn of exn ]) Sequme_flow.t) ->
   port:int ->
   cert_key:string * string ->
-  ([> `io_exn of exn ] connection -> client_kind ->
+  (connection -> client_kind ->
    (unit, 'a) Sequme_flow.t) ->
   (unit, [> `socket_creation_exn of exn | `tls_context_exn of exn ])
     Sequme_flow.t
@@ -151,7 +141,7 @@ val authenticating_tls_server_with_ca :
              (unit, [> `io_exn of exn ]) Sequme_flow.t) ->
   port:int ->
   cert_key:string * string ->
-  ([> `io_exn of exn ] connection -> client_kind ->
+  (connection -> client_kind ->
    (unit, 'a) Sequme_flow.t) ->
   (unit, [> `socket_creation_exn of exn | `tls_context_exn of exn ])
     Sequme_flow.t

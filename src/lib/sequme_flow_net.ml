@@ -154,17 +154,21 @@ end
 
 let init_tls = Ssl.init ~thread_safe:true
     
-class ['a] connection inchan outchan tls_socket =
-object
-  method in_channel: Lwt_io.input_channel = inchan
-  method out_channel: Lwt_io.output_channel = outchan
-  method shutdown : (unit, [> `io_exn of exn ] as 'a) Sequme_flow.t
-    =
-    Tls.tls_shutdown tls_socket >>= fun () ->
-    wrap_io Lwt_io.close inchan >>= fun () ->
-    wrap_io Lwt_io.close outchan >>= fun () ->
-    return ()
-end
+type connection = {
+  inchan: Lwt_io.input_channel;
+  outchan: Lwt_io.output_channel;
+  tls_socket: Lwt_ssl.socket;
+}
+let connection inchan outchan tls_socket =
+  {inchan; outchan; tls_socket}
+
+let in_channel t = t.inchan
+let out_channel t = t.outchan
+let shutdown {tls_socket; inchan; outchan} =
+  Tls.tls_shutdown tls_socket >>= fun () ->
+  wrap_io Lwt_io.close inchan >>= fun () ->
+  wrap_io Lwt_io.close outchan >>= fun () ->
+  return ()
 
 type client_check_result =
 [ `expired of string * Core.Std.Time.t
@@ -186,7 +190,7 @@ let plain_server ?on_error ~port f =
     (fun socket_fd _ ->
       let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
       let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
-      f (new connection inchan outchan socket_fd))
+      f (connection inchan outchan socket_fd))
 
 let tls_server ?on_error ~port ~cert_key f =
   Tls.server_context cert_key
@@ -195,7 +199,7 @@ let tls_server ?on_error ~port ~cert_key f =
     (fun socket_fd client_kind ->
       let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
       let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
-      f (new connection inchan outchan socket_fd))
+      f (connection inchan outchan socket_fd))
   
   
 let authenticating_tls_server
@@ -207,7 +211,7 @@ let authenticating_tls_server
     (fun socket_fd client_kind ->
       let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
       let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
-      f (new connection inchan outchan socket_fd) client_kind)
+      f (connection inchan outchan socket_fd) client_kind)
 
 let authenticating_tls_server_with_ca
     ~ca ?on_error ~port ~cert_key f = 
@@ -251,14 +255,14 @@ let connect ~address specification =
     let socket_fd = Lwt_ssl.plain unix_socket_fd in
     let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
     let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
-    return (new connection inchan outchan socket_fd)
+    return (connection inchan outchan socket_fd)
   | `tls (connection_type, verification_policy) ->
     unix_connect address >>= fun unix_socket_fd ->
     Tls.client_context ~verification_policy connection_type >>= fun tls_context ->
     Tls.tls_connect unix_socket_fd tls_context >>= fun socket_fd ->
     let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
     let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
-    return (new connection inchan outchan socket_fd)
+    return (connection inchan outchan socket_fd)
   end
 
 

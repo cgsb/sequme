@@ -48,7 +48,7 @@ let cmd fmt =
 (* -------------------------------------------------------------------------- *)
 (* Receive a message on the connection and reply to it. *)
 let echo_server connection =
-  bind_on_error (Sequme_flow_io.bin_recv connection#in_channel) (function
+  bind_on_error (Sequme_flow_io.bin_recv (Flow_net.in_channel connection)) (function
   | `bin_recv (`exn e) ->
     logs "ERROR: bin-recv: %s (Ssl: %s)" (Exn.to_string e) (Ssl.get_error_string ())
     >>= fun () ->
@@ -64,10 +64,11 @@ let echo_server connection =
   | "magic:error" -> (* error instead of replying *)
     error (`io_exn (Failure "Expected failure."))
   | "magic:shutdown" ->  (* shutdown the connection *)
-    connection#shutdown >>= fun () ->
+    Flow_net.shutdown connection >>= fun () ->
     logs "Connection shut down"
   | s ->
-    Sequme_flow_io.bin_send connection#out_channel (sprintf "%s back ..." s)
+    Sequme_flow_io.bin_send (Flow_net.out_channel connection)
+      (sprintf "%s back ..." s)
   end
 
 
@@ -129,9 +130,9 @@ let servers name ca cert_key =
 (* -------------------------------------------------------------------------- *)
 (* As a client, send "Hello" and wait for the reply. *)
 let send_and_recv connection =
-  Sequme_flow_io.bin_send connection#out_channel "Hello !!"
+  Sequme_flow_io.bin_send (Flow_net.out_channel connection) "Hello !!"
   >>= fun () ->
-  Sequme_flow_io.bin_recv connection#in_channel
+  Sequme_flow_io.bin_recv (Flow_net.in_channel connection)
   >>= fun msg ->
   logc "Got %S from server"  msg
   
@@ -149,7 +150,7 @@ let clients ca (client1_name, client1_cert_key) =
   logc "TCP-Connected on 4001 " >>= fun () ->
   send_and_recv connection
   >>= fun () ->
-  connection#shutdown
+  Flow_net.shutdown connection
   >>= fun () ->
 
   title "TCP + TLS connection to localhost:4002" >>= fun () ->
@@ -162,7 +163,7 @@ let clients ca (client1_name, client1_cert_key) =
   logc "Anonymously Connected on 4002 " >>= fun () ->
   send_and_recv connection
   >>= fun () ->
-  connection#shutdown
+  Flow_net.shutdown connection
   >>= fun () ->
   logc "Disconnected." >>= fun () ->
 
@@ -176,7 +177,7 @@ let clients ca (client1_name, client1_cert_key) =
   >>= fun connection ->
   logc "Connected as %s on 4003" client1_name >>= fun () ->
   send_and_recv connection >>= fun () ->
-  connection#shutdown
+  Flow_net.shutdown connection
   >>= fun () ->
 
   
@@ -195,7 +196,7 @@ let clients ca (client1_name, client1_cert_key) =
   >>= fun connection ->
   logc "Anonymously Connected on 4003 " >>= fun () ->
   send_and_recv connection >>= fun () ->
-  connection#shutdown >>= fun () ->
+  Flow_net.shutdown connection >>= fun () ->
   logc "Disconnected." >>= fun () ->
 
   
@@ -212,7 +213,7 @@ let clients ca (client1_name, client1_cert_key) =
   >>= fun connection ->
   logc "Connected as %s on 4003" client1_name >>= fun () ->
   send_and_recv connection >>= fun () ->
-  connection#shutdown >>= fun () ->
+  Flow_net.shutdown connection >>= fun () ->
 
   title "tls:4002: `wrong_length on server side" >>= fun () ->
   (* Connect to the tls:4002 server
@@ -223,11 +224,11 @@ let clients ca (client1_name, client1_cert_key) =
     (`tls (`anonymous, `allow_self_signed))
   >>= fun connection ->
   logc "Anonymously Connected on 4002 and going to send garbage." >>= fun () ->
-  wrap_io (Lwt_io.write connection#out_channel) "\xff\xff\xff\xff"
+  wrap_io (Lwt_io.write (Flow_net.out_channel connection)) "\xff\xff\xff\xff"
   >>= fun () ->
   sleep 1.
   >>= fun () ->
-  connection#shutdown >>= fun () ->
+  Flow_net.shutdown connection >>= fun () ->
 
   title "tls:4002: Trigger magic:error on server"
   >>= fun () ->
@@ -240,11 +241,11 @@ let clients ca (client1_name, client1_cert_key) =
     (`tls (`anonymous, `allow_self_signed))
   >>= fun connection ->
   logc "Anonymously Connected on 4002 and going to send magic:error." >>= fun () ->
-  Sequme_flow_io.bin_send connection#out_channel "magic:error"
+  Sequme_flow_io.bin_send (Flow_net.out_channel connection) "magic:error"
   >>= fun () ->
   sleep 2.
   >>= fun () ->
-  connection#shutdown >>= fun () ->
+  Flow_net.shutdown connection >>= fun () ->
 
   title "tls:4002: Trigger magic:shutdown on server" >>= fun () ->
   (* Connect to the tls:4002 server and send "magic:shutdown" so that
@@ -256,12 +257,12 @@ let clients ca (client1_name, client1_cert_key) =
     (`tls (`anonymous, `allow_self_signed))
   >>= fun connection ->
   logc "Anonymously Connected on 4002 and going to send magic:shutdown." >>= fun () ->
-  Sequme_flow_io.bin_send connection#out_channel "magic:shutdown"
+  Sequme_flow_io.bin_send (Flow_net.out_channel connection) "magic:shutdown"
   >>= fun () ->
   logc "Sleeping for a second and try to re-send something" >>= fun () ->
   sleep 1. >>= fun () ->
   bind_on_error (* We need to fill the TCP buffer with something big: *)
-    (Sequme_flow_io.bin_send connection#out_channel String.(make 400000 'B')
+    (Sequme_flow_io.bin_send (Flow_net.out_channel connection) String.(make 400000 'B')
      >>= fun () ->
      logc "SHOULD NOT DISPLAY THIS" >>= fun () ->
      failwithf "big bin_send to shut down server not failing")
@@ -277,12 +278,12 @@ let clients ca (client1_name, client1_cert_key) =
     ~address:Unix.(ADDR_INET (Inet_addr.localhost, 4001)) (`plain)
   >>= fun connection ->
   logc "TCP-Connected on 4001 " >>= fun () ->
-  Sequme_flow_io.bin_send connection#out_channel "magic:shutdown"
+  Sequme_flow_io.bin_send (Flow_net.out_channel connection) "magic:shutdown"
   >>= fun () ->
   logc "Sleeping for a second and try to re-send something" >>= fun () ->
   sleep 1. >>= fun () ->
   bind_on_error (* We need to fill the TCP buffer with something big: *)
-    (Sequme_flow_io.bin_send connection#out_channel String.(make 400000 'B')
+    (Sequme_flow_io.bin_send (Flow_net.out_channel connection) String.(make 400000 'B')
      >>= fun () ->
      logc "SHOULD NOT DISPLAY THIS" >>= fun () ->
      failwithf "big bin_send to shut down server not failing")
