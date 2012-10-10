@@ -29,7 +29,7 @@ let catch_io ~f x =
       Lwt.bind a_exn_m (fun x -> Lwt.return (Ok x)))
     (fun e -> Lwt.return (Error e))
     
-let wrap_io ?(on_exn=fun e -> `io_exn e) f x =        
+let wrap_io ?(on_exn=fun e -> `io_exn e) ~f x =        
   let caught = catch_io f x in
   double_bind caught
     ~ok:return
