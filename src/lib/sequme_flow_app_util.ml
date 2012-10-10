@@ -70,4 +70,16 @@ module Command_line = struct
 
 end
 
+module Read_line = struct
 
+  let password ?prompt () =
+    wrap_io ()
+      ~f:(fun () ->
+        Lwt_preemptive.detach (fun () ->
+          Core_extended.Readline.password ?prompt ()
+        ) ()
+      ) 
+
+
+
+end
