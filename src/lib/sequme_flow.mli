@@ -14,6 +14,10 @@ val (>>=) : ('a, 'd) t -> ('a -> ('b, 'd) t) -> ('b, 'd) t
 (** The monadic [map] function. *)
 val (>>|) : ('a, 'd) t -> ('a -> 'b) -> ('b, 'd) t
 
+(** Bind on the I/O part, i.e. get a [Result.t] and continue with a
+    [Flow.t]. Example:
+    [return () >>< (function Ok () -> return () | Error _ -> return ())] *)
+val (>><): ('a, 'b) t -> (('a, 'b) Result.t -> ('c, 'd) t) -> ('c, 'd) t
 
 (** Use anything as an Error thread.  *)
 val error: 'a -> ('any, 'a) t

@@ -12,7 +12,9 @@ end)
 type ('a, 'b) t = ('a, 'b) Result.t Lwt.t
 
 let error e = Lwt.return (Error e)
-  
+
+let (>><) m f = Lwt.bind m f
+
 let bind_on_error m ~f = Lwt.bind m (function
   | Ok o -> Lwt.return (Ok o)
   | Error e -> (f e))
