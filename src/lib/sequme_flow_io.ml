@@ -10,7 +10,8 @@ let bin_send oc msg =
     catch_io msg
       ~f:Lwt.(fun s ->
         Lwt_io.BE.write_int oc (String.length s) >>= fun () ->
-        Lwt_io.write oc s)
+        Lwt_io.write oc s >>= fun () ->
+        Lwt_io.flush oc)
     |! bind_on_error ~f:(fun e -> error (`bin_send (`exn e)))
 
 let bin_recv ic =
