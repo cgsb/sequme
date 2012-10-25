@@ -77,7 +77,7 @@ let of_file_exn file =
   |> Enum.mapi ~f:(fun i -> of_line file (i+1))
   |> List.of_enum
 
-let (=*) (x:'a) (y : 'a star) = match y with
+let (=* ) (x:'a) (y : 'a star) = match y with
   | Star -> true
   | Val y -> x = y
 
