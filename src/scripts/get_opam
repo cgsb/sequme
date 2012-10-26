@@ -1,12 +1,14 @@
-#! /bin/sh
+#!/usr/bin/env bash
 
 if [ "$1" = "help" ] || [ "$1" = "" ]; then
     echo "usage: $0 {help, boot, init, env, compiler, packages, ocsigen, clean}"
     exit 0
 fi
-export OCAML_BOOTSTRAP=$HOME/tmp/ocaml-boot-usr/
-export OPAM_BIN=$HOME/usr/bin
-export PATH=$OPAM_BIN/:$OCAML_BOOTSTRAP/bin:$PATH
+export OCAML_PREFIX=$HOME/usr/ocaml_things/
+# export OPAM_BIN=$HOME/usr/bin
+export PATH=$OCAML_PREFIX/bin:$PATH
+
+export WGET="wget --no-check-certificate"
 
 if [ "$1" = "boot" ]; then
     tmp_dir=/tmp/bootopam$$
@@ -21,38 +23,52 @@ if [ "$1" = "boot" ]; then
     ocaml_name=ocaml-4.00.1
     ocaml_url=http://caml.inria.fr/pub/distrib/ocaml-4.00/$ocaml_name.tar.bz2
     
-    wget $ocaml_url
+    $WGET $ocaml_url
     
     tar xvfj $ocaml_name.tar.bz2
     
     cd $ocaml_name
 
-    ./configure -prefix $OCAML_BOOTSTRAP -no-tk -no-graph -no-curses 
+    ./configure -prefix $OCAML_PREFIX
    
     make world > world.log 2>&1
-    make opt > world.log 2>&1
+    make opt > opt.log 2>&1
+    make opt.opt > optopt.log 2>&1
     
     make install
     
     cd ..
     
     
-    wget https://github.com/OCamlPro/opam/tarball/0.7.7
+    $WGET https://github.com/OCamlPro/opam/tarball/0.7.7
     mv 0.7.7 opam.tgz
     tar xvfz opam.tgz
     cd OCamlPro-opam-*
-    ./configure --prefix $OCAML_BOOTSTRAP
+    ./configure --prefix $OCAML_PREFIX
     make
     make opt
     make install
     
-    mkdir -p $OPAM_BIN
-    mv $OCAML_BOOTSTRAP/bin/opam $OPAM_BIN/
-
     echo "Deleting $tmp_dir"
     rm -fr $tmp_dir
 
+    echo "Making opam script"
+    mv $OCAMLPREFIX/bin/opam $OCAMLPREFIX/bin/opam.opt
+    os=$OCAMLPREFIX/bin/opam
+    echo "#! /bin/sh" > $os
+    echo "unset OCAMLFIND_DESTDIR" >> $os
+    echo "unset OCAMLFIND_LDCONF" >> $os
+    echo 'opam.opt $*' >> $os
+    chmod a+x $os
 
+    echo "Making toplevel script"
+    mv $OCAMLPREFIX/bin/ocaml $OCAMLPREFIX/bin/ocamltop
+    os=$OCAMLPREFIX/bin/ocaml
+    echo "#! /bin/sh" > $os
+    echo "unset OCAMLFIND_DESTDIR" >> $os
+    echo 'ocamltop -I $OCAML_TOPLEVEL_PATH $*' >> $os
+    chmod a+x $os
+    
 fi;
 
 before_opam() {
@@ -74,40 +90,40 @@ if [ "$1" = "init" ]; then
     opam --yes upgrade
 fi
 
-export OPAM_BAR=$HOME/.opambar
-
 if [ "$1" = "env" ]; then
 
     OUT=~/.ocaml.env
 
     rm -f $OUT
-    echo "export OPAM_BIN=$OPAM_BIN/opam  # opam_profile_line" >> $OUT
-    echo 'eval `$OPAM_BIN config -env` # opam_profile_line' >> $OUT
+#    echo "export OPAM_BIN=$OPAM_BIN/opam  # opam_profile_line" >> $OUT
 
-    echo 'export OPAM_BAR=$HOME/.opambar' >> $OUT
-    echo 'export PATH=$OPAM_BAR/bin:${PATH}' >> $OUT
-    echo 'export MANPATH=$OPAM_BAR/share/man:${MANPATH}' >> $OUT
-    echo 'export OCAMLPATH=$OPAM_BAR/lib/ocaml:${OCAMLPATH}' >> $OUT
-    echo 'export OCAMLFIND_DESTDIR=$OPAM_BAR/lib/ocaml' >> $OUT
+    echo "export OCAMLPREFIX=$OCAML_PREFIX" >> $OUT
+#    echo 'export OPAM_BAR=$HOME/.opambar' >> $OUT
+    echo 'export PATH=$OCAMLPREFIX/bin:${PATH}' >> $OUT
+    echo 'export MANPATH=$OCAMLPREFIX/share/man:${MANPATH}' >> $OUT
+    echo 'eval `opam config -env` # opam_profile_line' >> $OUT
+    echo 'export OCAMLPATH=$OCAMLPREFIX/lib/ocaml:${OCAMLPATH}' >> $OUT
+    echo 'export OCAMLFIND_DESTDIR=$OCAMLPREFIX/lib/ocaml' >> $OUT
 
-    echo 'mkdir -p $OPAM_BAR/lib/ocaml' >> $OUT
-    echo 'cat $OPAM_BAR/lib/ocaml/ld.conf `ocamlc -where`/ld.conf > $HOME/.ocamlldconf' >> $OUT
-    echo 'export OCAMLFIND_LDCONF=$HOME/.ocamlldconf' >> $OUT
+    echo 'alias ocaml="ledit -h ~/.ocaml_history -u -l 200 ocaml"' >> $OUT
+#    echo 'mkdir -p $OCAMLPREFIX/lib/ocaml' >> $OUT
+#    echo 'cat $OCAMLPREFIX/lib/ocaml/ld.conf `ocamlc -where`/ld.conf > $HOME/.ocamlldconf' >> $OUT
+#    echo 'export OCAMLFIND_LDCONF=$HOME/.ocamlldconf' >> $OUT
 
 fi
 
-if [  "$1" = "compiler" ]; then
-    before_opam
-    opam upgrade
-    opam switch 3.12.1
-    opam switch -remove system
-    echo "Deleting $OCAML_BOOTSTRAP"
-    rm -fr $OCAML_BOOTSTRAP
-fi
+## if [  "$1" = "compiler" ]; then
+##     before_opam
+##     opam upgrade
+##     opam switch 3.12.1
+##     opam switch -remove system
+##     echo "Deleting $OCAML_BOOTSTRAP"
+##     rm -fr $OCAML_BOOTSTRAP
+## fi
     
 if [ "$1" = "packages" ]; then
     before_opam
-    opam --yes install opam && \
+#    opam --yes install opam && \
     opam --yes install lwt ssl core core_extended omake oasis xmlm batteries ledit && \
     opam --yes install camlzip sqlite3-ocaml getopt && \
     opam --yes install pgocaml && \
@@ -145,11 +161,6 @@ if [ "$1" = "hitscore" ] ; then
         echo "(default INSTALL_PREFIX: $HOME/usr"
         exit 1
     fi
-    if [ "$3" = "" ] ; then
-        export OCAMLPREFIX=$HOME/usr
-    else
-        export OCAMLPREFIX=$3
-    fi
     if [ "$4" = "http" ] ; then
         BIOCAML_GIT=http://github.com/biocaml/biocaml.git
         SEQUME_GIT=https://github.com/agarwal/sequme.git
@@ -180,6 +191,7 @@ make setup && \
 ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
 make all doc install
 "
+    cd $2
     do_smth "ls $2/hitscore/src/lib/hitscore.ml" "
 git clone $HITSCORE_GIT && \
 cd hitscore && \
@@ -213,7 +225,7 @@ if [ "$1" = "ocsigen" ]; then
     if [ -f $SCRATCH/$OCSIGEN_BUNDLE.tar.gz ] ; then
         echo "$SCRATCH/$OCSIGEN_BUNDLE.tar.gz already there"
     else
-        wget $OCSIGEN_URL
+        $WGET $OCSIGEN_URL
     fi
     tar xfz $OCSIGEN_BUNDLE.tar.gz
     cd $OCSIGEN_BUNDLE
