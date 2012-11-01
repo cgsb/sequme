@@ -1,16 +1,62 @@
 #!/usr/bin/env bash
 
-if [ "$1" = "help" ] || [ "$1" = "" ]; then
-    echo "usage: $0 {help, boot, init, env, compiler, packages, ocsigen, clean}"
+usage() {
+    echo "usage: $0 {help, configure, boot, init, packages, hitscore, ocsigen}"
+}
+
+if [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "" ]; then
+    usage
     exit 0
 fi
-export OCAML_PREFIX=$HOME/usr/ocaml_things/
-# export OPAM_BIN=$HOME/usr/bin
-export PATH=$OCAML_PREFIX/bin:$PATH
 
+if [ "$1" = "help" ]; then
+    usage
+    echo ""
+    echo "Yeah … use them in that order, some of them will ask for more arguments."
+    echo "The boot one is going to compile OCaml, the packages one a lot of stuff also."
+    echo "The ocsigen one compiles OClosure so the computer may become irresponsive for a while."
+    exit 0
+fi
+
+
+OCAML_ENV=$HOME/.ocaml.env
+
+if [ "$1" = "configure" ]; then
+
+    if [ "$2" = "" ] ; then
+        echo "usage: $o configure PREFIX"
+        exit 1
+    fi
+    the_prefix=$2
+        
+    echo "Using OCAMLPREFIX: $the_prefix"
+    OUT=$OCAML_ENV
+
+    rm -f $OUT
+
+    echo "export OCAMLPREFIX=$the_prefix" >> $OUT
+#    echo 'export OPAM_BAR=$HOME/.opambar' >> $OUT
+    echo 'export PATH=$OCAMLPREFIX/bin:${PATH}' >> $OUT
+    echo 'export MANPATH=$OCAMLPREFIX/share/man:${MANPATH}' >> $OUT
+    echo 'eval `opam config -env` # opam_profile_line' >> $OUT
+    echo 'export OCAMLPATH=$OCAMLPREFIX/lib/ocaml:${OCAMLPATH}' >> $OUT
+    echo 'export OCAMLFIND_DESTDIR=$OCAMLPREFIX/lib/ocaml' >> $OUT
+
+    echo 'alias ocaml="ledit -h ~/.ocaml_history -u -l 200 ocaml"' >> $OUT
+
+    echo "Add  . $OUT   to your bashrc or so"
+
+    exit 0
+
+fi
+
+
+. $OCAML_ENV
 export WGET="wget --no-check-certificate"
 
 if [ "$1" = "boot" ]; then
+
+    
     tmp_dir=/tmp/bootopam$$
     mkdir -p $tmp_dir
 
@@ -29,7 +75,7 @@ if [ "$1" = "boot" ]; then
     
     cd $ocaml_name
 
-    ./configure -prefix $OCAML_PREFIX
+    ./configure -prefix $OCAMLPREFIX
    
     make world > world.log 2>&1
     make opt > opt.log 2>&1
@@ -44,7 +90,7 @@ if [ "$1" = "boot" ]; then
     mv 0.7.7 opam.tgz
     tar xvfz opam.tgz
     cd OCamlPro-opam-*
-    ./configure --prefix $OCAML_PREFIX
+    ./configure --prefix $OCAMLPREFIX
     make
     make opt
     make install
@@ -65,22 +111,13 @@ if [ "$1" = "boot" ]; then
     mv $OCAMLPREFIX/bin/ocaml $OCAMLPREFIX/bin/ocamltop
     os=$OCAMLPREFIX/bin/ocaml
     echo "#! /bin/sh" > $os
-    echo "unset OCAMLFIND_DESTDIR" >> $os
     echo 'ocamltop -I $OCAML_TOPLEVEL_PATH $*' >> $os
     chmod a+x $os
     
 fi;
 
-before_opam() {
-    echo "Before Opam"
-    unset OCAMLFIND_DESTDIR
-    unset OCAMLFIND_LDCONF
-    eval `opam config -env`
-}
-
 if [ "$1" = "init" ]; then
 
-    before_opam
     echo Init
     opam init
     echo Change remote
@@ -90,27 +127,6 @@ if [ "$1" = "init" ]; then
     opam --yes upgrade
 fi
 
-if [ "$1" = "env" ]; then
-
-    OUT=~/.ocaml.env
-
-    rm -f $OUT
-#    echo "export OPAM_BIN=$OPAM_BIN/opam  # opam_profile_line" >> $OUT
-
-    echo "export OCAMLPREFIX=$OCAML_PREFIX" >> $OUT
-#    echo 'export OPAM_BAR=$HOME/.opambar' >> $OUT
-    echo 'export PATH=$OCAMLPREFIX/bin:${PATH}' >> $OUT
-    echo 'export MANPATH=$OCAMLPREFIX/share/man:${MANPATH}' >> $OUT
-    echo 'eval `opam config -env` # opam_profile_line' >> $OUT
-    echo 'export OCAMLPATH=$OCAMLPREFIX/lib/ocaml:${OCAMLPATH}' >> $OUT
-    echo 'export OCAMLFIND_DESTDIR=$OCAMLPREFIX/lib/ocaml' >> $OUT
-
-    echo 'alias ocaml="ledit -h ~/.ocaml_history -u -l 200 ocaml"' >> $OUT
-#    echo 'mkdir -p $OCAMLPREFIX/lib/ocaml' >> $OUT
-#    echo 'cat $OCAMLPREFIX/lib/ocaml/ld.conf `ocamlc -where`/ld.conf > $HOME/.ocamlldconf' >> $OUT
-#    echo 'export OCAMLFIND_LDCONF=$HOME/.ocamlldconf' >> $OUT
-
-fi
 
 ## if [  "$1" = "compiler" ]; then
 ##     before_opam
@@ -122,8 +138,6 @@ fi
 ## fi
     
 if [ "$1" = "packages" ]; then
-    before_opam
-#    opam --yes install opam && \
     opam --yes install lwt ssl core core_extended omake oasis xmlm batteries ledit && \
     opam --yes install camlzip sqlite3-ocaml getopt && \
     opam --yes install pgocaml && \
@@ -153,8 +167,6 @@ do_smth () {
 }
 
 if [ "$1" = "hitscore" ] ; then
-
-    . ~/.ocaml.env
 
     if [ "$2" = "" ] || [ "$2" = "-help" ] || [ "$2" = "-h" ] ; then
         echo "usage: $0 hitscore  /path/to/put/stuff/in [INSTALL_PREFIX]"
@@ -206,42 +218,35 @@ fi
 
 if [ "$1" = "ocsigen" ]; then
     
-    before_opam
-
-    opam remove lwt
-    opam install react ocamlnet ocaml-text dbm
+    opam install oclosure eliom
     
-    # TODO:  try normal bundle and use same  directories for biocaml/hs/hsw/...
-#    opam install eliom
-    SCRATCH=$HOME/tmp/install-ocsigen
-    OCSIGEN_BUNDLE=ocsigen-bundle-2.2.2
-    OCSIGEN_URL=http://ocsigen.org/download/$OCSIGEN_BUNDLE.tar.gz
-    PREFIX=$HOME/.opambar
-
-    rm -fr $SCRATCH/$OCSIGEN_BUNDLE
-    mkdir -p $SCRATCH
-    cd $SCRATCH
-
-    if [ -f $SCRATCH/$OCSIGEN_BUNDLE.tar.gz ] ; then
-        echo "$SCRATCH/$OCSIGEN_BUNDLE.tar.gz already there"
-    else
-        $WGET $OCSIGEN_URL
-    fi
-    tar xfz $OCSIGEN_BUNDLE.tar.gz
-    cd $OCSIGEN_BUNDLE
-
-    ./configure --prefix $PREFIX \
-        OCSIGEN_USER=${USER} OCSIGEN_GROUP=${USER}  \
-        --enable-lwt-dev \
-        --enable-oclosure --with-ocamldsort
-    make clean
-    make pull && make && make install
+##     # TODO:  try normal bundle and use same  directories for biocaml/hs/hsw/...
+## #    opam install eliom
+##     SCRATCH=$HOME/tmp/install-ocsigen
+##     OCSIGEN_BUNDLE=ocsigen-bundle-2.2.2
+##     OCSIGEN_URL=http://ocsigen.org/download/$OCSIGEN_BUNDLE.tar.gz
+##     PREFIX=$HOME/.opambar
+## 
+##     rm -fr $SCRATCH/$OCSIGEN_BUNDLE
+##     mkdir -p $SCRATCH
+##     cd $SCRATCH
+## 
+##     if [ -f $SCRATCH/$OCSIGEN_BUNDLE.tar.gz ] ; then
+##         echo "$SCRATCH/$OCSIGEN_BUNDLE.tar.gz already there"
+##     else
+##         $WGET $OCSIGEN_URL
+##     fi
+##     tar xfz $OCSIGEN_BUNDLE.tar.gz
+##     cd $OCSIGEN_BUNDLE
+## 
+##     ./configure --prefix $PREFIX \
+##         OCSIGEN_USER=${USER} OCSIGEN_GROUP=${USER}  \
+##         --enable-lwt-dev \
+##         --enable-oclosure --with-ocamldsort
+##     make clean
+##     make pull && make && make install
     
 fi
 
-if [ "$1" = "clean" ] ; then
-    rm -fr ~/.opam
-    rm -frv $OPAM_BIN/opam
-fi 
 
 
