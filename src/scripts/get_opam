@@ -24,16 +24,31 @@ OCAML_ENV=$HOME/.ocaml.env
 if [ "$1" = "configure" ]; then
 
     if [ "$2" = "" ] ; then
-        echo "usage: $o configure PREFIX"
+        echo "usage: $0 configure PREFIX [COMPUTER]"
+        echo "Where COMPUTER may be 'bowery', 'rabbot'"
         exit 1
     fi
     the_prefix=$2
+    the_computer=$3
         
     echo "Using OCAMLPREFIX: $the_prefix"
     OUT=$OCAML_ENV
 
     rm -f $OUT
 
+    if [ "$the_computer" = "bowery" ] ; then
+        echo 'unset ARCHIVE' >> $OUT
+        echo '. /share/apps/git/1.7.6.3/intel/env.sh' >> $OUT
+        echo 'module add postgresql' >> $OUT
+        echo 'module add sqlite' >> $OUT
+    fi
+    if [ "$the_computer" = "rabbot" ] ; then
+        echo 'module () { ' >> $OUT
+        echo '    eval `/opt/modules/bin/modulecmd bash $*`' >> $OUT
+        echo '}' >> $OUT
+        echo 'module load git' >> $OUT
+        echo 'module load postgresql' >> $OUT
+    fi
     echo "export OCAMLPREFIX=$the_prefix" >> $OUT
 #    echo 'export OPAM_BAR=$HOME/.opambar' >> $OUT
     echo 'export PATH=$OCAMLPREFIX/bin:${PATH}' >> $OUT
@@ -86,8 +101,7 @@ if [ "$1" = "boot" ]; then
     cd ..
     
     
-    $WGET https://github.com/OCamlPro/opam/tarball/0.7.7
-    mv 0.7.7 opam.tgz
+    $WGET https://github.com/OCamlPro/opam/tarball/0.7.7 -O opam.tgz
     tar xvfz opam.tgz
     cd OCamlPro-opam-*
     ./configure --prefix $OCAMLPREFIX
