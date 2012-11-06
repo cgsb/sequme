@@ -60,7 +60,7 @@ let log fmt = ksprintf log_string fmt
 
 
 module Command_line = struct
-  include  Core_extended.Std.Core_command
+  include  Command
 
   let run_flow ~on_error m =
     match Lwt_main.run m with

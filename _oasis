@@ -12,6 +12,7 @@ Library sequme
   FindlibName: sequme
   BuildDepends: threads, batteries, core, core_extended, sexplib.syntax, pgocaml,
                 biocaml, lwt.ssl, lwt.preemptive
+  XMETARequires: threads, batteries, core, core_extended, pgocaml, biocaml, lwt.ssl, lwt.preemptive
   Install: true
   Modules: Sequme
            , Sequme_std

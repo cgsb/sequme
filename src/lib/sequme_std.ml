@@ -29,7 +29,6 @@ module String = struct
 end
 
 module Char = struct
-  include Char
   include BatChar
 end
 

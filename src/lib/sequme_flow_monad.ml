@@ -73,7 +73,7 @@ module Preemptive_threading_config :
     let input_char = input_char
     let input_binary_int = input_binary_int
     let really_input = really_input
-    let close_in = close_in
+    let close_in = In_channel.close
 
     let map_sequential l ~f = List.map ~f l
     let log_error = eprintf "%s"
