@@ -203,16 +203,16 @@ if [ "$1" = "hitscore" ] ; then
     do_smth "ls $2/biocaml/src/lib/biocaml.ml" "
 git clone $BIOCAML_GIT  && \
 cd biocaml && \
-git checkout --track origin/new_jscore && \
+git checkout --track origin/v0.2 && \
 make setup.ml && \
-ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-apps --enable-lwt --enable-tests && \
+echo 'ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-apps \
+       --enable-lwt --enable-tests' > full_config && sh full_config && \
 make all doc install
 "
     cd $2
     do_smth "ls $2/sequme/src/lib/sequme_flow.ml" "
 git clone $SEQUME_GIT && \
 cd sequme && \
-git checkout -t origin/new_jscore && \
 make setup && \
 ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
 make all doc install
@@ -221,7 +221,7 @@ make all doc install
     do_smth "ls $2/hitscore/src/lib/hitscore.ml" "
 git clone $HITSCORE_GIT && \
 cd hitscore && \
-git checkout -t origin/new_jscore && \
+git checkout -t origin/client_server && \
 ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
 make all doc install
 "
