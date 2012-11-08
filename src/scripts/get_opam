@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 usage() {
     echo "usage: $0 {help, configure, boot, init, packages, hitscore, ocsigen}"
 }
