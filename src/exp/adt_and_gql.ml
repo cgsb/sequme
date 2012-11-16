@@ -52,8 +52,14 @@ type _ expr =
 | All: (data list) expr
 | Has_field: string -> (data -> bool) expr
 | Filter: (data list) expr * (data -> bool) expr -> (data list) expr
+| Equals: data expr -> (data -> bool) expr
 | Bool_function: (data -> bool) -> (data -> bool) expr
 
+  (* Trying lambdas did not work out great...
+| Equals: data expr * data expr -> bool expr
+| Lambda_bool: (data -> bool expr) -> (data -> bool) expr
+  *)
+  
 let rec expr_to_string: type t. t expr -> string = function
   | Data d -> sprintf "{%s}" (data_to_string d)
   | Get_pointer d -> sprintf "(!%s)" (expr_to_string d)
@@ -62,6 +68,7 @@ let rec expr_to_string: type t. t expr -> string = function
   | Has_field s -> sprintf "(has field %S?)" s
   | Filter (e1, e2) -> sprintf "(%s when %s)" (expr_to_string e1) (expr_to_string e2)
   | Bool_function _ -> sprintf "user_bool_fun"
+  | Equals e -> sprintf "(λx. x =? %s)" (expr_to_string e)
 
 type eval_error = [
 | `wrong_pointer of int
@@ -101,6 +108,9 @@ let rec eval: type t. data_base -> t expr -> (t, eval_error) Result.t = fun db e
     eval db e2 >>= fun fun_e2 ->
     return (List.filter list_e1 fun_e2)
   | Bool_function f -> return f
+  | Equals e ->
+    eval db e >>= fun ee ->
+    return (fun d -> d = ee)
 
 (*    
 #use "src/exp/adt_and_gql.ml";;
@@ -132,4 +142,5 @@ let () =
   test_expr db (Filter (All, Has_field "name")) data_list_to_string;
   test_expr db (Filter (All,
                         Bool_function (function Int 42 -> true | _ -> false))) data_list_to_string;
+  test_expr db (Filter (All, Equals (Data (Int 42)))) data_list_to_string;
   ()
