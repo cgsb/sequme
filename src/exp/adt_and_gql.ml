@@ -52,11 +52,11 @@ type _ expr =
 | All: (data list) expr
 | Has_field: string -> (data -> bool) expr
 | Filter: (data list) expr * (data -> bool) expr -> (data list) expr
-| Equals: data expr -> (data -> bool) expr
+| Equals: data expr * data expr -> bool expr
 | Bool_function: (data -> bool) -> (data -> bool) expr
 | Var: string -> data expr
-|Lambda: string * 'a expr -> (string * 'a expr) expr
-|App: (string * 'a expr) expr * data expr -> 'a expr
+| Lambda: string * 'a expr -> (string * 'a expr) expr
+| App: (string * 'a expr) expr * data expr -> 'a expr
 
   
 let rec expr_to_string: type t. t expr -> string = function
@@ -67,7 +67,7 @@ let rec expr_to_string: type t. t expr -> string = function
   | Has_field s -> sprintf "(has field %S?)" s
   | Filter (e1, e2) -> sprintf "(%s when %s)" (expr_to_string e1) (expr_to_string e2)
   | Bool_function _ -> sprintf "user_bool_fun"
-  | Equals e -> sprintf "(λx. x =? %s)" (expr_to_string e)
+  | Equals (e1, e2) -> sprintf "(%s =? %s)" (expr_to_string e1) (expr_to_string e2)
   | Var s -> sprintf "(var %S)" s
   | Lambda (s, e) -> sprintf "(λ %s → %s)" s (expr_to_string e)
   | App (e1, e2) -> sprintf "(%s %s)" (expr_to_string e1) (expr_to_string e2)
@@ -112,9 +112,10 @@ let rec eval: type t. data_base -> (string * data) list -> t expr ->  (t, eval_e
     eval db env e2 >>= fun fun_e2 ->
     return (List.filter list_e1 fun_e2)
   | Bool_function f -> return f
-  | Equals e ->
-    eval db env e >>= fun ee ->
-    return (fun d -> d = ee)
+  | Equals (e1, e2) ->
+    eval db env e1 >>= fun ee1 ->
+    eval db env e2 >>= fun ee2 ->
+    return (ee1 = ee2)
   | Var s ->
     List.Assoc.find env s |! of_option ~error:(`undefined_variable s)
   | Lambda (s, e) ->
@@ -154,7 +155,7 @@ let () =
   test_expr db (Filter (All, Has_field "name")) data_list_to_string;
   test_expr db (Filter (All,
                         Bool_function (function Int 42 -> true | _ -> false))) data_list_to_string;
-  test_expr db (Filter (All, Equals (Data (Int 42)))) data_list_to_string;
   test_expr db (Var "bouh") data_to_string;
   test_expr db (App (Lambda ("bouh", Var "bouh"), Data (Int 42))) data_to_string;
+  test_expr db (Equals (Data (Int 43), Data (Int 42))) Bool.to_string;
   ()
