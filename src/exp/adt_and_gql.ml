@@ -54,11 +54,10 @@ type _ expr =
 | Filter: (data list) expr * (data -> bool) expr -> (data list) expr
 | Equals: data expr -> (data -> bool) expr
 | Bool_function: (data -> bool) -> (data -> bool) expr
+| Var: string -> data expr
+|Lambda: string * 'a expr -> (string * 'a expr) expr
+|App: (string * 'a expr) expr * data expr -> 'a expr
 
-  (* Trying lambdas did not work out great...
-| Equals: data expr * data expr -> bool expr
-| Lambda_bool: (data -> bool expr) -> (data -> bool) expr
-  *)
   
 let rec expr_to_string: type t. t expr -> string = function
   | Data d -> sprintf "{%s}" (data_to_string d)
@@ -69,21 +68,26 @@ let rec expr_to_string: type t. t expr -> string = function
   | Filter (e1, e2) -> sprintf "(%s when %s)" (expr_to_string e1) (expr_to_string e2)
   | Bool_function _ -> sprintf "user_bool_fun"
   | Equals e -> sprintf "(λx. x =? %s)" (expr_to_string e)
+  | Var s -> sprintf "(var %S)" s
+  | Lambda (s, e) -> sprintf "(λ %s → %s)" s (expr_to_string e)
+  | App (e1, e2) -> sprintf "(%s %s)" (expr_to_string e1) (expr_to_string e2)
 
 type eval_error = [
 | `wrong_pointer of int
 | `no_such_field of (string * data) list * string 
 | `not_a_record of data
 | `not_a_pointer of data
+| `not_a_function of data
+| `undefined_variable of string
 ]
 with sexp
 
-let rec eval: type t. data_base -> t expr -> (t, eval_error) Result.t = fun db e ->
+let rec eval: type t. data_base -> (string * data) list -> t expr ->  (t, eval_error) Result.t = fun db env e ->
   let open Result in
   match e with
   | Data d -> return d
   | Get_pointer ex ->
-    eval db ex
+    eval db env ex
     >>= begin function
     | Pointer p ->
       List.find db.items (fun i -> i.id = p) |! of_option ~error:(`wrong_pointer p)
@@ -91,7 +95,7 @@ let rec eval: type t. data_base -> t expr -> (t, eval_error) Result.t = fun db e
     end
     >>| fun i -> i.data
   | Field (ex, field_name) ->
-    eval db ex
+    eval db env ex
     >>= begin function
     | Record l ->
       List.Assoc.find l field_name |! of_option ~error:(`no_such_field (l, field_name))
@@ -104,13 +108,21 @@ let rec eval: type t. data_base -> t expr -> (t, eval_error) Result.t = fun db e
       (List.Assoc.find l field_name <> None)
     | d -> false)
   | Filter (e1, e2) ->
-    eval db e1 >>= fun list_e1 ->
-    eval db e2 >>= fun fun_e2 ->
+    eval db env e1 >>= fun list_e1 ->
+    eval db env e2 >>= fun fun_e2 ->
     return (List.filter list_e1 fun_e2)
   | Bool_function f -> return f
   | Equals e ->
-    eval db e >>= fun ee ->
+    eval db env e >>= fun ee ->
     return (fun d -> d = ee)
+  | Var s ->
+    List.Assoc.find env s |! of_option ~error:(`undefined_variable s)
+  | Lambda (s, e) ->
+    return (s, e)
+  | App (e1, e2) ->
+    eval db env e1 >>= fun (s, v1) ->
+    eval db env e2 >>= fun v2 ->
+    eval db ((s, v2) :: env) v1
 
 (*    
 #use "src/exp/adt_and_gql.ml";;
@@ -118,7 +130,7 @@ let rec eval: type t. data_base -> t expr -> (t, eval_error) Result.t = fun db e
 
 let test_expr: type t. data_base -> t expr -> (t -> string) -> unit = fun db e f ->
   printf "EXPR: %s\n" (expr_to_string e);
-  begin match eval db e with
+  begin match eval db [] e with
   | Ok d -> printf "OK: %s\n" (f d) 
   | Error e ->
     printf "ERROR: %s\n" Sexp.(sexp_of_eval_error e |! to_string_hum);
@@ -143,4 +155,6 @@ let () =
   test_expr db (Filter (All,
                         Bool_function (function Int 42 -> true | _ -> false))) data_list_to_string;
   test_expr db (Filter (All, Equals (Data (Int 42)))) data_list_to_string;
+  test_expr db (Var "bouh") data_to_string;
+  test_expr db (App (Lambda ("bouh", Var "bouh"), Data (Int 42))) data_to_string;
   ()
