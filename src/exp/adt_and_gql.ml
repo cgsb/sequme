@@ -1,18 +1,33 @@
+(*hh
+Compilation command:
+<pre>
+ocamlfind ocamlc -package core,sexplib.syntax -linkpkg -annot \
+   -syntax camlp4o -thread src/exp/adt_and_gql.ml -o adt_and_gql
+</pre> 
+Documentation command:
+<pre>
+caml2html -nf -charset UTF-8 -ln -hc src/exp/adt_and_gql.ml -ext "hh: awk 'BEGIN {print \"<p>\"} { print } END {  printf \"</p>\" }'"
+</pre>
+For the toplevel:
+<pre>
 #use "topfind";;
 #thread;;
 #require "core";;
 #camlp4o;;
 #require "sexplib.syntax";;
-
+</pre> *)
 open Core.Std
   
+(*hh The type <t>data</tt> represents almost anything we may want from
+a well typed database:  *)
 type data =
 | Record of (string * data) list
-| Variant of (string * data) list
+| Variant of (string * data) list (* Variants are not used <i>yet</i>
+                                     in the query language. *)
 | Int of int
 | Float of float
 | String of string
-| Pointer of int
+| Pointer of int (* Pointers to other pieces of data. *)
 with sexp
 
 let data_to_string d =  Sexp.(sexp_of_data d |! to_string_hum)
@@ -21,11 +36,11 @@ let data_list_to_string = function
   | dl ->
     sprintf "[\n  %s;\n]" (List.map dl data_to_string |! String.concat ~sep:";\n  ")
 
+(*hh An <tt>item</tt> in the key-value <tt>data_base</tt>. *)
 type item = {
   id: int;
   data: data;
 }
-    
 type data_base = {
   mutable items : item list;
   mutable last_id : int;
@@ -35,7 +50,7 @@ let data_base () = {items = []; last_id = 0}
   
 let add_item db data =
   let id = db.last_id + 1 in
-  db.last_id <- id;
+  db.last_id <- id; (* Get a new id every time. *)
   db.items <- {id; data} :: db.items;
   id
     
@@ -45,11 +60,13 @@ let print_db db =
   );
   printf "%!"
 
+(*hh The <b>big GADT</b> representing the query language. *)
 type _ expr =
-| Data: data -> data expr
+| Data: data -> data expr (* Retrieve the constant <tt>data</tt> (used
+                             for reduction/comparison). *)
 | Get_pointer: data expr -> data expr
-| Field: data expr * string -> data expr
-| All: (data list) expr
+| Field: data expr * string -> data expr (* Get a field of a record. *)
+| All: (data list) expr (* Retrieve/Represent the whole database. *)
 | Has_field: string -> (data -> bool) expr
 | Filter: (data list) expr * (data -> bool) expr -> (data list) expr
 | Equals: data expr * data expr -> bool expr
@@ -146,6 +163,7 @@ let () =
   let a1 = Data (Pointer id1) in
   let a2 = Data (Pointer id2) in
   print_db db;
+  test_expr db (Get_pointer a1) data_to_string;
   test_expr db (Get_pointer a2) data_to_string;
   test_expr db (Field (Get_pointer a2, "name")) data_to_string;
   test_expr db (Get_pointer (Field (Get_pointer a2, "the_string"))) data_to_string;
