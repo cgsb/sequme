@@ -38,11 +38,15 @@ Library sequme
            , Sequme_flow_app_util
            , Sequme_psql
   
+Flag installdoc
+  Description: Install documentation
+  Default: false
+
 Document sequmedoc
   Title:      Documentation of the Sequme library
   InstallDir: $docdir
   Type:                 ocamlbuild (0.2)
-  Install:              false
+  Install$:             flag(installdoc)
   BuildTools+:          ocamldoc
   XOCamlbuildPath:      src/lib/
   XOCamlbuildLibraries: sequme
