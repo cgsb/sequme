@@ -1,12 +1,18 @@
+(* $Id$ *)
+(*style
+.text_box { margin-left: 1em; border-left: 2px; font-family: sans-serif }
+*)
 (*hh
 Compilation command:
 <pre>
-ocamlfind ocamlc -package core,sexplib.syntax -linkpkg -annot \
+ocamlfind ocamlc -package core,sexplib.syntax -linkpkg -annot -bin-annot \
    -syntax camlp4o -thread src/exp/adt_and_gql.ml -o adt_and_gql
 </pre> 
 Documentation command:
 <pre>
-caml2html -nf -charset UTF-8 -ln -hc src/exp/adt_and_gql.ml -ext "hh: awk 'BEGIN {print \"<p>\"} { print } END {  printf \"</p>\" }'"
+caml2html -nf -charset UTF-8 -ln -hc src/exp/adt_and_gql.ml -ext "hh: awk 'BEGIN {print \"<div class=text_box>\"} { print } END {  printf \"</div>\" }'"  -ext "style: awk 'BEGIN {print \"<style>\"} { print } END {  printf \"</style>\" }'"
+
+  ocamlfind ocamldoc -package core,sexplib.syntax -syntax camlp4o -thread src/exp/adt_and_gql.ml -keep-code -colorize-code -charset UTF-8
 </pre>
 For the toplevel:
 <pre>
