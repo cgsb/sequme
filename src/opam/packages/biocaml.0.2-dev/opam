@@ -9,4 +9,5 @@ build: [
 remove: [
   ["ocamlfind" "remove" "biocaml"]
 ]
-depends: ["oasis" "ocamlfind" "core" "camlzip" "sqlite3-ocaml" "batteries" "xmlm" "pcre-ocaml" "core_extended" "lwt" ]
+depends: ["oasis" "ocamlfind" "core" "camlzip" "sqlite3-ocaml" "batteries"
+          "xmlm" "pcre-ocaml" "core_extended" "lwt" "getopt" ]
