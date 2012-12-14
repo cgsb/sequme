@@ -11,5 +11,5 @@ configure
 src/lib/META
 src/lib/sequme.mllib
 src/lib/sequmedoc.odocl
-
-/flow_examples.native
+*.native
+*.byte

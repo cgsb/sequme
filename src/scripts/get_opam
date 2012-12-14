@@ -155,6 +155,7 @@ if [ "$1" = "packages" ]; then
     opam --yes install pgocaml && \
     opam --yes install cryptokit && \
     opam --yes install simple_pam && \
+    opam --yes --no-checksums install re && \
         echo "All OK !"
 fi
 
