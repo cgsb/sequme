@@ -2,7 +2,7 @@
 
 
 usage() {
-    echo "usage: $0 {help, configure, boot, packages, hitscore, ocsigen}"
+    echo "usage: $0 {help, configure, boot, packages, dev-setup, ocsigen}"
 }
 
 if [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "" ]; then
@@ -13,9 +13,13 @@ fi
 if [ "$1" = "help" ]; then
     usage
     echo ""
-    echo "Yeah … use them in that order, some of them will ask for more arguments."
-    echo "The boot one is going to compile OCaml, the packages one a lot of stuff also."
-    echo "The ocsigen one compiles OClosure so the computer may become irresponsive for a while."
+    echo "configure:  create the ~./.OCaml.env file"
+    echo "boot: compile ocaml, opam, and init opam"
+    echo "dev-setup: clone biocaml, sequme, and hitscore and setup the local opam repo"
+    echo "packages: get a ton of packages (not needed:"
+    echo "          -> if dev-setup succeeds, \`opam install hitscore\` should"
+    echo "             pull all the dependencies)"
+    echo "ocsigen: get hitscoreweb's dependencies"
     exit 0
 fi
 
@@ -70,6 +74,7 @@ export WGET="wget --no-check-certificate"
 
 if [ "$1" = "boot" ]; then
 
+    set -e
     if [ "$2" = "" ]; then
         
         tmp_dir=/tmp/bootopam$$
@@ -126,27 +131,6 @@ if [ "$1" = "boot" ]; then
     
     
 fi;
-#
-#if [ "$1" = "init" ]; then
-#
-#    echo Init
-#    opam init
-#    echo Change remote
-#    opam remote -rm default
-#    opam remote -add custom git://github.com/smondet/opam-repository.git
-#    echo Upgrade
-#    opam --yes upgrade
-#fi
-#
-
-## if [  "$1" = "compiler" ]; then
-##     before_opam
-##     opam upgrade
-##     opam switch 3.12.1
-##     opam switch -remove system
-##     echo "Deleting $OCAML_BOOTSTRAP"
-##     rm -fr $OCAML_BOOTSTRAP
-## fi
     
 if [ "$1" = "packages" ]; then
     . $OCAML_ENV
@@ -179,7 +163,7 @@ do_smth () {
     fi
 }
 
-if [ "$1" = "hitscore" ] ; then
+if [ "$1" = "dev-setup" ] ; then
 
     if [ "$2" = "" ] || [ "$2" = "-help" ] || [ "$2" = "-h" ] ; then
         echo "usage: $0 hitscore  /path/to/put/stuff/in "
@@ -218,61 +202,13 @@ git checkout -t origin/core10808"
     opam pin hitscore $path/hitscore
     opam update
 
-#make setup.ml && \
-#echo 'ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-apps \
-#       --enable-lwt --enable-tests' > full_config && sh full_config && \
-#make all doc install
-#"
-#    cd $2
-#    do_smth "ls $2/sequme/src/lib/sequme_flow.ml" "
-#git clone $SEQUME_GIT && \
-#cd sequme && \
-#make setup && \
-#ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
-#make all doc install
-#"
-#    cd $2
-#    do_smth "ls $2/hitscore/src/lib/hitscore.ml" "
-#git clone $HITSCORE_GIT && \
-#cd hitscore && \
-#git checkout -t origin/client_server && \
-#ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
-#make all doc install
-#"
-
-        
 
 fi
 
 if [ "$1" = "ocsigen" ]; then
     
-    opam install eliom
+    opam install eliom re
     
-##     # TODO:  try normal bundle and use same  directories for biocaml/hs/hsw/...
-## #    opam install eliom
-##     SCRATCH=$HOME/tmp/install-ocsigen
-##     OCSIGEN_BUNDLE=ocsigen-bundle-2.2.2
-##     OCSIGEN_URL=http://ocsigen.org/download/$OCSIGEN_BUNDLE.tar.gz
-##     PREFIX=$HOME/.opambar
-## 
-##     rm -fr $SCRATCH/$OCSIGEN_BUNDLE
-##     mkdir -p $SCRATCH
-##     cd $SCRATCH
-## 
-##     if [ -f $SCRATCH/$OCSIGEN_BUNDLE.tar.gz ] ; then
-##         echo "$SCRATCH/$OCSIGEN_BUNDLE.tar.gz already there"
-##     else
-##         $WGET $OCSIGEN_URL
-##     fi
-##     tar xfz $OCSIGEN_BUNDLE.tar.gz
-##     cd $OCSIGEN_BUNDLE
-## 
-##     ./configure --prefix $PREFIX \
-##         OCSIGEN_USER=${USER} OCSIGEN_GROUP=${USER}  \
-##         --enable-lwt-dev \
-##         --enable-oclosure --with-ocamldsort
-##     make clean
-##     make pull && make && make install
     
 fi
 
