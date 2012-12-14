@@ -10,4 +10,4 @@ build: [
 remove: [
   ["ocamlfind" "remove" "hitscore"]
 ]
-depends: ["oasis" "ocamlfind" "sequme"]
+depends: ["oasis" "ocamlfind" "sequme" "simple_pam"]
