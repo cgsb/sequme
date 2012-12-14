@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
-set -x
 
 usage() {
-    echo "usage: $0 {help, configure, boot, init, packages, hitscore, ocsigen}"
+    echo "usage: $0 {help, configure, boot, packages, hitscore, ocsigen}"
 }
 
 if [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "" ]; then
@@ -21,22 +20,23 @@ if [ "$1" = "help" ]; then
 fi
 
 
-OCAML_ENV=$HOME/.ocaml.env
+OCAML_ENV=$HOME/.OCaml.env
 
 if [ "$1" = "configure" ]; then
 
-    if [ "$2" = "" ] ; then
-        echo "usage: $0 configure PREFIX [COMPUTER]"
+    if [ "$2" = "-help" ] ; then
+        echo "usage: $0 configure [COMPUTER]"
         echo "Where COMPUTER may be 'bowery', 'rabbot'"
         exit 1
     fi
-    the_prefix=$2
-    the_computer=$3
+    #the_prefix=$2
+    the_computer=$2
         
-    echo "Using OCAMLPREFIX: $the_prefix"
     OUT=$OCAML_ENV
 
     rm -f $OUT
+
+    echo "# Generated on $(date)" > $OUT
 
     if [ "$the_computer" = "bowery" ] ; then
         echo 'unset ARCHIVE' >> $OUT
@@ -51,16 +51,13 @@ if [ "$1" = "configure" ]; then
         echo 'module load git' >> $OUT
         echo 'module load postgresql' >> $OUT
     fi
-    echo "export OCAMLPREFIX=$the_prefix" >> $OUT
-#    echo 'export OPAM_BAR=$HOME/.opambar' >> $OUT
-    echo 'export PATH=$OCAMLPREFIX/bin:${PATH}' >> $OUT
-    echo 'export MANPATH=$OCAMLPREFIX/share/man:${MANPATH}' >> $OUT
-    echo 'eval `opam config -env` # opam_profile_line' >> $OUT
-    echo 'export OCAMLPATH=$OCAMLPREFIX/lib/ocaml:${OCAMLPATH}' >> $OUT
-    echo 'export OCAMLFIND_DESTDIR=$OCAMLPREFIX/lib/ocaml' >> $OUT
-
+    echo "unset OCAML_TOPLEVEL_PATH" >> $OUT
+    echo "unset OCAMLPATH" >> $OUT
+    echo "unset OCAMLPREFIX" >> $OUT
+    echo "unset OCAMLFIND_DESTDIR" >> $OUT
+    echo "export OPAM='$HOME/.opam/3.12.1/bin/opam'" >> $OUT
+    echo 'eval `$OPAM config -env` # opam_profile_line' >> $OUT
     echo 'alias ocaml="ledit -h ~/.ocaml_history -u -l 200 ocaml"' >> $OUT
-
     echo "Add  . $OUT   to your bashrc or so"
 
     exit 0
@@ -73,73 +70,74 @@ export WGET="wget --no-check-certificate"
 
 if [ "$1" = "boot" ]; then
 
+    if [ "$2" = "" ]; then
+        
+        tmp_dir=/tmp/bootopam$$
+        mkdir -p $tmp_dir
     
-    tmp_dir=/tmp/bootopam$$
-    mkdir -p $tmp_dir
-
-    echo "Working in $tmp_dir"
-    cd $tmp_dir
+        echo "Working in $tmp_dir"
+        cd $tmp_dir
+        
+        ocaml_name=ocaml-4.00.1
+        ocaml_url=http://caml.inria.fr/pub/distrib/ocaml-4.00/$ocaml_name.tar.bz2
+        
+        $WGET $ocaml_url
+        
+        tar xvfj $ocaml_name.tar.bz2
+        
+        cd $ocaml_name
     
-    ocaml_name=ocaml-4.00.1
-    ocaml_url=http://caml.inria.fr/pub/distrib/ocaml-4.00/$ocaml_name.tar.bz2
+        ./configure -prefix $tmp_dir
+       
+        make world > world.log 2>&1
+        #make opt > opt.log 2>&1
+        #make opt.opt > optopt.log 2>&1
+        
+        make install
+        
+        cd ..
     
-    $WGET $ocaml_url
-    
-    tar xvfj $ocaml_name.tar.bz2
-    
-    cd $ocaml_name
-
-    ./configure -prefix $OCAMLPREFIX
-   
-    make world > world.log 2>&1
-    make opt > opt.log 2>&1
-    make opt.opt > optopt.log 2>&1
-    
-    make install
-    
-    cd ..
-    
-    
-    $WGET https://github.com/OCamlPro/opam/tarball/0.7.7 -O opam.tgz
-    tar xvfz opam.tgz
-    cd OCamlPro-opam-*
-    ./configure --prefix $OCAMLPREFIX
-    make
-    make opt
-    make install
-    
-    echo "Deleting $tmp_dir"
-    rm -fr $tmp_dir
-
-    echo "Making opam script"
-    mv $OCAMLPREFIX/bin/opam $OCAMLPREFIX/bin/opam.opt
-    os=$OCAMLPREFIX/bin/opam
-    echo "#! /bin/sh" > $os
-    echo "unset OCAMLFIND_DESTDIR" >> $os
-    echo "unset OCAMLFIND_LDCONF" >> $os
-    echo 'opam.opt $*' >> $os
-    chmod a+x $os
-
-    echo "Making toplevel script"
-    mv $OCAMLPREFIX/bin/ocaml $OCAMLPREFIX/bin/ocamltop
-    os=$OCAMLPREFIX/bin/ocaml
-    echo "#! /bin/sh" > $os
-    echo 'ocamltop -I $OCAML_TOPLEVEL_PATH $*' >> $os
-    chmod a+x $os
-    
-fi;
-
-if [ "$1" = "init" ]; then
-
+        export PATH=$tmp_dir/bin:$PATH
+        
+        #OPAM_TAG=0.8.1
+        OPAM_TAG=master
+        $WGET https://github.com/OCamlPro/opam/tarball/master -O opam.tgz
+        tar xvfz opam.tgz
+        cd OCamlPro-opam-*
+        ./configure --prefix $tmp_dir
+        make
+    #    make opt
+        make install
+    else 
+        export PATH=$2/bin:$PATH
+        rm -fr ~/.opam
+    fi
     echo Init
     opam init
     echo Change remote
     opam remote -rm default
     opam remote -add custom git://github.com/smondet/opam-repository.git
+    echo "Switch to 3.12.1"
+    opam --yes switch 3.12.1
     echo Upgrade
     opam --yes upgrade
-fi
-
+    echo "Install opam"
+    opam --yes install opam
+    
+    
+fi;
+#
+#if [ "$1" = "init" ]; then
+#
+#    echo Init
+#    opam init
+#    echo Change remote
+#    opam remote -rm default
+#    opam remote -add custom git://github.com/smondet/opam-repository.git
+#    echo Upgrade
+#    opam --yes upgrade
+#fi
+#
 
 ## if [  "$1" = "compiler" ]; then
 ##     before_opam
@@ -151,7 +149,8 @@ fi
 ## fi
     
 if [ "$1" = "packages" ]; then
-    opam --yes install lwt ssl core core_extended omake oasis xmlm batteries ledit && \
+    . $OCAML_ENV
+    opam --yes install lwt ssl core core_extended oasis xmlm batteries ledit && \
     opam --yes install camlzip sqlite3-ocaml getopt && \
     opam --yes install pgocaml && \
     opam --yes install cryptokit && \
@@ -182,8 +181,7 @@ do_smth () {
 if [ "$1" = "hitscore" ] ; then
 
     if [ "$2" = "" ] || [ "$2" = "-help" ] || [ "$2" = "-h" ] ; then
-        echo "usage: $0 hitscore  /path/to/put/stuff/in [INSTALL_PREFIX]"
-        echo "(default INSTALL_PREFIX: $HOME/usr"
+        echo "usage: $0 hitscore  /path/to/put/stuff/in "
         exit 1
     fi
     if [ "$4" = "http" ] ; then
@@ -195,35 +193,52 @@ if [ "$1" = "hitscore" ] ; then
         SEQUME_GIT=git@github.com:agarwal/sequme
         HITSCORE_GIT=git@github.com:agarwal/hitscore
     fi
-
-
     mkdir -p $2
-    cd $2
-    do_smth "ls $2/biocaml/src/lib/biocaml.ml" "
-git clone $BIOCAML_GIT  && \
-cd biocaml && \
-git checkout --track origin/v0.2 && \
-make setup.ml && \
-echo 'ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-apps \
-       --enable-lwt --enable-tests' > full_config && sh full_config && \
-make all doc install
-"
-    cd $2
-    do_smth "ls $2/sequme/src/lib/sequme_flow.ml" "
-git clone $SEQUME_GIT && \
-cd sequme && \
-make setup && \
-ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
-make all doc install
-"
-    cd $2
-    do_smth "ls $2/hitscore/src/lib/hitscore.ml" "
+    path=`cd $2 ; pwd`
+
+
+    mkdir -p $path
+    cd $path
+    do_smth "ls $path/biocaml/src/lib/biocaml.ml" "git clone $BIOCAML_GIT  && cd biocaml && git checkout --track origin/core10808"
+
+    cd $path
+    do_smth "ls $path/sequme/src/lib/sequme_flow.ml" " git clone $SEQUME_GIT  "
+
+    cd $path
+    do_smth "ls $path/hitscore/src/lib/hitscore.ml" "
 git clone $HITSCORE_GIT && \
 cd hitscore && \
-git checkout -t origin/client_server && \
-ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
-make all doc install
-"
+git checkout -t origin/client_server"
+
+    set -e
+    opam remote -add sequme $path/sequme/src/opam/
+    opam pin biocaml $path/biocaml/
+    opam pin sequme $path/sequme
+    opam pin hitscore $path/hitscore
+    opam update
+    opam install hitscore
+
+#make setup.ml && \
+#echo 'ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-apps \
+#       --enable-lwt --enable-tests' > full_config && sh full_config && \
+#make all doc install
+#"
+#    cd $2
+#    do_smth "ls $2/sequme/src/lib/sequme_flow.ml" "
+#git clone $SEQUME_GIT && \
+#cd sequme && \
+#make setup && \
+#ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
+#make all doc install
+#"
+#    cd $2
+#    do_smth "ls $2/hitscore/src/lib/hitscore.ml" "
+#git clone $HITSCORE_GIT && \
+#cd hitscore && \
+#git checkout -t origin/client_server && \
+#ocaml setup.ml -configure --prefix $OCAMLPREFIX && \
+#make all doc install
+#"
 
         
 
@@ -231,7 +246,7 @@ fi
 
 if [ "$1" = "ocsigen" ]; then
     
-    opam install oclosure eliom
+    opam install eliom
     
 ##     # TODO:  try normal bundle and use same  directories for biocaml/hs/hsw/...
 ## #    opam install eliom
