@@ -1,7 +1,7 @@
 opam-version: "1"
 maintainer: "seb@mondet.org"
 build: [
-  ["oasis" "setup"]
+  ["make" "setup"]
   ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%" ]
   ["make" "all"]
   ["make" "install"]
@@ -9,4 +9,4 @@ build: [
 remove: [
   ["ocamlfind" "remove" "sequme"]
 ]
-depends: ["oasis" "ocamlfind" "biocaml" "ssl" ]
+depends: ["oasis" "ocamlfind" "biocaml" "ssl" "cryptokit" "pgocaml" ]
