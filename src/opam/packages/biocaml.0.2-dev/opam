@@ -1,0 +1,12 @@
+opam-version: "1"
+maintainer: "seb@mondet.org"
+build: [
+  ["oasis" "setup"]
+  ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%" "--enable-apps" "--enable-lwt" "--enable-tests"]
+  ["make" "all"]
+  ["make" "install"]
+]
+remove: [
+  ["ocamlfind" "remove" "biocaml"]
+]
+depends: ["oasis" "ocamlfind" "core" "camlzip" "sqlite3-ocaml" "batteries" "xmlm" "pcre-ocaml" "core_extended" "lwt" ]

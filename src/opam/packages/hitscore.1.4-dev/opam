@@ -1,0 +1,13 @@
+opam-version: "1"
+maintainer: "seb@mondet.org"
+build: [
+  ["oasis" "setup"]
+  ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%"]
+  ["make" "all"]
+  ["make" "install"]
+  ["make" "install-version"]
+]
+remove: [
+  ["ocamlfind" "remove" "hitscore"]
+]
+depends: ["oasis" "ocamlfind" "sequme"]
