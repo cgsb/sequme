@@ -122,7 +122,7 @@ if [ "$1" = "boot" ]; then
     echo Upgrade
     opam --yes upgrade
     echo "Install opam"
-    opam --yes install opam
+    opam --yes install opam ledit
     
     
 fi;
@@ -209,7 +209,7 @@ if [ "$1" = "hitscore" ] ; then
     do_smth "ls $path/hitscore/src/lib/hitscore.ml" "
 git clone $HITSCORE_GIT && \
 cd hitscore && \
-git checkout -t origin/client_server"
+git checkout -t origin/core10808"
 
     set -e
     opam remote -add sequme $path/sequme/src/opam/
@@ -217,7 +217,6 @@ git checkout -t origin/client_server"
     opam pin sequme $path/sequme
     opam pin hitscore $path/hitscore
     opam update
-    opam install hitscore
 
 #make setup.ml && \
 #echo 'ocaml setup.ml -configure --prefix $OCAMLPREFIX --enable-apps \
