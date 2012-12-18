@@ -59,7 +59,7 @@ if [ "$1" = "configure" ]; then
     echo "unset OCAMLPATH" >> $OUT
     echo "unset OCAMLPREFIX" >> $OUT
     echo "unset OCAMLFIND_DESTDIR" >> $OUT
-    echo "export OPAM='$HOME/.opam/3.12.1/bin/opam'" >> $OUT
+    echo "export OPAM='$HOME/.opam/4.00.1+short-types/bin/opam'" >> $OUT
     echo 'eval `$OPAM config env` # opam_profile_line' >> $OUT
     echo 'alias ocaml="ledit -h ~/.ocaml_history -u -l 200 ocaml"' >> $OUT
     echo "Add  . $OUT   to your bashrc or so"
@@ -122,8 +122,8 @@ if [ "$1" = "boot" ]; then
     echo Change repository
     opam repository remove default
     opam repository add custom git://github.com/smondet/opam-repository.git
-    echo "Switch to 3.12.1"
-    opam switch --yes 3.12.1
+    echo "Switch to 4.00.1+short-types"
+    opam switch --yes 4.00.1+short-types
     echo Upgrade
     opam upgrade --yes
     echo "Install opam"
