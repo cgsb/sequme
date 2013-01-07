@@ -59,8 +59,8 @@ if [ "$1" = "configure" ]; then
     echo "unset OCAMLPATH" >> $OUT
     echo "unset OCAMLPREFIX" >> $OUT
     echo "unset OCAMLFIND_DESTDIR" >> $OUT
-    echo "export OPAM='$HOME/.opam/3.12.1/bin/opam'" >> $OUT
-    echo 'eval `$OPAM config -env` # opam_profile_line' >> $OUT
+    echo "export OPAM='$HOME/.opam/4.00.1+short-types/bin/opam'" >> $OUT
+    echo 'eval `$OPAM config env` # opam_profile_line' >> $OUT
     echo 'alias ocaml="ledit -h ~/.ocaml_history -u -l 200 ocaml"' >> $OUT
     echo "Add  . $OUT   to your bashrc or so"
 
@@ -119,27 +119,27 @@ if [ "$1" = "boot" ]; then
     fi
     echo Init
     opam init
-    echo Change remote
-    opam remote -rm default
-    opam remote -add custom git://github.com/smondet/opam-repository.git
-    echo "Switch to 3.12.1"
-    opam --yes switch 3.12.1
+    echo Change repository
+    opam repository remove default
+    opam repository add custom git://github.com/smondet/opam-repository.git
+    echo "Switch to 4.00.1+short-types"
+    opam switch --yes 4.00.1+short-types
     echo Upgrade
-    opam --yes upgrade
+    opam upgrade --yes
     echo "Install opam"
-    opam --yes install opam ledit
+    opam install --yes opam ledit
     
     
 fi;
     
 if [ "$1" = "packages" ]; then
     . $OCAML_ENV
-    opam --yes install lwt ssl core core_extended oasis xmlm batteries ledit && \
-    opam --yes install camlzip sqlite3-ocaml getopt && \
-    opam --yes install pgocaml && \
-    opam --yes install cryptokit && \
-    opam --yes install simple_pam && \
-    opam --yes --no-checksums install re && \
+    opam install --yes lwt ssl core core_extended oasis xmlm batteries ledit && \
+    opam install --yes camlzip sqlite3-ocaml getopt && \
+    opam install --yes pgocaml && \
+    opam install --yes cryptokit && \
+    opam install --yes simple_pam && \
+    opam install --yes --no-checksums re && \
         echo "All OK !"
 fi
 
@@ -196,7 +196,7 @@ cd hitscore && \
 git checkout -t origin/core10808"
 
     set -e
-    opam remote -add sequme $path/sequme/src/opam/
+    opam repository add sequme $path/sequme/src/opam/
     opam pin biocaml $path/biocaml/
     opam pin sequme $path/sequme
     opam pin hitscore $path/hitscore
