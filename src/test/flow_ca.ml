@@ -97,6 +97,8 @@ let () =
       eprintf "End with ERROR: SYS-COMMAND %S failed\n" (cmd)
     | `parse_config_error e ->
       eprintf "End with ERROR: Parsing-config %s" (Exn.to_string e)
+    | `read_file_timeout (file, t) ->
+      eprintf "End with ERROR: Read-file %S timeouted: %f seconds\n" file t
     | `read_file_error (file, exn) ->
       eprintf "End with ERROR: Read-file %S failed: %s\n" file (Exn.to_string exn)
     | `write_file_error (file, exn) ->

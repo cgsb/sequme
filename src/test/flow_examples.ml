@@ -121,6 +121,8 @@ let () =
       ~ok:(fun s -> Test.log "  -> read %d bytes" (String.length s); return ())
       ~error:(function
       | `io_exn e -> Test.log " -> IO Exn: %s" (Exn.to_string e); return ()
+      | `read_file_timeout (f, t) ->
+        Test.log "  -> read_file_timeout: %s, %f" f t; return ()
       | `read_file_error (_, e) ->
         Test.log "  -> read_file_error: %s" (Exn.to_string e); return ())
   in

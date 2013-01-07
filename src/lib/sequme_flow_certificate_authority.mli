@@ -34,8 +34,10 @@ val establish :
 
 val load :
   string ->
-  (t, [> `parse_config_error of exn
-      | `read_file_error of string * exn ]) Sequme_flow.t
+  (t,
+   [> `parse_config_error of exn
+   | `read_file_error of string * exn
+   | `read_file_timeout of string * float ]) Sequme_flow.t
 (** Load a certificate-authority from a given path. *)
 
 val ca_certificate_path: t -> string

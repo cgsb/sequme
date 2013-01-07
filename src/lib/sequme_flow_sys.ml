@@ -1,16 +1,54 @@
 open Core.Std
 open Sequme_flow
   
+module Timeout = struct
+  type t = [
+  | `global_default
+  | `seconds of float
+  | `none
+  ]
+
+  let _global_default = ref 60.
+  let set_global_default v = _global_default := v
+  let get_global_default () = !_global_default
+
+  let do_io timeout ~f =
+    match timeout with
+    | `none -> f ()
+    | some ->
+      let time =
+        match some with
+        | `none -> assert false
+        | `global_default -> !_global_default
+        | `seconds f -> f in
+      Lwt.catch
+        begin fun () ->
+          Lwt_unix.with_timeout time f
+        end
+        begin function
+        | Lwt_unix.Timeout -> error (`timeout time)
+        | e -> error (`io_exn e)
+        end
+
+end 
+
 let  write_file file ~content =
   catch_io () ~f:Lwt_io.(fun () ->
     with_file ~mode:output file (fun i -> write i content))
   |! bind_on_error ~f:(fun e -> error (`write_file_error (file, e)))
 
-let read_file file =
-  catch_io () ~f:Lwt_io.(fun () ->
-    with_file ~mode:input file (fun i -> read i))
-  |! bind_on_error ~f:(fun e -> error (`read_file_error (file, e)))
-
+let read_file ?(timeout=`global_default) file =
+  Timeout.do_io timeout ~f:(fun () ->
+    catch_io () ~f:Lwt_io.(fun () ->
+      with_file ~mode:input file (fun i -> read i))
+    |! bind_on_error ~f:(fun e -> error (`read_file_error (file, e))))
+  >>< begin function
+  | Ok o -> return o
+  | Error (`io_exn e) -> error (`read_file_error (file, e))
+  | Error (`read_file_error (file, e)) -> error (`read_file_error (file, e))
+  | Error (`timeout time) -> error (`read_file_timeout (file, time))
+  end
+        
 let discriminate_process_status s ret =
   begin match ret with
   | Lwt_unix.WEXITED 0 -> return ()
