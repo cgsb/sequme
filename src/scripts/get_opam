@@ -184,7 +184,7 @@ if [ "$1" = "dev-setup" ] ; then
 
     mkdir -p $path
     cd $path
-    do_smth "ls $path/biocaml/src/lib/biocaml.ml" "git clone $BIOCAML_GIT  && cd biocaml && git checkout --track origin/core10808"
+    do_smth "ls $path/biocaml/src/lib/biocaml.ml" "git clone $BIOCAML_GIT  && cd biocaml && git checkout --track origin/v0.2"
 
     cd $path
     do_smth "ls $path/sequme/src/lib/sequme_flow.ml" " git clone $SEQUME_GIT  "
@@ -192,8 +192,7 @@ if [ "$1" = "dev-setup" ] ; then
     cd $path
     do_smth "ls $path/hitscore/src/lib/hitscore.ml" "
 git clone $HITSCORE_GIT && \
-cd hitscore && \
-git checkout -t origin/core10808"
+cd hitscore "
 
     set -e
     opam repository add sequme $path/sequme/src/opam/
