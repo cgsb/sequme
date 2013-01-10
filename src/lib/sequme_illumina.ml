@@ -223,10 +223,10 @@ module DemultiplexStats = struct
 
   exception Error of string
 
-  let qint =
-    Util.unquote
-    |- String.replace_chars (function ',' -> "" | c -> (sprintf "%c" c))
-    |- int
+  let qint x =
+    Util.unquote x
+    |> String.replace_chars (function ',' -> "" | c -> (sprintf "%c" c))
+    |> int
 
   module Barcode = struct
     type t = {
@@ -300,14 +300,14 @@ module DemultiplexStats = struct
     Enum.iter (fun _ -> Enum.junk e) (1--4);
     let barcodes =
       e
-      |> Enum.take_while ~f:(not -| flip String.starts_with "Sample information")
+      |> Enum.take_while ~f:(fun x -> not (String.starts_with "Sample information" x))
       |> Enum.fold ~f:(fun ans line -> (Barcode.of_string line)::ans) ~init:[]
       |> List.rev
     in
     Enum.iter (fun _ -> Enum.junk e) (1--4);
     let samples =
       e
-      |> Enum.take_while ~f:(not -| flip String.starts_with "CASAVA")
+      |> Enum.take_while ~f:(fun x -> not (String.starts_with "CASAVA" x))
       |> Enum.fold ~f:(fun ans line -> (Sample.of_string line)::ans) ~init:[]
       |> List.rev
     in

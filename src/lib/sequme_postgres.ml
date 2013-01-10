@@ -51,11 +51,11 @@ module Val = struct
          semantics.*)
 
   let rep_to_string a_to_string x =
-    let array =
-      Array.to_list
-    |- List.map ~f:a_to_string
-    |- String.concat ~sep:", "
-    |- sprintf "{%s}" 
+    let array a =
+      Array.to_list a
+      |> List.map ~f:a_to_string
+      |> String.concat ", "
+      |> sprintf "{%s}" 
     in
     match x with
       | Scalar x -> a_to_string x
@@ -80,7 +80,8 @@ module Val = struct
     | Text x -> rep_to_string (fun x -> x) x
     | Boolean x -> rep_to_string string_of_bool x
     | Bytea x -> rep_to_string (fun x -> x) x
-    | Date x -> rep_to_string (Core.Std.Date.sexp_of_t |- Sexp.to_string_mach) x
+    | Date x ->
+      rep_to_string (fun x -> Core.Std.Date.sexp_of_t x |> Sexp.to_string_mach) x
     | Timestamptz x -> rep_to_string Core.Std.Time.to_string_abs x
     | Interval x -> rep_to_string Core.Span.to_string x
 
@@ -181,7 +182,7 @@ module Column = struct
     let modifiers =
       modifiers
     |> List.map ~f:modifier_to_string
-    |> String.concat ~sep:" "
+    |> String.concat " "
     in
     sprintf "\"%s\" %s%s%s" name typ padding modifiers
 
@@ -310,7 +311,7 @@ module Table = struct
     sprintf "CREATE %sTABLE %s (%s)"
       (if x.temporary then "TEMP " else "")
       x.name
-      (x.columns |> List.map ~f:Column.decl_to_string |> String.concat ~sep:", ")
+      (x.columns |> List.map ~f:Column.decl_to_string |> String.concat ", ")
 
   let get_column_decl table column_name =
     List.find table.columns ~f:(fun x -> x.Column.name = column_name)
@@ -321,14 +322,15 @@ module Select = struct
 
   let select dbh table columns =
     let n = List.length columns in
-    let col_decls = List.map columns ~f:(Table.get_column_decl table |- Option.get) in
+    let col_decls =
+      List.map columns ~f:(fun x -> Table.get_column_decl table x |> Option.get) in
     let parse_row (row : string option list) =
       if List.length row <> n then
         failwith (sprintf "expected %d values per row but got %d" n (List.length row))
       ;
       List.map2 col_decls row ~f:Column.parse_val
     in
-    let query = sprintf "SELECT %s FROM %s" (String.concat ~sep:"," columns) table.Table.name in
+    let query = sprintf "SELECT %s FROM %s" (String.concat "," columns) table.Table.name in
     List.map ~f:parse_row (exec dbh query)
 
 end

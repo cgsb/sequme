@@ -22,7 +22,7 @@ module List = struct
 end
 
 module String = struct
-  include StringLabels
+  (* include StringLabels *)
   include BatString
   include BatString.Exceptionless
   let split_exn a b = BatString.split a b
@@ -68,7 +68,7 @@ module Buffer = struct
 end
 
 module Unix = struct
-  include Unix
+  (* include Unix *)
   include BatUnix
 end
 

@@ -56,7 +56,7 @@ let script_to_string x =
     (match x.mail_options with
       | [] -> ""
       | x ->
-          let x = List.map (mail_option_to_char |- string_of_char) x in
+          let x = List.map (fun x -> mail_option_to_char x |> String.of_char) x in
           s "-m" (String.concat "" x)
     );
     (match x.user_list with
