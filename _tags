@@ -1,2 +1,6 @@
+# OASIS_START
+# OASIS_STOP
 
 <src/lib/sequme_flow_certificate_authority.ml>: syntax_camlp4o
+
+true: annot, debug
