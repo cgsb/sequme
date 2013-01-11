@@ -1,0 +1,12 @@
+opam-version: "1"
+maintainer: "agarwal1975@gmail.com"
+build: [
+  ["oasis" "setup"]
+  ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%" ]
+  ["make" "all"]
+  ["make" "install"]
+]
+remove: [
+  ["ocamlfind" "remove" "th17"]
+]
+depends: ["oasis" "ocamlfind" "biocaml" "csv" "batteries" "sequme" "ocamlnet" "sexplib"  ]
