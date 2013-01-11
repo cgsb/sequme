@@ -1,7 +1,7 @@
 opam-version: "1"
 maintainer: "seb@mondet.org"
 build: [
-  ["make" "setup"]
+  ["oasis" "setup"]
   ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%" ]
   ["make" "all"]
   ["make" "install"]
