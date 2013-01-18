@@ -23,7 +23,7 @@ if [ "$1" = "help" ]; then
     exit 0
 fi
 
-
+OPAM_INSTALL_PREFIX=$HOME/.opam_install
 OCAML_ENV=$HOME/.OCaml.env
 
 if [ "$1" = "configure" ]; then
@@ -59,8 +59,9 @@ if [ "$1" = "configure" ]; then
     echo "unset OCAMLPATH" >> $OUT
     echo "unset OCAMLPREFIX" >> $OUT
     echo "unset OCAMLFIND_DESTDIR" >> $OUT
-    echo "export OPAM='$HOME/.opam/4.00.1+short-types/bin/opam'" >> $OUT
-    echo 'eval `$OPAM config env` # opam_profile_line' >> $OUT
+    echo "export PATH=$OPAM_INSTALL_PREFIX/bin:$PATH" >> $OUT
+    echo 'eval `opam config env` # opam_profile_line' >> $OUT
+    echo "export PATH=$OPAM_INSTALL_PREFIX/bin:$PATH" >> $OUT
     echo 'alias ocaml="ledit -h ~/.ocaml_history -u -l 200 ocaml"' >> $OUT
     echo "Add  . $OUT   to your bashrc or so"
 
@@ -95,7 +96,7 @@ if [ "$1" = "boot" ]; then
         ./configure -prefix $tmp_dir
        
         make world > world.log 2>&1
-        #make opt > opt.log 2>&1
+        make opt > opt.log 2>&1
         #make opt.opt > optopt.log 2>&1
         
         make install
@@ -104,30 +105,39 @@ if [ "$1" = "boot" ]; then
     
         export PATH=$tmp_dir/bin:$PATH
         
-        #OPAM_TAG=0.8.1
-        OPAM_TAG=master
-        $WGET https://github.com/OCamlPro/opam/tarball/master -O opam.tgz
+        OPAM_TAG=0.9.1
+        $WGET https://github.com/OCamlPro/opam/archive/$OPAM_TAG.tar.gz -O opam.tgz
         tar xvfz opam.tgz
-        cd OCamlPro-opam-*
-        ./configure --prefix $tmp_dir
+        cd opam-$OPAM_TAG
+        ./configure --prefix $OPAM_INSTALL_PREFIX
         make
-    #    make opt
+        make opt
         make install
     else 
+        echo "Will use $2"
         export PATH=$2/bin:$PATH
         rm -fr ~/.opam
     fi
-    echo Init
+    # All the PATH hackery comes from the semantics of `...` which calls a
+    # shell but does not seem to get everything there.
+    # At least on Ubuntu/CentOS, It Works™
+    export PATH=$OPAM_INSTALL_PREFIX/bin:$PATH
+    echo "Init with PATH=$PATH"
     opam init
+    #:eval `opam config -env`
+    echo "Config: `opam config -env` "
+    which opam && eval `opam config env`
+    export PATH=$OPAM_INSTALL_PREFIX/bin:$PATH
+    echo "Now PATH=$PATH"
     echo Change repository
+    opam repository add smondet git://github.com/smondet/opam-repository.git
     opam repository remove default
-    opam repository add custom git://github.com/smondet/opam-repository.git
     echo "Switch to 4.00.1+short-types"
     opam switch --yes 4.00.1+short-types
     echo Upgrade
     opam upgrade --yes
     echo "Install opam"
-    opam install --yes opam ledit
+    opam install --yes ledit
     
     
 fi;
