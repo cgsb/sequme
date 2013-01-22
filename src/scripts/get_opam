@@ -110,6 +110,7 @@ if [ "$1" = "boot" ]; then
         tar xvfz opam.tgz
         cd opam-$OPAM_TAG
         ./configure --prefix $OPAM_INSTALL_PREFIX
+        echo 'FETCH=curl -k -OL' >> Makefile.config
         make
         make opt
         make install
