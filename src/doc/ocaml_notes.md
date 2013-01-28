@@ -86,3 +86,88 @@ or [ocaml-sqlite3](http://www.ocaml.info/home/ocaml_sources.html)
 -   [caml\_mongo](https://github.com/kiyoto/caml_mongo)
 -   [Plasma \*](http://plasma.camlcity.org/plasma/index.html)
 
+## Other Libs
+
+
+### Core
+
+Hitscore and hiscoreweb use [Jane St's
+Core](http://ocaml.janestreet.com/?q=node/13)
+([sources](https://bitbucket.org/yminsky/ocaml-core/overview)):
+
+- [Index of the documentation](http://www.janestreet.com/ocaml/doc/core/index.html)
+-   [Core.Std](http://www.janestreet.com/ocaml/doc/core/Std.html),
+    [Time](http://www.janestreet.com/ocaml/doc/core/Time.html).{
+    [Zone](http://www.janestreet.com/ocaml/doc/core/Std.Time.Zone.html),
+    [Date](http://www.janestreet.com/ocaml/doc/core/Std.Time.Date.html)},
+    [Arg](http://www.janestreet.com/ocaml/doc/core/Std.Arg.html),
+    [List](http://www.janestreet.com/ocaml/doc/core/Core_list.html),
+    [Array](http://www.janestreet.com/ocaml/doc/core/Core_array.html),
+    [String](http://www.janestreet.com/ocaml/doc/core/Core_string.html) …
+- [Sexplib](http://www.janestreet.com/ocaml/janestreet-ocamldocs/sexplib/index.html).
+- [Sexp](http://www.janestreet.com/ocaml/janestreet-ocamldocs/sexplib/Sexp_intf.S.html)
+
+
+### Batteries
+
+Biocaml and Sequme still use
+[Batteries](http://batteries.forge.ocamlcore.org/):
+
+-   [ocamldoc](http://ocaml-batteries-team.github.com/batteries-included/hdoc/)
+-   [source](https://github.com/ocaml-batteries-team/batteries-included)
+-   [wiki](https://github.com/ocaml-batteries-team/batteries-included/wiki/)
+
+
+### Ocsigen
+
+C.f. [ocsigen.org](http://ocsigen.org).
+
+-   [Mailing-list
+    archives](https://sympa.mancoosi.univ-paris-diderot.fr/wws/arc/ocsigen)
+    [/trac](https://ocsigen.org/trac/)
+-   [Configuration file
+    doc](http://ocsigen.org/ocsigenserver/manual/config)
+-   Lwt: [manual](http://ocsigen.org/lwt/manual/)
+    [sources](http://ocsigen.org/darcsweb/?r=lwt;a=tree)
+-   Eliom [manual](http://ocsigen.org/eliom/manual/)
+-   js\_of\_ocaml: [manual](http://ocsigen.org/js_of_ocaml/manual/),
+    [o'closure manual](http://ocsigen.org/oclosure/dev/manual/)
+    ([goog.\*](http://closure-library.googlecode.com/svn/docs/index.html)),
+    [DOM-exceptions](http://reference.sitepoint.com/javascript/DOMException),
+    [Goog.Ui.Menu
+    demos](http://closure-library.googlecode.com/svn/trunk/closure/goog/demos/menu.html),
+    [O'Closure
+    examples](http://ocsigen.org/darcsweb/?r=oclosure;a=tree;f=/examples)
+-   TyXML: [Html5](http://ocsigen.org/tyxml/api/HTML5.M),
+    [Simplexmlparser](http://ocsigen.org/tyxml/api/Simplexmlparser)
+
+### XMLM
+
+The [Documentation](http://erratique.ch/software/xmlm/doc/Xmlm).
+
+Create a DOM-style module:
+
+```
+module XML = struct
+  include Xmlm
+  type tree = E of tag * tree list | D of string
+  let in_tree i = 
+    let el tag childs = E (tag, childs)  in
+    let data d = D d in
+    input_doc_tree ~el ~data i
+end
+```
+
+### OCaml-PAM
+
+PAM: ([Pluggable authentication
+modules](http://en.wikipedia.org/wiki/Pluggable_Authentication_Modules)).
+
+[ocaml-pam](http://sharvil.nanavati.net/projects/ocamlpam/) 1.1 was
+imported **and patched** in Hitscoreweb for testing:
+
+-   [README](http://sharvil.nanavati.net/projects/ocamlpam/files/README.txt)
+-   [ocsimore\_pam.ml](http://ocsigen.org/darcsweb/?r=ocsimore;a=plainblob;f=/src/user/ocsimore_pam.ml)
+    (ocsigen.org)
+-   *[pam\_start(3)](http://linux.die.net/man/3/pam_start)*,
+    *[pam\_authenticate(3)](http://linux.die.net/man/3/pam_authenticate)*
