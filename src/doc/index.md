@@ -18,6 +18,8 @@ To build hitscoreweb one needs also `opam install re eliom`.
 
 ## Around Here
 
-[Ocaml notes](./ocaml_notes.html)
+- [Ocaml notes](./ocaml_notes.md)
+- [Hitscore docs](./hitscore.md)
+
 
 
