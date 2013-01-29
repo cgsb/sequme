@@ -2,7 +2,7 @@ opam-version: "1"
 maintainer: "agarwal1975@gmail.com"
 build: [
   ["oasis" "setup"]
-  ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%" ]
+  ["ocaml" "setup.ml" "-configure" "--enable-apps" "--prefix" "%{prefix}%" ]
   ["make" "all"]
   ["make" "install"]
 ]
