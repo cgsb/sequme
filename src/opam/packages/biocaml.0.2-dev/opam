@@ -2,7 +2,7 @@ opam-version: "1"
 maintainer: "seb@mondet.org"
 build: [
   ["oasis" "setup"]
-  ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%" "--enable-apps" "--enable-lwt" "--enable-tests"]
+  ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%" "--enable-oldapps" "--enable-lwt" "--enable-app" "--enable-tests"]
   ["make" "all"]
   ["make" "install"]
 ]
