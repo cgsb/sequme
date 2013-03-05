@@ -1,0 +1,12 @@
+opam-version: "1"
+maintainer: "ashish.agarwal@nyu.edu"
+build: [
+  ["oasis" "setup"]
+  ["ocaml" "setup.ml" "-configure" "--prefix" "%{prefix}%"]
+  ["make" "all"]
+  ["make" "install"]
+]
+remove: [
+  ["make" "uninstall"]
+]
+depends: ["oasis" "ocamlfind" "core" "biocaml" "pxp" "sequme" "calendar"]
