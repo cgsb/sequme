@@ -9,4 +9,4 @@ build: [
 remove: [
   ["ocamlfind" "remove" "sequme"]
 ]
-depends: ["oasis" "ocamlfind" "biocaml" "ssl" "cryptokit" "pgocaml"  ]
+depends: ["oasis" "ocamlfind" "biocaml" "ssl" "cryptokit" "pgocaml" "batteries" "core_extended" ]
