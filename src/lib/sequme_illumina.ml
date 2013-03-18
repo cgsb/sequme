@@ -1,14 +1,14 @@
-open Sequme_std
+open Sequme_internal_pervasives
 
 (** Like [int_of_string] but with a better error message. *)
 let int s =
-  try int_of_string s
-  with Failure _ -> failwith (sprintf "%s is not an int" s)
+  try Int.of_string s
+  with _ -> failwith (sprintf "%s is not an int" s)
 
-(** Like [float_of_string] but with a better error message. *)      
+(** Like [float_of_string] but with a better error message. *)
 let float s =
-  try float_of_string s
-  with Failure _ -> failwith (sprintf "%s is not a float" s)
+  try Float.of_string s
+  with _ -> failwith (sprintf "%s is not a float" s)
 
 let control_of_string = function
   | "Y" -> true
@@ -22,28 +22,30 @@ module Tile = struct
   type surface = Top | Bottom
   type t = {surface:surface; swath:int; tile_num:int;}
 
+  let error s = raise (Error s)
+
   let of_string_exn s =
     if String.length s <> 4
-      || not (String.enum s |> Enum.for_all ~f:Char.is_digit)
+      || not (String.for_all s ~f:Char.is_digit)
     then
-      Error (sprintf "invalid tile %s" s) |> raise
+      error (sprintf "invalid tile %s" s)
     else
       let surface = match s.[0] with
         | '1' -> Top
         | '2' -> Bottom
-        | x -> Error (sprintf "invalid surface %c" x) |> raise
+        | x -> error (sprintf "invalid surface %c" x)
       in
       let swath = match s.[1] with
         | '1' -> 1
         | '2' -> 2
         | '3' -> 3
-        | x -> Error (sprintf "invalid swath %c" x) |> raise
+        | x -> error (sprintf "invalid swath %c" x)
       in
       let tile_num =
-        let s = String.right s 2 in
-        let x = int_of_string s in
+        let s = String.(sub s ~pos:2 ~len:(length s - 2)) in
+        let x = Int.of_string s in
         if x <= 0 then
-          Error (sprintf "invalid tile number %s" s) |> raise
+          error (sprintf "invalid tile number %s" s)
         else
           x
       in
@@ -82,15 +84,15 @@ module Fastq = struct
     let i = f int_of_string in
     let b = f (function "Y" -> true | "N" -> false | _ -> failwith "") in
 
-    if not (String.starts_with str "@") then
+    if not (String.is_prefix str ~prefix:"@") then
       raise (Error "sequence identifier must start with '@' character")
     else
-      match String.split str " " with
+      match String.lsplit2 str ~on:' ' with
       | Some (x, y) ->
-        begin match String.nsplit x ":", String.nsplit y ":" with
+        begin match String.split x ~on:':', String.split y ~on:':' with
         | [instrument;run_number;flowcell_id;lane;tile;x_pos;y_pos],
           [read;is_filtered;control_number;index] -> {
-            instrument = String.lchop instrument;
+            instrument = String.slice instrument 1 0;
             run_number = i "run_number" run_number;
             flowcell_id;
             lane = i "lane" lane;
@@ -128,27 +130,23 @@ module Barcode = struct
       12, "CTTGTA"
     ]
 
-  (* Different representations of the same barcodes. *)
-  let code_seqs = code_seqs_list |> List.enum |> IntMap.of_enum
-  let seq_codes = code_seqs_list |> List.enum |> Enum.map ~f:(fun (x,y) -> y,x) |> StringMap.of_enum
-  let barcodes = code_seqs_list |> List.enum |> Enum.map ~f:snd |> StringSet.of_enum
-
   type t = string
 
   let of_int x =
-    try IntMap.find x code_seqs
-    with Not_found -> Error (sprintf "invalid index %d" x) |> raise
+    try List.Assoc.find_exn code_seqs_list x
+    with Not_found -> raise (Error (sprintf "invalid index %d" x))
 
   let of_ad_code x =
-    try String.split_exn x "AD" |> snd |> int_of_string |> of_int
-    with Failure _ | Error _ -> Error (sprintf "invalid index %s" x) |> raise
+    try Scanf.sscanf x "AD%d" ident |> of_int
+    with _ -> raise (Error (sprintf "invalid index %s" x))
 
   let of_seq x =
-    if StringSet.mem x barcodes then x
+    if List.exists code_seqs_list (fun (_, s) -> s = x) then x
     else Error (sprintf "invalid index %s" x) |> raise
 
   let to_ad_code t =
-    sprintf "AD%03d" (StringMap.find t seq_codes)
+    sprintf "AD%03d"
+      (List.find_exn code_seqs_list ~f:(fun (x, s) -> t = s) |> fst)
 
   let to_seq t = t
 
@@ -173,7 +171,7 @@ module SampleSheet = struct
 
   type t = record list
 
-  let record_of_string x = match String.nsplit x "," with
+  let record_of_string x = match String.split x ~on:',' with
     | [flowcell_id;lane;sample_id;sample_ref;barcode;
        description;control;recipe;operator;project]
       ->
@@ -186,26 +184,32 @@ module SampleSheet = struct
           recipe; operator; project
         }
     | x -> Error (sprintf "expected exactly 10 columns but found %d" (List.length x)) |> raise
-          
-  let of_file file =
-    let e = File.lines_of file in
-    let hdr = Enum.get e |> Option.get in
-    if not (hdr = "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject") then
-      Error "invalid header" |> raise
-    ;
-    Enum.fold ~f:(fun ans line -> (record_of_string line)::ans) ~init:[] e |> List.rev
 
+  let of_file file =
+    In_channel.with_file file ~f:(fun chan ->
+      let e = In_channel.input_lines chan in
+      let default_header =
+        "FCID,Lane,SampleID,SampleRef,Index,Description,\
+         Control,Recipe,Operator,SampleProject" in
+      match e with
+      | hdr :: rest when default_header = hdr ->
+        List.map rest record_of_string
+      | hdr :: _ ->
+        raise (Error (sprintf "SampleSheet: wrong header: %S" hdr))
+      | [] ->
+        raise (Error "SampleSheet: empty file")
+    )
 
   let group_by_sample_id t =
-    t 
+    t
     |> List.fold_left ~f:(fun map x ->
           let prev =
-            try StringMap.find x.sample_id map
+            try String.Map.find_exn map x.sample_id
             with Not_found -> []
           in
-          StringMap.add x.sample_id (x::prev) map
-        ) ~init:StringMap.empty
-    |> StringMap.map List.rev
+          String.Map.add map x.sample_id (x::prev)
+        ) ~init:String.Map.empty
+    |> String.Map.map ~f:List.rev
 
   let find_lane_barcode t lane barcode =
     let rec loop = function
@@ -219,99 +223,3 @@ module SampleSheet = struct
 end
 
 
-module DemultiplexStats = struct
-
-  exception Error of string
-
-  let qint x =
-    Util.unquote x
-    |> String.replace_chars (function ',' -> "" | c -> (sprintf "%c" c))
-    |> int
-
-  module Barcode = struct
-    type t = {
-      lane : int;
-      sample_id : string;
-      sample_ref : string;
-      index : string;
-      description : string;
-      control : bool;
-      project : string;
-      yield : int;
-      percent_pass_filter : float;
-      num_reads : int;
-      percent_of_raw_clusters_per_lane : float;
-      percent_perfect_index_reads : float;
-      percent_one_mismatch_reads : float;
-      percent_gte_Q30 : float;
-      mean_quality_score : float;
-    }
-
-    let of_string line = match String.nsplit line "\t" with
-      | [lane;sample_id;sample_ref;index;description;
-        control;project;yield;pass_filter;num_reads;
-        percent_of_raw;percent_perfect;percent_one;
-        percent_q30;mean_quality]
-        ->
-          {
-            lane = int lane;
-            sample_id;
-            sample_ref;
-            index;
-            description;
-            control = control_of_string control;
-            project;
-            yield = qint yield;
-            percent_pass_filter = float pass_filter;
-            num_reads = qint num_reads;
-            percent_of_raw_clusters_per_lane = float percent_of_raw;
-            percent_perfect_index_reads = float percent_perfect;
-            percent_one_mismatch_reads = float percent_one;
-            percent_gte_Q30 = float percent_q30;
-            mean_quality_score = float mean_quality
-          }
-      | x -> Error (sprintf "expected exactly 15 columns but found %d" (List.length x)) |> raise
-
-  end
-
-  module Sample = struct
-    type t = {
-      sample_id : string;
-      recipe : string;
-      operator : string;
-      directory : string
-    }
-
-    let of_string line = match String.nsplit line "\t" with
-      | [sample_id;recipe;operator;directory;_;_;_;_;_;_;_;_;_;_;_] ->
-          {sample_id;recipe;operator;directory}
-      | x -> Error (sprintf "expected exactly 15 columns but found %d" (List.length x)) |> raise
-
-  end
-
-  type flowcell = string
-  type software = string
- 
-  type t = flowcell * Barcode.t list * Sample.t list * software
-
-  let of_rendered_html file =
-    let e = File.lines_of file in
-    let flowcell = Enum.get e |> Option.get |> flip String.split_exn "Flowcell: " |> snd |> String.trim in
-    Enum.iter (fun _ -> Enum.junk e) (1--4);
-    let barcodes =
-      e
-      |> Enum.take_while ~f:(fun x -> not (String.starts_with "Sample information" x))
-      |> Enum.fold ~f:(fun ans line -> (Barcode.of_string line)::ans) ~init:[]
-      |> List.rev
-    in
-    Enum.iter (fun _ -> Enum.junk e) (1--4);
-    let samples =
-      e
-      |> Enum.take_while ~f:(fun x -> not (String.starts_with "CASAVA" x))
-      |> Enum.fold ~f:(fun ans line -> (Sample.of_string line)::ans) ~init:[]
-      |> List.rev
-    in
-    let software = Enum.get e |> Option.get |> String.trim in
-    flowcell,barcodes,samples,software
-
-end

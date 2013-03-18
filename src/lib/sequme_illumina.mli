@@ -13,7 +13,7 @@ module Tile : sig
   }
 
   val of_string_exn : string -> t
-    (** E.g. [of_string_exn "2304"] parses to  
+    (** E.g. [of_string_exn "2304"] parses to
         - surface = Bottom
         - swath = 3
         - tile_num = 4
@@ -81,59 +81,8 @@ module SampleSheet : sig
   type t = record list
 
   val of_file : string -> t
-  val group_by_sample_id : t -> record list Sequme_std.StringMap.t
+  val group_by_sample_id : t -> record list Core.Std.String.Map.t
   val find_lane_barcode : t -> int -> Barcode.t -> record option
 end
 
 
-(** Support for Demultiplex_Stats.htm file. *)
-module DemultiplexStats : sig
-
-  exception Error of string
-
-  (** Information regarding each barcode. *)
-  module Barcode : sig
-    type t = {
-      lane : int;
-      sample_id : string;
-      sample_ref : string;
-      index : string;
-      description : string;
-      control : bool;
-      project : string;
-      yield : int;
-      percent_pass_filter : float;
-      num_reads : int;
-      percent_of_raw_clusters_per_lane : float;
-      percent_perfect_index_reads : float;
-      percent_one_mismatch_reads : float;
-      percent_gte_Q30 : float;
-      mean_quality_score : float;
-    }
-  end
-
-  (** Information regarding each sample. *)
-  module Sample : sig
-    type t = {
-      sample_id : string;
-      recipe : string;
-      operator : string;
-      directory : string
-    }
-  end
-
-  type flowcell = string
-  type software = string
- 
-  type t = flowcell * Barcode.t list * Sample.t list * software
-
-  val of_rendered_html : string -> t
-    (** Parses rendered Demultiplex_Stats.htm file. Open the file in a
-        browser, select all, copy selection, paste into Excel, and
-        then export as tab delimited file. Obviously this function
-        should be replaced with one that directly parses the html
-        file. And thus, this function also does not do rigorous error
-        checking or provide great error messages. It was implemented
-        for quick and dirty use. *)
-   
-end
