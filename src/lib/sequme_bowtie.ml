@@ -1,4 +1,4 @@
-open Sequme_std
+open Sequme_internal_pervasives
 
 exception Error of string
 
@@ -36,9 +36,9 @@ let make_cmd
 
 let cmd_to_string cmd =
   let i opt x = match x with None -> "" | Some x -> sprintf " -%c %d" opt x in
-  String.concat "" [
+  String.concat ~sep:"" [
     cmd.exec;
-    
+
     (* options *)
     i 'k' cmd.k;
     if cmd.best then " --best" else "";
