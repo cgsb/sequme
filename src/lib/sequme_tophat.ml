@@ -1,4 +1,4 @@
-open Sequme_std
+open Sequme_internal_pervasives
 
 exception Error of string
 
@@ -55,7 +55,7 @@ let make_cmd
 let cmd_to_string cmd =
   let s opt x = match x with None -> "" | Some x -> sprintf " -%c %s" opt x in
   let i opt x = match x with None -> "" | Some x -> sprintf " -%c %d" opt x in
-  String.concat "" [
+  String.concat ~sep:"" [
     cmd.exec;
     i 'a' cmd.min_anchor_length;
     if cmd.solexa1_3_quals then " --solexa1.3-quals" else "";
@@ -68,6 +68,7 @@ let cmd_to_string cmd =
     if cmd.no_novel_juncs then " --no-novel-juncs" else "";
     s 'o' cmd.output_dir;
     sprintf " %s" cmd.index_base;
-    sprintf " %s" (String.concat "," cmd.reads1);
-    if List.length cmd.reads2 > 0 then sprintf " %s" (String.concat "," cmd.reads2) else ""
+    sprintf " %s" (String.concat  ~sep:"," cmd.reads1);
+    if List.length cmd.reads2 > 0
+    then sprintf " %s" (String.concat ~sep:"," cmd.reads2) else ""
 ]
