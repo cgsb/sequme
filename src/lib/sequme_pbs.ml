@@ -1,5 +1,5 @@
 (** PBS support. *)
-open Sequme_std
+open Sequme_internal_pervasives
 
 exception Error of string
 
@@ -34,7 +34,7 @@ let make_script ?(shell="/bin/bash")
     =
   {
     shell;
-    mail_options = List.unique mail_options;
+    mail_options = List.dedup mail_options;
     user_list;
     resource_list;
     job_name;
@@ -51,17 +51,18 @@ let script_to_string x =
   let e opt = sprintf "#PBS %s\n" opt in
   let s opt x = sprintf "#PBS %s %s\n" opt x in
   let i opt x = sprintf "#PBS %s %d\n" opt x in
-  let header = String.concat "" [
+  let header = String.concat ~sep:"" [
     sprintf "#!%s\n" x.shell;
     (match x.mail_options with
       | [] -> ""
       | x ->
-          let x = List.map (fun x -> mail_option_to_char x |> String.of_char) x in
-          s "-m" (String.concat "" x)
+          let x =
+            List.map ~f:(fun x -> mail_option_to_char x |> String.of_char) x in
+          s "-m" (String.concat ~sep:"" x)
     );
     (match x.user_list with
       | [] -> ""
-      | x -> s "-M" (String.concat "," x)
+      | x -> s "-M" (String.concat ~sep:"," x)
     );
     if x.export_qsub_env then e "-V" else "";
     (match x.rerunable with
@@ -76,16 +77,11 @@ let script_to_string x =
     (match x.queue with None -> "" | Some q -> s "-q" q);
   ]
   in
-  header ^ "\n" ^ (String.concat "\n" x.commands) ^ "\n"
+  header ^ "\n" ^ (String.concat ~sep:"\n" x.commands) ^ "\n"
 
-let script_to_file script ?mode ?perm file : unit =
-  let cout = match mode,perm with
-    | None, None -> open_out file
-    | Some mode, None -> open_out ~mode file
-    | None, Some perm -> open_out ~perm file
-    | Some mode, Some perm -> open_out ~mode ~perm file
-  in
-  finally (fun () -> close_out cout) (fun cout -> fprintf cout "%s\n" (script_to_string script)) cout
+let script_to_file script ?perm file : unit =
+  Out_channel.with_file ?perm file ~f:(fun cout ->
+    fprintf cout "%s\n" (script_to_string script))
 
 
 let make_and_run ?(resource_list="nodes=1:ppn=8,mem=14gb") ~job_name ?(export_qsub_env=true) outdir commands =
@@ -107,8 +103,8 @@ let make_and_run ?(resource_list="nodes=1:ppn=8,mem=14gb") ~job_name ?(export_qs
     commands
   in
 
-  Unix.mkdir outdir 0o755;
-  script_to_file script ~perm:(File.unix_perm 0o644) pbs_script_file;
+  Unix.mkdir outdir ~perm:0o755;
+  script_to_file script ~perm:0o644 pbs_script_file;
   let cmd = sprintf "qsub %s > %s 2>&1" pbs_script_file qsub_out_file in
   print_endline cmd;
   match Sys.command cmd with
