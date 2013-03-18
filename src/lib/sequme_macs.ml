@@ -1,4 +1,4 @@
-open Sequme_std
+open Sequme_internal_pervasives
 
 exception Error of string
 
@@ -30,7 +30,7 @@ let cmd_to_string cmd =
   let i' opt x = match x with None -> "" | Some x -> sprintf " --%s=%ld" opt x in
   let ii opt x = match x with None -> "" | Some (x1,x2) -> sprintf " -%c %ld,%ld" opt x1 x2 in
   let s opt x = match x with None -> "" | Some x -> sprintf " -%c %s" opt x in
-  String.concat "" [
+  String.concat ~sep:"" [
     cmd.exec;
     s 'n' cmd.name;
     s 'f' cmd.format;
