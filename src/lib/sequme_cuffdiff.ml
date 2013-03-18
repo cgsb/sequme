@@ -1,4 +1,4 @@
-open Sequme_std
+open Sequme_internal_pervasives
 
 exception Error of string
 
@@ -38,7 +38,7 @@ let make_cmd
 let cmd_to_string cmd =
   let s opt x = match x with None -> "" | Some x -> sprintf " -%c %s" opt x in
   let i opt x = match x with None -> "" | Some x -> sprintf " -%c %d" opt x in
-  String.concat "" [
+  String.concat ~sep:"" [
     cmd.exec;
     s 'o' cmd.output_dir;
     i 'p' cmd.num_threads;
@@ -46,6 +46,6 @@ let cmd_to_string cmd =
     if cmd.time_series then " -T" else "";
     if cmd.quartile_normalization then " -N" else "";
     sprintf " %s" cmd.gtf;
-    cmd.samples |> List.map ~f:(String.concat ",") |>
-        String.concat " " |> sprintf " %s"
+    cmd.samples |> List.map ~f:(String.concat ~sep:",") |>
+        String.concat ~sep:" " |> sprintf " %s"
   ]
