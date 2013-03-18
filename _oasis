@@ -16,14 +16,15 @@ Library sequme
   Install: true
   Modules: Sequme
            , Sequme_std
-           , Sequme_bowtie     
-           , Sequme_cuffdiff   
-           , Sequme_cufflinks  
-           , Sequme_illumina   
-           , Sequme_macs       
-           , Sequme_pbs        
-           , Sequme_read_type  
-           , Sequme_tophat     
+           , Sequme_internal_pervasives
+           , Sequme_bowtie
+           , Sequme_cuffdiff
+           , Sequme_cufflinks
+           , Sequme_illumina
+           , Sequme_macs
+           , Sequme_pbs
+           , Sequme_read_type
+           , Sequme_tophat
            , Sequme_syscall
            , Sequme_postgres
            , Sequme_pgpass
@@ -37,7 +38,7 @@ Library sequme
            , Sequme_flow_net
            , Sequme_flow_app_util
            , Sequme_psql
-  
+
 Flag installdoc
   Description: Install documentation
   Default: false
