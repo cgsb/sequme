@@ -1,6 +1,6 @@
 (** MACS support. See the
     {{:http://liulab.dfci.harvard.edu/MACS/}MACS website} for details. *)
-open Sequme_std
+open Sequme_internal_pervasives
 
 exception Error of string
 
