@@ -8,7 +8,7 @@ Compilation & run:
        && ./sexp_dsl
 
 
-To view this in HTML:
+To convert [`sexp_dsl.ml`](./sexp_dsl.ml) to HTML:
 
     caml2html -nf -charset UTF-8 src/exp/sexp_dsl.ml \
       -ext "doc: pandoc | awk  'BEGIN {print \"<div class=text_box>\"} { print } END {  printf \"</div>\" }'"  \
@@ -47,7 +47,7 @@ let () =
   say "%s" (`plus [ (`minus (`int 42, `int 43)); `int 355] |> to_string);
   ()
 (*doc
-The output with a simple `with sexp` has (of course) too many parentheses.
+The output with a simple `with sexp` has (of course) too many parentheses:
 
      (plus ((minus ((int 42) (int 43))) (int 355)))
 
@@ -120,7 +120,8 @@ source positions *and comments*:
 
 
 `With_layout` does not have an `of_string` function, but `Annotated`
-does, and it pretty scary:
+does. It also has `get_sexp`, `get_range` and `find_sexp`, without
+them, it would become quickly pretty scary:
 
     # Sexp.Annotated.of_string "atom";;
     - : Core.Std.Sexp.Annotated.t =
@@ -185,7 +186,7 @@ Something like:
 open Result
 
 let find_annotated_exn a t =
-  (*tip Let's hope we make to call find_annotated_exn only where it
+  (*tip Let's hope we are going to call find_annotated_exn only where it
        makes sense … *)
   Option.value_exn ~message:"find_annotated_exn messed up"
     (Sexp.Annotated.find_sexp a t)
@@ -203,15 +204,15 @@ type arith_expr = [
 ]
 with sexp
 
-(*doc Use [Sexp_intf.S.Annotated] and its functions `get_sexp`,
-   `get_range`, and `find_sexp` not to have to treat all the crazy cases
+(*doc Use [Sexp_intf.S.Annotated] (and its functions `get_sexp`,
+   `get_range`, and `find_sexp`) not to have to treat all the crazy cases
    of `Annotated.t`. *)
-let parse_arith sexp =
+let parse_arith sexp : ([> `arith of arith_expr], _) Result.t =
   let open Sexp in
   let error range e =
     let open Annotated in
     (*tip `Annotated.range` is actually not `Sexpable` so for now we
-       convert it to string. *)
+       convert it to a string. *)
     fail (`parse_arith (sprintf "L%dC%d—L%dC%d" range.start_pos.line
           range.start_pos.col range.end_pos.line range.end_pos.col, e)) in
   let classify_ident ~range ident =
@@ -281,8 +282,9 @@ Now the GZip case. *)
 type gzip = int * [`size of int | `factor of float ]
 with sexp
 
-(*doc The function take a list of S-Expression, as the caller should have
-   discriminated on a keyword like `"gzip"` or `"gzip-output"`. *)
+(*doc The function takes a list of S-Expressions, as the caller should
+   have discriminated a keyword like `"gzip"` or `"gzip-output"`
+   followed directly by the specification. *)
 let parse_gzip ?(default_level=3) sexp_list : (gzip, _) Result.t =
   let open Sexp in
   let error range e =
@@ -448,10 +450,11 @@ let () =
 
 ### Boolean Expressions With Core's Blang
 
-Here the trick would be to leverage Core's already-written Blang parser.
-But it does *not* use `Sexp.Annotated.t` so can not completely implement it.
+Here the trick would be to leverage Core's already-written `Blang` parser.
+But it does *not* use `Sexp.Annotated.t` so we cannot completely
+implement it.
 
-So this is just a *type-checking proof-of-concept*:
+This is just a *type-checking proof-of-concept*:
 *)
 
 let parse_boolean_expression
