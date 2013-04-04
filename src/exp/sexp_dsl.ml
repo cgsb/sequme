@@ -448,6 +448,141 @@ let () =
 
 ### Boolean Expressions With Core's Blang
 
-*TODO*
+Here the trick would be to leverage Core's already-written Blang parser.
+But it does *not* use `Sexp.Annotated.t` so can not completely implement it.
+
+So this is just a *type-checking proof-of-concept*:
+*)
+
+let parse_boolean_expression
+    (type err) (parse_atom : Sexp.t -> ('a, err) Result.t) sexp : ('a Blang.t, _) Result.t =
+  let module With_exceptions = struct
+    exception Parse_atom of err
+    let atom_of_sexp s =
+      match parse_atom s with
+      | Ok a -> a
+      | Error e -> raise (Parse_atom e)
+
+    let parse_blang sexp =
+      try
+        Ok (Blang.t_of_sexp atom_of_sexp sexp)
+      with
+      | Parse_atom e -> fail (`parse_blang_atom e)
+      | e -> fail (`parse_blang e)
+
+  end in
+  With_exceptions.parse_blang sexp
+
+(*doc
+
+### Parse / Discriminate A List
+
+
+*)
+
+let parse_list assoc sexp_list =
+  let open Sexp in
+  let error range e =
+    let open Annotated in
+      fail (`parse_list (sprintf "L%dC%d—L%dC%d" range.start_pos.line
+          range.start_pos.col range.end_pos.line range.end_pos.col, e)) in
+  List.fold sexp_list ~init:(return []) ~f:(fun m sexp ->
+    m >>= fun prev ->
+    let range = Annotated.get_range sexp in
+    begin match Sexp.Annotated.get_sexp sexp with
+    | List (Atom atom :: rest) ->
+      begin match List.Assoc.find assoc atom with
+      | Some parse_atom ->
+        let sexps = List.map rest (find_annotated_exn sexp) in
+        parse_atom sexps
+        >>= fun v ->
+        return (v :: prev)
+      | None ->
+        error range (`tag_not_found atom)
+      end
+    | other -> error range (`unexpected_expression other)
+    end)
+
+(*doc
+
+The interesting part of the test is the build of the config-file parser:
+
+
+    let my_config_file =
+      parse_list [
+        ("gzip", (fun sexps -> parse_gzip ~default_level:4 sexps >>= fun r -> return (`gzip r)));
+        ("compare", (fun sexps ->
+           parse_comparison parse_arith init_range sexps >>= fun r -> return (`compare r)));
+      ] in
+
+*)
+let test_parse_list  example =
+  let to_parse = Sexp.Annotated.of_string (sprintf "(%s)" example) in
+  let init_range = Sexp.Annotated.get_range to_parse in
+  let my_config_file =
+    parse_list [
+      ("gzip", (fun sexps -> parse_gzip ~default_level:4 sexps >>= fun r -> return (`gzip r)));
+      ("compare", (fun sexps ->
+         parse_comparison parse_arith init_range sexps >>= fun r -> return (`compare r)));
+    ] in
+  let open Sexp in
+  match Annotated.get_sexp to_parse with
+  | List l ->
+    begin match my_config_file (List.map ~f:(find_annotated_exn to_parse) l) with
+    | Ok v ->
+      let s = <:sexp_of<
+         [> `compare of [> `arith of arith_expr ] comparison
+          | `gzip of gzip ] list
+        >> v |> Sexp.to_string_hum in
+      say "example:\n  %s\n  %s" example s
+    | Error e ->
+      let s = <:sexp_of<
+         [> `parse_arith of
+              string *
+              [> `invalid_identifier of Core.Std.String.t
+               | `unexpected_expression of string ]
+          | `parse_comparison of
+              string *
+              [> `expecting_3_items of Sexp.t Core.Std.List.t
+               | `unexpected_expression of Core.Std.Sexp.t ]
+          | `parse_gzip of
+              string *
+              [> `level_not_an_integer of string
+               | `unexpected_expression of Core.Std.Sexp.t
+               | `zlib_bs_factor_not_an_integer of string
+               | `zlib_bs_not_an_integer of string ]
+          | `parse_list of
+              string *
+              [> `tag_not_found of string
+               | `unexpected_expression of Core.Std.Sexp.t ] ]
+              >> e |> Sexp.to_string_hum in
+      say "example:\n  %s\nERROR: %s" example s
+    end
+  | Atom e ->
+    say "ERROR ATOM in test_parse_list"
+
+let () =
+  test_parse_list "(gzip)";
+  test_parse_list "(gzip :level 4) (compare (+ 21 21) = 42)";
+  test_parse_list "(gzip :zlib-buffer-size (factor 3434e)) (compare (+ 21 21) = 42)";
+  test_parse_list "(gzip :level 9) (compare (+ 21 2.1) = 42)";
+  say ""
+(*doc
+
+This gives:
+
+    example:
+      (gzip)
+      ((gzip (4 (size 4096))))
+    example:
+      (gzip :level 4) (compare (+ 21 21) = 42)
+      ((compare (eq ((arith (plus ((int 21) (int 21)))) (arith (int 42)))))
+     (gzip (4 (size 4096))))
+    example:
+      (gzip :zlib-buffer-size (factor 3434e)) (compare (+ 21 21) = 42)
+    ERROR: (parse_gzip (L1C25—L1C38 (zlib_bs_factor_not_an_integer 3434e)))
+    example:
+      (gzip :level 9) (compare (+ 21 2.1) = 42)
+    ERROR: (parse_arith (L1C32—L1C35 (invalid_identifier 2.1)))
 
 *)
