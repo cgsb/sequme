@@ -209,7 +209,7 @@ let build_dispatch e =
     begin fun _ _ -> Nop end;
 
   rule "install"
-    ~deps:["sequme_lib"; sequme_meta_file]
+    ~deps:["sequme_lib"; sequme_meta_file; "uninstall"]
     ~prod:"install"
     begin fun _ _ ->
       let to_install =
@@ -217,7 +217,6 @@ let build_dispatch e =
           ~f:(fun ext -> Sh (sprintf "src/lib/*.%s" ext))
       in
       Seq [
-        Cmd (Sh "echo $PWD");
         Cmd (S (A "ocamlfind" :: A "install" :: A "sequme" :: P sequme_meta_file
             :: to_install));
       ]
