@@ -57,7 +57,7 @@ case "$1" in
     "install" ) ocamlbuild install ;;
     "uninstall" ) ocamlbuild uninstall ;;
     "clean" ) rm -fr _build ;;
-    "distclean" ) rm -fr _build ;;
+    "distclean" ) rm -fr _build $configuration_file ;;
     "doclib" ) make_doclib ;;
     "doc" ) make_doc ;;
     "install-doc" )  install_doc ;;
