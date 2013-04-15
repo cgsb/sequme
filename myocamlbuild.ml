@@ -162,7 +162,7 @@ let build_dispatch e =
       begin fun _ _ ->
         Seq [
           Cmd (S [A "mkdir"; A "-p"; A (Filename.dirname name)]);
-          Echo (sequme_modules, name);
+          Echo (List.map sequme_modules ~f:(sprintf "%s\n"), name);
         ]
       end;
   in
