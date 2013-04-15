@@ -1,0 +1,32 @@
+
+Sequme
+======
+
+A library for NYU's bioinformatics software.
+
+### Build
+
+Simply call
+
+    ./please configure [--prefix /some/prefix]
+    ./please build
+    ./please install
+
+See `please help` for other options.
+
+The installation uses `ocamlfind`, the prefix is used only for
+installing the documentation (generated with `please doc`).
+
+### Documentation
+
+For now, you may run:
+
+    ./please doc
+    ./please doclib
+
+and have a look at `_build/doc/index.html` and `_build/doc/lib/index.html`.
+Also:
+
+    ./please install-doc
+
+will install the documentation in `$prefix/share/doc/sequme`.
