@@ -109,6 +109,9 @@ end
 open Ocamlbuild_plugin
 open Printf
 
+let sequme_version = "0.2"
+let sequme_description = "NYU Bioinformatics Support Library"
+
 let sequme_dependencies = [
   "threads";
   "core";
@@ -169,6 +172,20 @@ let build_dispatch e =
     begin fun _ _ ->
       ocaml_lib ~dir:"src/lib" "src/lib/sequme";
       Nop
+    end;
+  rule "Make META" ~deps:[] ~prod:"src/lib/META"
+    begin fun _ _ ->
+      let meta_file = [
+        sprintf "version = %S\n" sequme_version;
+        sprintf "description = %S\n" sequme_description;
+        sprintf "requires = %S\n" (String.concat " " sequme_dependencies);
+        "archive(byte) = \"sequme.cma\"\n\
+         archive(byte, plugin) = \"sequme.cma\"\n\
+         archive(native) = \"sequme.cmxa\"\n\
+         archive(native, plugin) = \"sequme.cmxs\"\n\
+         exists_if = \"sequme.cma\"\n";
+      ] in
+      Echo (meta_file,  "src/lib/META")
     end;
 
   let tests = ref [] in
