@@ -1,16 +1,66 @@
 #!/bin/sh
 
 usage () {
-    echo "usage: $0 {configure,build,install,uninstall,clean,distclean}"
+    echo "usage: $0 {configure,build,install,uninstall,clean,distclean,doc,install-doc}"
+}
+
+configuration_file=config.local
+
+configure () {
+    case "$1" in
+        "--prefix" )
+            echo "prefix=\"$2\"" >> $configuration_file
+            echo "Configured prefix: $2"
+            shift 2; configure $*
+            ;;
+        "" )
+            echo "Done $*.";;
+        * ) echo "configure: Can't understand $1"
+    esac
+
+}
+
+make_doclib () {
+    mkdir -p _build/doc/lib
+    ocamlfind ocamldoc \
+        -html \
+	-syntax camlp4o -package core_extended,sexplib.syntax,pgocaml,biocaml,lwt.ssl,lwt.preemptive \
+	  -charset UTF-8 -d _build/doc/lib/ -t "The Sequme Library" \
+	  -keep-code -colorize-code _build/src/lib/*.mli _build/src/lib/*.ml \
+	  -sort -I _build/src/lib/.
+}
+make_doc () {
+    mkdir -p _build/doc/fig
+    for md in src/doc/*.md ; do
+        html=`basename $md | sed 's/md/html/'`
+        cat $md | sed 's/\([a-zA-Z0-9_]\+\)\.md/\1.html/g' | \
+            pandoc -w html -o _build/doc/$html -s
+    done
+    for png in src/doc/fig/*.png ; do
+        cp $png _build/doc/fig/
+    done
+}
+install_doc () {
+    prefix=/usr/
+    if [ -f $configuration_file ] ; then
+        . $configuration_file
+    fi
+    target=$prefix/share/doc/sequme
+    rm -fr $target
+    mkdir -p $target
+    cp -r _build/doc/* $target
 }
 
 case "$1" in
-    "configure" ) echo "Done." ;;
+    "configure" ) shift 1; configure $*;;
     "build" ) ocamlbuild build ;;
     "install" ) ocamlbuild install ;;
     "uninstall" ) ocamlbuild uninstall ;;
     "clean" ) rm -fr _build ;;
     "distclean" ) rm -fr _build ;;
+    "doclib" ) make_doclib ;;
+    "doc" ) make_doc ;;
+    "install-doc" )  install_doc ;;
     "help" | "-help" | "--help" | "-h" ) usage ;;
     * )
         echo "Don't know what to do with '$1'"
