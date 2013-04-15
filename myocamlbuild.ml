@@ -108,6 +108,7 @@ end
 
 open Ocamlbuild_plugin
 open Printf
+module List = ListLabels
 
 let sequme_version = "0.2"
 let sequme_description = "NYU Bioinformatics Support Library"
@@ -173,7 +174,8 @@ let build_dispatch e =
       ocaml_lib ~dir:"src/lib" "src/lib/sequme";
       Nop
     end;
-  rule "Make META" ~deps:[] ~prod:"src/lib/META"
+  let sequme_meta_file = "src/lib/META" in
+  rule "Make META" ~deps:[] ~prod:sequme_meta_file
     begin fun _ _ ->
       let meta_file = [
         sprintf "version = %S\n" sequme_version;
@@ -205,6 +207,23 @@ let build_dispatch e =
     ~deps:("sequme_lib" :: !tests)
     ~prod:"build"
     begin fun _ _ -> Nop end;
+
+  rule "install"
+    ~deps:["sequme_lib"; sequme_meta_file]
+    ~prod:"install"
+    begin fun _ _ ->
+      let to_install =
+        List.map ["cmi"; "cmo"; "cmx"; "a"; "o"; "cma"; "cmxa"; "cmxs"]
+          ~f:(fun ext -> Sh (sprintf "src/lib/*.%s" ext))
+      in
+      Seq [
+        Cmd (Sh "echo $PWD");
+        Cmd (S (A "ocamlfind" :: A "install" :: A "sequme" :: P sequme_meta_file
+            :: to_install));
+      ]
+    end;
+  rule "uninstall" ~deps:[] ~prod:"uninstall"
+    begin fun _ _ -> Cmd (S [A "ocamlfind"; A "remove"; A "sequme"]) end;
   ()
 
 
