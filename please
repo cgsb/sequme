@@ -3,6 +3,27 @@
 usage () {
     echo "usage: $0 {configure,build,install,uninstall,clean,distclean,doc,install-doc}"
 }
+help () {
+    echo ""
+    echo "Building & installing:"
+    echo ""
+    echo "    $0 configure [--prefix <prefix>]  # Creates config.local"
+    echo "    $0 build                          # Uses OCamlbuild"
+    echo "    $0 install                        # Only based on ocamlfind (not \$prefix)"
+    echo ""
+    echo "Documentation:"
+    echo ""
+    echo "    $0 doc                            # Requires pandoc"
+    echo "    $0 doclib                         # Calls OCamldoc"
+    echo "    $0 install-doc                    # Uses \$prefix in config.local"
+    echo ""
+    echo "Clean-up:"
+    echo ""
+    echo "    $0 clean                          # Remove _build/"
+    echo "    $0 distclean                      # Remove _build and config.local"
+    echo ""
+
+}
 
 configuration_file=config.local
 
@@ -14,7 +35,7 @@ configure () {
             shift 2; configure $*
             ;;
         "" )
-            echo "Done $*.";;
+            echo "Done.";;
         * ) echo "configure: Can't understand $1"
     esac
 
@@ -52,7 +73,9 @@ install_doc () {
 }
 
 case "$1" in
-    "configure" ) shift 1; configure $*;;
+    "configure" ) shift 1;
+        echo "# Configured on $(date):" > $configuration_file
+        configure $*;;
     "build" ) ocamlbuild build ;;
     "install" ) ocamlbuild install ;;
     "uninstall" ) ocamlbuild uninstall ;;
@@ -61,7 +84,7 @@ case "$1" in
     "doclib" ) make_doclib ;;
     "doc" ) make_doc ;;
     "install-doc" )  install_doc ;;
-    "help" | "-help" | "--help" | "-h" ) usage ;;
+    "help" | "-help" | "--help" | "-h" ) usage; help ;;
     * )
         echo "Don't know what to do with '$1'"
         usage
