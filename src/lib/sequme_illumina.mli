@@ -70,7 +70,7 @@ module SampleSheet : sig
     lane : int;
     sample_id : string;
     sample_ref : string;
-    barcode : Barcode.t;
+    barcode : string;
     description : string;
     control : bool;
     recipe : string;

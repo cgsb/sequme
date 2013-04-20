@@ -161,7 +161,7 @@ module SampleSheet = struct
     lane : int;
     sample_id : string;
     sample_ref : string;
-    barcode : Barcode.t;
+    barcode : string;
     description : string;
     control : bool;
     recipe : string;
@@ -178,7 +178,7 @@ module SampleSheet = struct
         {
           flowcell_id; lane = int lane; sample_id;
           sample_ref;
-          barcode = Barcode.of_seq barcode;
+          barcode;
           description;
           control = control_of_string control;
           recipe; operator; project
