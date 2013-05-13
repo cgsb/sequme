@@ -1,6 +1,6 @@
 (** Certificate authority (for now, wrap [openssl]). *)
 open Core.Std
-  
+
 type t
 
 
@@ -42,7 +42,7 @@ val load :
 
 val ca_certificate_path: t -> string
 (** Get the path to the CA's certificate. *)
-    
+
 val make_certificate:
   ?verbose:bool -> t -> kind:[`server|`client] -> name:string ->
   (unit,
@@ -95,6 +95,6 @@ val check_certificate : t -> Ssl.certificate ->
 
 val revoke : t -> name:string ->
   (unit,
-   [> `name_not_found of 'a Core.Std.String.Map.key_
+   [> `name_not_found of string
    | `write_file_error of string * exn ]) Sequme_flow.t
 (** Revoke [name]'s certificate. *)
