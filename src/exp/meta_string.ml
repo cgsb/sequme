@@ -24,7 +24,7 @@ To view this in HTML:
 body {max-width: 60em; margin: auto}
 code, pre {background-color: #C9C7F1 }
 .text_box { max-width: 50em; font-size: 90%;
-  margin-left: 0em; border-left: 2px; font-family: sans-serif }
+  margin-left: 0em; border-left: 2px; font-family: serif }
 .text_box code, .text_box pre {background-color: #ddd;}
 .text_box pre {
   margin-left: 2em; margin-right: 2em;
@@ -32,6 +32,7 @@ code, pre {background-color: #C9C7F1 }
   padding-left: 1em;
   text-indent: 0em;
 }
+blockquote {background-color: #eee}
 .text_tip p { display: inline; }
 *)
 (*doc
@@ -106,3 +107,74 @@ module type STRING = sig
   val concat: t list -> ?sep:t -> t
 
 end
+
+(*doc
+
+Mutually Recursive Functor Applications
+---------------------------------------
+
+Recursive modules are a “language extension”, c.f. [the manual
+7.8][ocaml-man-78]:
+
+> This is an experimental extension of OCaml: the class of recursive
+> definitions accepted, as well as its dynamic semantics are not final
+> and subject to change in future releases.
+
+[ocaml-man-87]: http://caml.inria.fr/pub/docs/manual-ocaml/manual021.html#toc75
+
+Just checking how far we can go:
+*)
+module type A = sig
+  type t
+  type ext
+  val t: ext -> t
+end
+module type B = sig
+  type t
+  type ext
+  val u: t -> ext -> unit
+end
+
+module A_one (B_impl : B) : A = struct
+
+  type t = int
+  type ext = B_impl.t
+  let t ext = 42
+
+end
+module B_one (A_impl : A) : B = struct
+
+  type t = string
+  type ext = A_impl.t
+  let u t e = ()
+
+end
+
+(*doc This works: *)
+module rec Aa : A  = A_one(Bb) and Bb : B = B_one(Aa)
+
+(*doc
+This does not:
+
+    module rec Aaa : A with type ext := Bb.t = A_one(Bbb)
+           and Bbb : B with type ext := Aaa.t = B_one(Aaa)
+
+
+    File "src/exp/meta_string.ml", line 160, characters 53-56:
+    Error: Signature mismatch:
+           Modules do not match:
+             sig type t = Bbb.t val u : t -> Aaa.t -> unit end
+           is not included in
+             B
+           The field `ext' is required but not provided
+
+and neither do this:
+
+    module rec Aaa : A with type ext = Bbb.t = A_one(Bbb)
+           and Bbb : B with type ext = Aaa.t = B_one(Aaa)
+
+*)
+
+let () =
+  say "Go!";
+  ()
