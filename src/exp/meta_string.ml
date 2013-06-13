@@ -141,17 +141,7 @@ or this
 
     module rec Aaa : A with type ext = string = A_one(Bbb)
            and Bbb : B with type ext = int = B_one(Aaa)
-*)
 
-
-(*doc
-
-Minimal API
------------
-
-*)
-
-(*doc
 
 Minimal API
 -----------
@@ -235,6 +225,11 @@ module type STRING = sig
 
 end
 
+(*doc
+
+### Ocaml Strings
+
+*)
 module type BASIC_OCAML_LIKE_STRING = sig
 
   type t
@@ -287,6 +282,11 @@ end
 
 
 
+(*doc
+
+The Main Test
+-------------
+*)
 let () =
   say "Go!";
   ()
