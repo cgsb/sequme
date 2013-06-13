@@ -72,46 +72,10 @@ let if_arg s f =
 
 (*doc
 
-Minimal API
------------
-
-*)
-module type CHAR = sig
-
-  type t
-  type string
-
-  val serialize: t -> string -> int -> (int, [> `out_of_bounds ]) Result.t
-  (** [serialize t s pos] writes [t] in [s] at position [pos] and
-      return the amount of bits used. *)
-
-  val unserialize: string -> int -> ((t * int), [> `out_of_bounds]) Result.t
-
-  val to_string_hum: t -> String.t
-
-end
-module type STRING = sig
-
-  type t
-  type char
-
-  val of_char: char -> t
-  val of_char_list: char list -> t
-
-  val get: t -> int -> char
-  (** Get the n-th char, not necessarily bytes or bits. *)
-
-  val set: t -> int -> char -> t
-  (** String should not be mutable. *)
-
-  val concat: t list -> ?sep:t -> t
-
-end
-
-(*doc
-
 Mutually Recursive Functor Applications
 ---------------------------------------
+
+We *might* need them (?).
 
 Recursive modules are a “language extension”, c.f. [the manual
 7.8][ocaml-man-78]:
@@ -173,7 +137,104 @@ and neither do this:
     module rec Aaa : A with type ext = Bbb.t = A_one(Bbb)
            and Bbb : B with type ext = Aaa.t = B_one(Aaa)
 
+or this
+
+    module rec Aaa : A with type ext = string = A_one(Bbb)
+           and Bbb : B with type ext = int = B_one(Aaa)
 *)
+
+
+(*doc
+
+Minimal API
+-----------
+
+*)
+
+(*doc
+
+Minimal API
+-----------
+
+The independent `CHAR` and `STRING` signatures would require recursive
+functors/modules:
+
+```ocaml
+module type CHAR = sig
+
+  type t
+  type string
+
+  val serialize: t -> string -> int -> (int, [> `out_of_bounds ]) Result.t
+  (** [serialize t s pos] writes [t] in [s] at position [pos] and
+      return the amount of bits used. *)
+
+  val unserialize: string -> int -> ((t * int), [> `out_of_bounds]) Result.t
+
+  val to_string_hum: t -> String.t
+
+end
+module type STRING = sig
+
+  type t
+  type char
+
+  val of_char: char -> t
+  val of_char_list: char list -> t
+
+  val get: t -> int -> char
+  (** Get the n-th char, not necessarily bytes or bits. *)
+
+  val set: t -> int -> char -> t
+  (** String should not be mutable. *)
+
+  val concat: t list -> ?sep:t -> t
+
+end
+```
+
+Let's put a `Char` module in the `String` module:
+
+Also, let's replace:
+
+    val serialize: t -> string -> int -> (int, [> `out_of_bounds ]) Result.t
+    (** [serialize t s pos] writes [t] in [s] at position [pos] and
+        return the amount of bits used. *)
+
+with an immutable string version.
+*)
+
+
+module type STRING = sig
+
+  type t
+
+  module Char: sig
+    type string = t
+    type t
+
+
+    val serialize: t -> (string * int)
+
+    val unserialize: string -> int -> ((t * int), [> `out_of_bounds]) Result.t
+
+    val to_string_hum: t -> String.t
+
+  end
+
+  val of_char: Char.t -> t
+  val of_char_list: Char.t list -> t
+
+  val get: t -> int -> Char.t option
+  (** Get the n-th char, not necessarily bytes or bits. *)
+
+  val set: t -> int -> Char.t -> t option
+  (** String should not be mutable. *)
+
+  val concat: ?sep:t -> t list -> t
+
+end
+
 
 let () =
   say "Go!";
