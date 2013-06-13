@@ -235,6 +235,57 @@ module type STRING = sig
 
 end
 
+module type BASIC_OCAML_LIKE_STRING = sig
+
+  type t
+  val get: t -> int -> char
+  val of_char: char -> t
+
+end
+
+
+module OCaml_char (S: BASIC_OCAML_LIKE_STRING) = struct
+
+  type string = S.t
+  type t = char
+  let serialize c = (S.of_char c, 8)
+  let unserialize s p =
+    try Ok (S.get s p, 8)
+    with e -> Error (`out_of_bounds)
+
+  let to_string_hum c = S.of_char c
+end
+
+module OCaml_string : STRING with type t = string = struct
+
+  module Basic_string: BASIC_OCAML_LIKE_STRING with type t = string = struct
+    type t = string
+    let get = String.get
+    let of_char = String.make 1
+  end
+
+  include Basic_string
+
+  module Char = OCaml_char(Basic_string)
+
+  let get s p =
+    try Some (String.get s p)
+    with e -> None
+
+  let concat ?(sep="") t = String.concat t ~sep
+
+  let set str pos c =
+    try
+      let new_one = String.copy str in
+      new_one.[pos] <- c;
+      Some new_one
+    with e -> None
+
+  let of_char_list cl = concat ?sep:None (List.map cl ~f:of_char)
+
+end
+
+
 
 let () =
   say "Go!";
