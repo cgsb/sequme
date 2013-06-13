@@ -17,7 +17,7 @@ To view this in HTML:
     caml2html -nf -charset UTF-8 src/exp/meta_string.ml \
       -ext "doc: pandoc | awk  'BEGIN {print \"<div class=text_box>\"} { print } END {  printf \"</div>\" }'"  \
       -ext "style: awk 'BEGIN {print \"<style>\"} { print } END {  printf \"</style>\" }'" \
-      -ext "result: xargs meta_string | pandoc | awk  'BEGIN {print \"<div class=text_box>\"} { print } END {  printf \"</div>\" }'"
+      -ext "result: xargs meta_string | pandoc | awk  'BEGIN {print \"<div class=result_box>\"} { print } END {  printf \"</div>\" }'"
 
 *)
 (*style
@@ -25,8 +25,13 @@ body {max-width: 60em; margin: auto}
 code, pre {background-color: #C9C7F1 }
 .text_box { max-width: 50em; font-size: 90%;
   margin-left: 0em; border-left: 2px; font-family: serif }
+
+.result_box { max-width: 47; font-size: 90%;background-color: #fee;
+  margin-left: 3em; border-left: 2px; font-family: sans-serif }
+.result_box code, .result_box pre {background-color: #fee;}
+
 .text_box code, .text_box pre {background-color: #ddd;}
-.text_box pre {
+.text_box pre, .result_box pre {
   margin-left: 2em; margin-right: 2em;
   white-space: pre-wrap;
   padding-left: 1em;
@@ -192,9 +197,9 @@ Also, let's replace:
         return the amount of bits used. *)
 
 with an immutable string version.
+
+
 *)
-
-
 module type STRING = sig
 
   type t
