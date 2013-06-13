@@ -203,6 +203,8 @@ module type STRING = sig
     type string = t
     type t
 
+    val of_ocaml_char: char -> t option
+    val of_int: int -> t option
 
     val serialize: t -> (string * int)
 
@@ -223,11 +225,29 @@ module type STRING = sig
 
   val concat: ?sep:t -> t list -> t
 
+  val to_ocaml_string: t -> string
+  val to_string_hum: t -> string
+
 end
 
 (*doc
 
+Here is the basic, implementation-agnostic test:
+*)
+let do_basic_test (module Str : STRING) () =
+  let one =
+    Str.of_char_list
+      (List.filter_map ['a'; 'A'; 'B'; '\000'] Str.Char.of_ocaml_char) in
+  say "##### of_char_list";
+  say "";
+  say "    one: %s" (Str.to_string_hum one);
+  ()
+
+(*doc
+
 ### Ocaml Strings
+
+#### Implementation
 
 *)
 module type BASIC_OCAML_LIKE_STRING = sig
@@ -243,6 +263,8 @@ module OCaml_char (S: BASIC_OCAML_LIKE_STRING) = struct
 
   type string = S.t
   type t = char
+  let of_ocaml_char c = Some c
+  let of_int = Char.of_int
   let serialize c = (S.of_char c, 8)
   let unserialize s p =
     try Ok (S.get s p, 8)
@@ -251,13 +273,14 @@ module OCaml_char (S: BASIC_OCAML_LIKE_STRING) = struct
   let to_string_hum c = S.of_char c
 end
 
+module Basic_string: BASIC_OCAML_LIKE_STRING with type t = string = struct
+  type t = string
+  let get = String.get
+  let of_char = String.make 1
+end
+
 module OCaml_string : STRING with type t = string = struct
 
-  module Basic_string: BASIC_OCAML_LIKE_STRING with type t = string = struct
-    type t = string
-    let get = String.get
-    let of_char = String.make 1
-  end
 
   include Basic_string
 
@@ -278,15 +301,13 @@ module OCaml_string : STRING with type t = string = struct
 
   let of_char_list cl = concat ?sep:None (List.map cl ~f:of_char)
 
+  let to_ocaml_string = String.copy
+
+  let to_string_hum = sprintf "%S"
 end
 
-
-
 (*doc
-
-The Main Test
--------------
+#### Test
 *)
-let () =
-  say "Go!";
-  ()
+let () = if_arg "ocamlstring" (do_basic_test (module OCaml_string: STRING))
+(*result ocamlstring *)
