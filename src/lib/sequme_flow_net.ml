@@ -117,13 +117,23 @@ module Tls = struct
       (* >>= fun () -> *)
       accept_loop (c + 1) |! Lwt.ignore_result;
       Lwt.(
-        Lwt_list.map_p handle_one accepted_list
-        >>= fun res_l ->
-        Lwt_list.map_p (function
-        | Ok () -> return (Ok ())
-        | Error e -> on_error e) res_l
-        >>= fun _ ->
-        return (Ok ()))
+        catch
+          begin fun () ->
+            Lwt_list.map_p handle_one accepted_list
+            >>= fun res_l ->
+            Lwt_list.map_p (function
+              | Ok () -> return (Ok ())
+              | Error e -> on_error e) res_l
+            >>= fun _ ->
+            return (Ok ())
+          end
+          begin fun e ->
+            dbg "Tls.accept_loop: client code threw a (Lwt) exception: %s"
+              (Exn.to_string e)
+            >>= fun _ ->
+            on_error (`io_exn e)
+          end
+      )
     in
     accept_loop 0 |! Lwt.ignore_result;
     return ()
