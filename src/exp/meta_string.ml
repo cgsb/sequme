@@ -1,7 +1,7 @@
 
 (*doc
 
- Experimenting With String-Char Functors
+Experimenting With String-Char Functors
 =======================================
 
 
@@ -380,7 +380,16 @@ module NBROI_string : STRING = struct
   let to_ocaml_string t = failwith "TODO"
 
   let concat ?sep tl =
-    Concat (List.fold ~init:0 tl ~f:(fun p x -> p + length x), sep, tl)
+    let lgth =
+      let concat_lengthes, concat_number =
+        List.fold ~init:(0, 0) tl
+          ~f:(fun (plength, concats) x -> (plength + length x, concats + 1)) in
+      match concat_number, sep with
+      | 0, _ -> 0
+      | other, Some sep -> concat_lengthes + ((other - 1) * (length sep))
+      | other, None -> concat_lengthes
+    in
+    Concat (lgth, sep, tl)
 
   let get t i =
     if i < 0 || i > length t then None
