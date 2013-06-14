@@ -316,3 +316,79 @@ end
 *)
 let () = if_arg "ocamlstring" (do_basic_test (module OCaml_string: STRING))
 (*result ocamlstring *)
+
+
+
+(*doc
+
+### Non-Blanaced Ropes Of Ints
+
+*)
+
+module NBROI_string : STRING = struct
+
+  type t =
+    | Leaf of int array
+    | Concat of int * t option * t list
+
+  module Char = struct
+    type string = t
+    type t = int
+
+    let of_ocaml_char c = Some (Char.to_int c)
+    let of_int c = Some c
+
+    let serialize c = (Leaf [| c |], Sys.word_size)
+
+    let unserialize s p =
+      failwith "TODO"
+
+    let to_string_hum c = sprintf "\\x%x" c
+  end
+
+  let length = function
+  | Leaf a -> Array.length a
+  | Concat (l, _, _) -> l
+
+  let iter t ~f =
+    let rec loop = function
+    | Leaf a -> Array.iter a ~f
+    | Concat (_, _, []) -> ()
+    | Concat (_, sep, h :: t) ->
+      loop h;
+      List.iter t (fun x ->
+          Option.iter ~f:loop sep;
+          loop x;
+        );
+    in
+    loop t;
+    ()
+
+  let to_string_hum t =
+    let b = Buffer.create (length t / 3) in
+    iter t (fun i -> Buffer.add_string b (Char.to_string_hum i));
+    Buffer.contents b
+
+  let to_ocaml_string t = failwith "TODO"
+
+  let concat ?sep tl =
+    Concat (List.fold ~init:0 tl ~f:(fun p x -> p + length x), sep, tl)
+
+  let get t i =
+    if i < 0 || i > length t then None
+    else
+      failwith "TODO"
+
+  let set t i c =
+    failwith "TODO"
+
+  let of_char_list cl = Leaf (Array.of_list cl)
+  let of_char c = Leaf [| c |]
+
+end
+
+(*doc
+#### Test
+*)
+let () = if_arg "nbroi_string" (do_basic_test (module NBROI_string: STRING))
+(*result ocamlstring *)
