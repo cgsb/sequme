@@ -245,10 +245,13 @@ let do_basic_test (module Str : STRING) () =
   let one =
     Str.of_char_list
       (List.filter_map ['a'; 'A'; 'B'; '\000'] Str.Char.of_ocaml_char) in
-  say "##### of_char_list";
   say "";
   say "    one: %s, length: %d"
     (Str.to_string_hum one) (Str.length one);
+  let sep = Str.of_char (Option.value_exn (Str.Char.of_ocaml_char '-')) in
+  let two = Str.concat ~sep [one;one;one] in
+  say "    two: %s, length: %d"
+    (Str.to_string_hum two) (Str.length two);
   ()
 
 (*doc
