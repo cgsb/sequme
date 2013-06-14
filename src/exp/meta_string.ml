@@ -228,6 +228,8 @@ module type STRING = sig
   val set: t -> int -> Char.t -> t option
   (** String should not be mutable. *)
 
+  val length: t -> int
+
   val concat: ?sep:t -> t list -> t
 
   val to_ocaml_string: t -> string
@@ -245,7 +247,8 @@ let do_basic_test (module Str : STRING) () =
       (List.filter_map ['a'; 'A'; 'B'; '\000'] Str.Char.of_ocaml_char) in
   say "##### of_char_list";
   say "";
-  say "    one: %s" (Str.to_string_hum one);
+  say "    one: %s, length: %d"
+    (Str.to_string_hum one) (Str.length one);
   ()
 
 (*doc
@@ -296,6 +299,8 @@ module OCaml_string : STRING with type t = string = struct
     with e -> None
 
   let concat ?(sep="") t = String.concat t ~sep
+
+  let length = String.length
 
   let set str pos c =
     try
