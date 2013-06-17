@@ -21,20 +21,26 @@ To view this in HTML:
 *)
 (*style
 body {max-width: 60em; margin: auto}
-code, pre {background-color: #C9C7F1 }
+code, pre {background-color: #ddf }
 .text_box {
   font-size: 90%;
-  margin-left: 0em; border-left: 2px; font-family: serif }
+  margin-left: 0em;
+  font-family: serif }
 
 .result_box {
   margin-left: 10%; width: 80%;
+  margin-right: 10%;
   font-size: 90%;background-color: #fee;
-  border-left: 2px; font-family: sans-serif }
+  font-family: sans-serif
+  padding-left: 1em;
+  padding-right: 1em;
+  }
 .result_box code, .result_box pre {background-color: #fee;}
 
 .text_box code, .text_box pre {background-color: #ddd;}
 .text_box pre, .result_box pre {
   margin-left: 10%; width: 80%;
+  margin-right: 10%;
   white-space: pre-wrap;
   padding-left: 1em;
   padding-right: 1em;
