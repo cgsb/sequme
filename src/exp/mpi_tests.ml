@@ -41,7 +41,7 @@ code, pre {background-color: #ddf }
 .text_box code, .text_box pre {background-color: #ddd;}
 .text_box pre, .result_box pre {
   margin-left: 10%; width: 80%;
-  (* margin-right: 10%; *)
+  margin-right: 10%;
   white-space: pre-wrap;
   padding-left: 10px;
   padding-right: 10px;
@@ -140,6 +140,61 @@ Running it on 4 processes:
 gives:
 *)
 (*result "mpirun -np 4 ./mpi_tests example01" *)
+(*doc
+
+Example 2
+---------
+
+CamlMPI does not seem to have the `test` function, so asynchronous
+message passing can use only `isend`, `irecv`, and then `wait` on the
+`requests`.
+
+Asynchronous behavior can be obtained through the `iprobe` function.
+
+Example 2, is using it on “server-side”:
+
+*)
+let ex2 = if_arg "example02" (fun () ->
+    let size = Mpi.comm_size Mpi.comm_world in
+    let rank = Mpi.comm_rank Mpi.comm_world in
+    let say_item fmt = make_say_item rank size fmt in
+    Mpi.(barrier comm_world);
+    say_item "Go!";
+    begin match rank with
+    | 0 ->
+      say_item "As The Master";
+      let received = ref 0 in
+      let rec loop () =
+        Unix.nanosleep 0.1 |> Pervasives.ignore;
+        begin match Mpi.(iprobe any_source any_tag comm_world) with
+        | Some (rank, tag) ->
+          let (msg, rk, tag) =
+            Mpi.(receive_status rank tag comm_world) in
+          begin match msg with
+          | "aaa" ->
+            say_item "The Master received from `[%d]` (tag: %d)" rk tag;
+            incr received;
+          | other -> failwithf "received: %S" other ()
+          end
+        | None ->
+          say_item "The Master did not receive anything new"
+        end;
+        if !received >= size - 1 then
+          say_item "The Master: END, received: %d" !received
+        else
+          loop ()
+      in
+      loop ()
+    | other ->
+      say_item "As A Slave";
+      Unix.nanosleep (Random.float 0.5) |> ignore;
+      Mpi.(send "aaa" 0 0 comm_world);
+      say_item "Sent %S to `[0]` (tag 0)" "aaa";
+    end;
+    ()
+  )
+(*doc which prints: *)
+(*result "mpirun -np 4 ./mpi_tests example02" *)
 (*doc
 
 --------------------------------------------------------------------------------
