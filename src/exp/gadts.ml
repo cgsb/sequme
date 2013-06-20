@@ -280,5 +280,81 @@ open Cap_list
 let e5 = of_list [1;2;3;4;5]
 let e6 = map e5 ~f:(fun x -> x + 1)
 
+module Bound_list = struct
+
+  type zero = [ `zero ]
+
+  type 'a successor = [ `successor of 'a ]
+
+  type any_number = [ zero | any_number successor ]
+
+  (* type 'a greater_than = [ `greater_than of 'a any_number ] *)
+
+  type ('a, _) t =
+  | Nil: (_, [> zero]) t
+  | Cons: 'a * ('a, 'b) t -> ('a, [> 'b successor ]) t
+
+  let head : ('a, _ successor) t -> 'a =
+    function
+    | Cons (x, _) -> x
+
+  let tail : ('a, _ successor) t -> ('a, _) t =
+    function
+    | Cons (_, x) -> x
+
+  let e0 = Nil
+  let e1 = Cons (42, Nil)
+
+  let e0_cast = (Nil : (int, any_number) t)
+  let e1_cast = (Cons (42, Nil) : (int, any_number) t)
+
+  let e2 = Cons (42, Cons (43, Nil))
+  let e2_cast = (e2 : (int, any_number) t)
+
+  let t1 = tail e1
+
+
+  let rev1:
+    ('a, any_number) t -> ('c, any_number) t = fun t ->
+    let rec loop acc = function
+      | Nil -> Nil
+      | Cons (x, t) -> loop (Cons (x, acc)) t
+    in
+    loop Nil t
+  (*
+with
+
+    type b. ('a, b) t -> ('c, b) t =
+
+inference gives anyway:
+
+    val rev1 : ('a, [> `successor of 'b | `zero ] as 'b) t -> ('a, 'b) t
+
+which is any_number.
+*)
+
+
+  let rec map_non_tail:
+    type b. ('a, b) t -> f:('a -> 'c) -> ('c, b) t =
+    fun l ~f ->
+      match l with
+      | Nil -> Nil
+      | Cons (x, t) -> Cons (f x, map_non_tail t ~f)
+
+  (*
+  let rev_map:  type b. ('a, b) t -> f:('a -> 'c) -> ('c, b) t =
+    fun l ~f ->
+      let rec revx:
+        type b c. ('a,  c) t -> ('a, b) t -> ('a,  c) t =
+          fun acc -> function
+          | Nil -> acc
+          (* | Cons (x, t) -> revx (Cons (x, (acc : ('a, [> any]) t))) t *)
+          | Cons (x, t) -> revx (Cons (f x, acc)) t
+      in
+      revx Nil l
+*)
+end
+
+
 (******************************************************************************)
 (* Exercise 2 *)
