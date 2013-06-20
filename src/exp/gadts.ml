@@ -256,6 +256,13 @@ module Cap_list = struct
      | Nil -> None
      | Cons _ as ne -> Some ne
 
+   let rec fold: type cap. ('a, cap) t -> init:'b -> f:('b -> 'a -> 'b) -> 'b
+     = fun l ~init ~f ->
+       match l with
+       | Nil -> init
+       | Cons (x, a) ->
+         fold a ~f ~init:(f init x)
+
    module Unsafe = struct
      let of_list : 'a list -> ('a, any) t = Obj.magic
      let to_list : ('a, any) t -> 'a list = Obj.magic
