@@ -182,10 +182,27 @@ module Cap_list = struct
      fun l ~f ->
        match l with
        | Nil -> Nil
-       | Cons (x, t) -> Cons (f x, map t ~f)
+       | Cons (x, t) -> Cons (f x, non_tail_map t ~f)
+
+   let rev_map:  type b. ('a, b) t -> f:('a -> 'c) -> ('c, b) t =
+     fun l ~f ->
+       match l with
+       | Nil -> Nil
+       | Cons (x, t) ->
+         let rec revx:
+           type b. ('a,  [> nonempty ]) t -> ('a, b) t -> ('c,  [> nonempty]) t =
+             fun acc -> function
+             | Nil -> acc
+             (* | Cons (x, t) -> revx (Cons (x, (acc : ('a, [> any]) t))) t *)
+             | Cons (x, t) -> revx (Cons (f x, acc)) t
+         in
+         begin match revx (Cons (f x, Nil)) t with
+         | Nil -> assert false
+         | Cons _ as c -> c
+         end
+
 
 end
-
 
 (******************************************************************************)
 (* Exercise 2 *)
