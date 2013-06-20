@@ -225,8 +225,10 @@ module Cap_list = struct
        | Cons (x1, Cons (x2, Cons (x3, Cons (x4, Cons (x5, tl))))) ->
          let ftl =
            if ctr > 1000
-           then map_slow ~f tl
-           else count_map ~f tl (ctr + 1) in
+           then (
+             (* Printf.printf "Going map_slow ctr: %d\n%!" ctr; *)
+             map_slow ~f tl
+           ) else count_map ~f tl (ctr + 1) in
          Cons (f x1, Cons (f x2, Cons (f x3, Cons (f x4, Cons (f x5, ftl)))))
 
    let janestreet_map l ~f = count_map l ~f 0
@@ -254,6 +256,23 @@ module Cap_list = struct
      | Nil -> None
      | Cons _ as ne -> Some ne
 
+   module Unsafe = struct
+     let of_list : 'a list -> ('a, any) t = Obj.magic
+     let to_list : ('a, any) t -> 'a list = Obj.magic
+
+     let self_test =
+       let test initial =
+         let l = of_list initial in
+         let ll = map l (fun x -> x + 1) in
+         let lll = List.map (fun x -> x + 1)  initial in
+         assert (lll = to_list ll)
+       in
+       test [1;2;3;4;5;6];
+       test [1;2;3;4;5;6;7;8;9;9;10;0;0;0;0;0];
+       test [];
+       (* The following makes `map` use `map_slow`: *)
+       test (Array.to_list (Array.init 100_000 (fun x -> x)))
+   end
 
 end
 
