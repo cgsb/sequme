@@ -113,7 +113,7 @@ module Cap_list = struct
 
   type ('a, _) t =
   | Nil: (_, [> empty]) t
-  | Cons: 'a * ('a, any) t -> ('a, [> nonempty]) t
+  | Cons: 'a * ('a, any) t -> ('a, [> nonempty ]) t
 
   let tail : ('a, nonempty) t -> ('a, any) t =
     function
@@ -159,16 +159,17 @@ module Cap_list = struct
     (* | (Cons (x, t) : ('a, [> nonempty]) t) -> *)
     | Cons (x, t) ->
       let rec revx:
-           type b. ('a, [> nonempty]) t -> ('a, b) t -> ('c, [> nonempty]) t =
+          type b. ('a,  [> nonempty ]) t -> ('a, b) t -> ('c,  [> nonempty]) t =
              fun acc -> function
              | Nil -> acc
-             (* | Cons (x, t) -> revx (Cons (x, (acc : ('a, any) t))) t *)
+             (* | Cons (x, t) -> revx (Cons (x, (acc : ('a, [> any]) t))) t *)
              | Cons (x, t) -> revx (Cons (x, acc)) t
       in
       begin match revx (Cons (x, Nil)) t with
       | Nil -> assert false
       | Cons _ as c -> c
       end
+
    let t3 = rev2 e0
    let t4 = rev2 e4
   (*
@@ -176,6 +177,12 @@ module Cap_list = struct
     val t3 : ('_a, _[> empty ]) t
     val t4 : (int, _[> nonempty ]) t
   *)
+
+   let rec non_tail_map: type b. ('a, b) t -> f:('a -> 'c) -> ('c, b) t =
+     fun l ~f ->
+       match l with
+       | Nil -> Nil
+       | Cons (x, t) -> Cons (f x, map t ~f)
 
 end
 
