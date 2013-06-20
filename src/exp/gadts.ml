@@ -201,6 +201,31 @@ module Cap_list = struct
          | Cons _ as c -> c
          end
 
+   let rev = rev_map ~f:(fun x -> x)
+
+   let map_slow l ~f = rev (rev_map l ~f)
+
+   (*
+   c.f. https://github.com/janestreet/core_kernel/blob/master/lib/core_list.ml#L381
+   *)
+   let rec count_map:  type b. ('a, b) t -> f:('a -> 'c) -> int -> ('c, b) t =
+     fun l ~f ctr ->
+       match l with
+       | Nil -> Nil
+       | Cons (x, Nil) -> Cons (f x, Nil)
+       | Cons (x1, Cons (x2, Nil)) -> Cons (f x1, Cons (f x2, Nil))
+       | Cons (x1, Cons (x2, Cons (x3, Nil))) ->
+         Cons (f x1, Cons (f x2, Cons (f x3, Nil)))
+       | Cons (x1, Cons (x2, Cons (x3, Cons (x4, Nil)))) ->
+         Cons (f x1, Cons (f x2, Cons (f x3, Cons (f x4, Nil))))
+       | Cons (x1, Cons (x2, Cons (x3, Cons (x4, Cons (x5, tl))))) ->
+         let ftl =
+           if ctr > 1000
+           then map_slow ~f tl
+           else count_map ~f tl (ctr + 1) in
+         Cons (f x1, Cons (f x2, Cons (f x3, Cons (f x4, Cons (f x5, ftl)))))
+
+   let janestreet_map l ~f = count_map l ~f 0
 
 end
 
