@@ -115,6 +115,10 @@ module Cap_list = struct
   | Nil: (_, [> empty]) t
   | Cons: 'a * ('a, any) t -> ('a, [> nonempty ]) t
 
+  let head : ('a, nonempty) t -> 'a =
+    function
+    | Cons (x, _) -> x
+
   let tail : ('a, nonempty) t -> ('a, any) t =
     function
     | Cons (_, x) -> x
@@ -227,7 +231,35 @@ module Cap_list = struct
 
    let janestreet_map l ~f = count_map l ~f 0
 
+   let map = janestreet_map
+
+   let of_list_map l ~f = (* could be reimplemented janestreet-style *)
+     let rec olm_rev acc = function
+     | [] -> acc
+     | h :: t -> olm_rev (Cons (f h, acc)) t
+     in
+     rev (olm_rev Nil l)
+
+   let of_list = of_list_map ~f:(fun x -> x)
+
+   let destruct:
+     ('a, any) t -> empty:(unit -> 'b) -> nonempty:(('a, nonempty) t -> 'b) -> 'b
+     = fun l ~empty ~nonempty ->
+     match l with
+     | Nil -> empty ()
+     | Cons _ as ne -> nonempty ne
+
+   let nonempty: ('a, any) t -> ('a, nonempty) t option
+     = function
+     | Nil -> None
+     | Cons _ as ne -> Some ne
+
+
 end
+
+open Cap_list
+let e5 = of_list [1;2;3;4;5]
+let e6 = map e5 ~f:(fun x -> x + 1)
 
 (******************************************************************************)
 (* Exercise 2 *)
