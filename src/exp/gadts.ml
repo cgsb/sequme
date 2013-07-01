@@ -82,6 +82,15 @@ module Indexed_list = struct
   let tl : ('a, 'b successor) t -> ('a, 'b) t = function
     | Construct (_, x) -> x
 
+
+  type 'n index =
+    | Zero : zero index
+    | S_count : 'n index -> 'n successor index
+    | S_jump : 'n index -> 'n successor successor index
+
+  let z = Zero
+
+
   let rec map:
   type b. ('a, b) t -> f:('a -> 'c) -> ('c, b) t =
     fun l ~f ->
@@ -328,6 +337,7 @@ module Bound_list = struct
       | Cons (x, t) -> loop (Cons (x, acc)) t
     in
     loop Nil t
+
   (*
 with
 
@@ -364,4 +374,55 @@ end
 
 
 (******************************************************************************)
-(* Exercise 2 *)
+(* Exercise 5 *)
+
+module Reindexed_list = struct
+  type zero
+  type 'a successor
+
+  type (_, _) t =
+  | Empty  : ( _, zero) t
+  | Construct : 'a * ('a, 'b) t -> ('a, 'b successor) t
+
+  let hd : ('a, 'b successor) t -> 'a = function
+    | Construct (x, _) -> x
+
+  let tl : ('a, 'b successor) t -> ('a, 'b) t = function
+    | Construct (_, x) -> x
+
+
+  (* Representation of naturals where (n : m index) means n ≤ m  *)
+  type 'n index =
+    (* | Zero : zero index *)
+    | S_count : 'n index -> 'n successor index
+    | Z_init: 'n index
+
+  let z = (Z_init: zero index)
+  let z_4 = (Z_init: zero successor successor successor successor index)
+  let one_1 = S_count (Z_init: zero index)
+  let one_2 = S_count (Z_init : zero successor index)
+  let two_2 = S_count (S_count (Z_init: zero index))
+  let two_3 = S_count (S_count (Z_init : zero successor index))
+  let two_4 = S_count (S_count (Z_init : zero successor successor index))
+  (* let two_4 = S_jump (S_jump Zero) *)
+  (* let two_5 = *)
+
+  (*
+  let incr_range (x : 'range index) =
+    let rec aux: type b. b index -> b successor index =
+      fun c ->
+        match (z : b index) with
+        | Z_init -> (Z_init: b successor index)
+        | S_count c -> S_count (aux (c : b index))
+    in
+    aux x
+
+  let rec nth: type length. ('a, length) t -> length  index -> 'a =
+    fun l i ->
+      match i, l with
+      | Z_init, Construct (v, _) -> v
+      | S_count i, Construct (_, tl) -> nth tl i
+      | _, _ -> assert false
+  *)
+
+end
