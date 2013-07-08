@@ -8,7 +8,7 @@ let dbg fmt =
     let indented =
       s |! String.split ~on:'\n' |! String.concat ~sep:"\n          " in
     wrap_io (Lwt_io.eprintf "DEBUG:   %s\n%!") indented) fmt
-  
+
 module Tls = struct
 
   let accept socket context =
@@ -52,7 +52,7 @@ module Tls = struct
             (function
             | Ssl.Certificate_error ->
               return (Error `ssl_certificate_error)
-            | e -> 
+            | e ->
               return (Error (`io_exn e))))
       end
   end
@@ -117,13 +117,23 @@ module Tls = struct
       (* >>= fun () -> *)
       accept_loop (c + 1) |! Lwt.ignore_result;
       Lwt.(
-        Lwt_list.map_p handle_one accepted_list
-        >>= fun res_l ->
-        Lwt_list.map_p (function
-        | Ok () -> return (Ok ())
-        | Error e -> on_error e) res_l
-        >>= fun _ ->
-        return (Ok ()))
+        catch
+          begin fun () ->
+            Lwt_list.map_p handle_one accepted_list
+            >>= fun res_l ->
+            Lwt_list.map_p (function
+              | Ok () -> return (Ok ())
+              | Error e -> on_error e) res_l
+            >>= fun _ ->
+            return (Ok ())
+          end
+          begin fun e ->
+            dbg "Tls.accept_loop: client code threw a (Lwt) exception: %s"
+              (Exn.to_string e)
+            >>= fun _ ->
+            on_error (`io_exn e)
+          end
+      )
     in
     accept_loop 0 |! Lwt.ignore_result;
     return ()
@@ -140,7 +150,7 @@ module Tls = struct
         end;
         set_cipher_list c "TLSv1";
         Option.iter verification_policy (function
-        | `verify_server -> 
+        | `verify_server ->
           Ssl.set_verify_depth c 99;
           set_verify c [Verify_peer] (Some client_verify_callback);
         | `allow_self_signed -> ()
@@ -153,7 +163,7 @@ module Tls = struct
 end
 
 let init_tls = Ssl.init ~thread_safe:true
-    
+
 type connection = {
   inchan: Lwt_io.input_channel;
   outchan: Lwt_io.output_channel;
@@ -176,7 +186,7 @@ type client_check_result =
 | `revoked of string * Core.Std.Time.t
 | `valid of string ]
 
-type client_kind = 
+type client_kind =
 [ `anonymous_client
 | `invalid_client of
     [ `expired of string * Core.Std.Time.t
@@ -200,11 +210,11 @@ let tls_server ?on_error ~port ~cert_key f =
       let inchan = Lwt_ssl.in_channel_of_descr  socket_fd in
       let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
       f (connection inchan outchan socket_fd))
-  
-  
+
+
 let authenticating_tls_server
     ~ca_certificate ~check_client_certificate
-    ?on_error ~port ~cert_key f = 
+    ?on_error ~port ~cert_key f =
   Tls.server_context ~ca_certificate cert_key
   >>= fun tls_context ->
   Tls.accept_loop ?on_error ~check_client_certificate ~tls_context ~port
@@ -214,7 +224,7 @@ let authenticating_tls_server
       f (connection inchan outchan socket_fd) client_kind)
 
 let authenticating_tls_server_with_ca
-    ~ca ?on_error ~port ~cert_key f = 
+    ~ca ?on_error ~port ~cert_key f =
   let ca_certificate = Sequme_flow_certificate_authority.ca_certificate_path ca in
   let check_client_certificate c =
     (* dbg "check_client_certificate:\n  Issuer: %s\n  Subject: %s" *)
@@ -232,7 +242,7 @@ type connection_specification = [
   * [ `verify_server | `allow_self_signed ]
 | `plain
 ]
-  
+
 let unix_connect sockaddr =
   let socket =
     Lwt_unix.(
@@ -247,7 +257,7 @@ let unix_connect sockaddr =
   wrap_io (Lwt_unix.connect socket) sockaddr
   >>= fun () ->
   return socket
-    
+
 let connect ~address specification =
   begin match specification with
   | `plain ->
@@ -264,6 +274,3 @@ let connect ~address specification =
     let outchan = Lwt_ssl.out_channel_of_descr socket_fd in
     return (connection inchan outchan socket_fd)
   end
-
-
-    
