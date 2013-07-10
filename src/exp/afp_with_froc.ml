@@ -162,6 +162,8 @@ end
 let () =
   let to_string l = String.concat ~sep:", " (List.map l ~f:(sprintf "%d")) in
 
+  Froc.init ();
+
   dbg "qsort: %s" Non_adaptive_quick_sort.(
       [1;3;2;4;1;5] |> of_list |> qsort |> fst |> to_list |> to_string
     );
