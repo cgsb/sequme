@@ -39,7 +39,17 @@ let test0 () =
 let () =
   test0 ()
 
-module Non_adaptive_quick_sort = struct
+module type QSORT = sig
+
+  type 'a list
+
+  val of_list: 'a List.t -> 'a list
+  val to_list: 'a list -> 'a List.t
+  val qsort: 'a list -> 'a list
+
+end
+
+module Non_adaptive_quick_sort : QSORT = struct
 
   type 'a list = Nil | Cons of 'a * 'a list
 
@@ -55,7 +65,6 @@ module Non_adaptive_quick_sort = struct
     let rec qs acc = function
     | Nil -> acc
     | Cons (h, t) ->
-      dbg "cons %d" h;
       let lt = filter (fun x -> x < h) t in
       let ge = filter (fun x -> x >= h) t in
       let gs = qs acc ge in
@@ -72,11 +81,13 @@ module Non_adaptive_quick_sort = struct
 
 end
 
-module Adaptive_quick_sort = struct
+module Adaptive_quick_sort : QSORT = struct
 
   open Froc_sa
 
-  type 'a list = Nil | Cons of 'a * ('a list t)
+  type 'a list_internal = Nil | Cons of 'a * ('a list_internal t)
+
+  type 'a list = 'a list_internal t
 
   (*
   let changeable_list l =
@@ -103,7 +114,6 @@ module Adaptive_quick_sort = struct
     let rec qs acc = function
     | Nil -> return acc
     | Cons (h, t) ->
-      dbg "cons %d" h;
       filter (fun x -> x < h) t
       >>= fun lt ->
       filter (fun x -> x >= h) t
@@ -140,4 +150,6 @@ let () =
   dbg "qsort: %s" Adaptive_quick_sort.(
       [1;3;2;4;1;5] |> of_list |> qsort |> to_list |> to_string
     );
+
+
   ()
