@@ -93,11 +93,11 @@ end
 
 module Adaptive_quick_sort : QSORT = struct
 
-  open Froc_sa
+  open Froc
 
-  type 'a list_internal = Nil | Cons of 'a * ('a list_internal t)
+  type 'a list_internal = Nil | Cons of 'a * ('a list_internal behavior)
 
-  type 'a list = 'a list_internal t
+  type 'a list = 'a list_internal behavior
 
   let name = "Adaptive_quick_sort"
   (*
@@ -155,7 +155,7 @@ module Adaptive_quick_sort : QSORT = struct
       return (h :: l)
     end
 
-  let to_list l = read (to_list_m l)
+  let to_list l = sample (to_list_m l)
 
 end
 
