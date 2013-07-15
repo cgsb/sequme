@@ -5,7 +5,11 @@
 
 
 C.f. <http://jaked.github.io/froc/doc/Froc_sa.html>
+also <http://jaked.github.io/froc/doc/Froc.html>
 
+Blog post: <http://ambassadortothecomputers.blogspot.com/2010/05/how-froc-works.html>
+
+Quick hull: <https://github.com/jaked/froc/blob/master/examples/froc-dom/quickhull/quickhull.ml>
 *)
 
 
