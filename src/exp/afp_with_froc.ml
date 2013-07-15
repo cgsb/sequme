@@ -47,8 +47,11 @@ module type QSORT = sig
 
   type 'a list
 
+  type 'a t
+  val create: unit -> 'a t
+
   val name: string
-  val of_list: 'a List.t -> 'a list
+  val of_list: 'a t -> 'a List.t -> 'a list
   val to_list: 'a list -> 'a List.t
   val qsort: 'a list -> ('a list * int)
 
@@ -57,6 +60,9 @@ end
 module Non_adaptive_quick_sort : QSORT = struct
 
   type 'a list = Nil | Cons of 'a * 'a list
+
+  type 'a t = unit
+  let create () = ()
 
   let name = "Non_adaptive_quick_sort"
   let qsort l =
@@ -86,9 +92,9 @@ module Non_adaptive_quick_sort : QSORT = struct
     let result = qs Nil l in
     (result, !count_op)
 
-  let rec of_list = function
+  let rec of_list () = function
   | [] -> Nil
-  | h :: t -> Cons (h, of_list t)
+  | h :: t -> Cons (h, of_list () t)
   let rec to_list = function
   | Nil -> []
   | Cons (h, t) -> h :: (to_list t)
@@ -109,6 +115,24 @@ module Adaptive_quick_sort : QSORT = struct
     changeable ~eq:(fun l1 l2 -> l1 = Nil && l2 = Nil) l
 *)
 
+  type 'a t = {
+    memo: ('a List.t -> 'a list) -> 'a List.t -> 'a list;
+  }
+
+  let id = ref 0
+  let create =
+    fun () ->
+      incr id;
+      { memo =
+          memo
+            ~hash:(fun l ->
+                (*
+                let ll = (Obj.magic l : int List.t) in
+                dbg "[%d] hashing list: %s" !id
+                  (List.map ll ~f:(sprintf "%d") |> String.concat ~sep:", ");
+                *)
+                42)
+            ~eq:(fun e1 e2 -> dbg "comparing lists"; e1 = e2) () }
 
   let qsort l =
     let count_op = ref 0 in
@@ -146,10 +170,20 @@ module Adaptive_quick_sort : QSORT = struct
     let result = (l >>= fun ll -> qs Nil ll) in
     (result, !count_op)
 
-  let rec of_list = function
-  | [] -> return Nil
-  | h :: t ->
-    return (Cons (h, of_list t))
+  let of_list: 'a t -> 'a List.t -> 'a list =
+    fun { memo } l ->
+      let count_op = ref 0 in
+      let rec of_list_rec = function
+      | [] -> return Nil
+      | h :: t ->
+        incr count_op;
+        let tt = memo of_list_rec  t in
+        return (Cons (h, tt))
+      in
+      let result = memo of_list_rec l in
+      dbg "of_list: %d calls" !count_op;
+      result
+
   let rec to_list_m l =
     l >>= begin function
     | Nil -> return []
@@ -167,22 +201,51 @@ let () =
   let to_string l = String.concat ~sep:", " (List.map l ~f:(sprintf "%d")) in
 
   Froc.init ();
-
-  dbg "qsort: %s" Non_adaptive_quick_sort.(
-      [1;3;2;4;1;5] |> of_list |> qsort |> fst |> to_list |> to_string
+  let update_event, update_event_sender =
+    Froc.make_event () in
+  let u = ref 0 in
+  Froc.notify_e update_event (fun uu ->
+      dbg "Got event %d" uu;
+      u := uu + 1
     );
-  dbg "qsort: %s" Adaptive_quick_sort.(
-      [1;3;2;4;1;5] |> of_list |> qsort |> fst |> to_list |> to_string
+  let update () = Froc.send update_event_sender !u in
+
+  dbg "nonadapt qsort: %s" Non_adaptive_quick_sort.(
+      let t = create () in
+      [1;3;2;4;1;5] |> of_list t |> qsort |> fst |> to_list |> to_string
+    );
+  dbg "adapt qsort: %s" Adaptive_quick_sort.(
+      let t = create () in
+      update ();
+      let once =
+        [1;3;2;4;1;5] |> of_list t |> qsort |> fst |> to_list |> to_string
+      in
+      update ();
+      let twice =
+        [1;3;2;4;1;5] |> of_list t |> qsort |> fst |> to_list |> to_string
+      in
+      update ();
+      twice
     );
 
   let test (module Implementation : QSORT) initial_list =
     dbg "List length: %d" (List.length initial_list);
-    let local_list = Implementation.of_list initial_list in
-
+    let transformer = Implementation.create () in
+    update ();
+    let local_list = Implementation.of_list transformer initial_list in
     let sorted, count_op = Implementation.qsort local_list in
     dbg "%s.qsort initial: count_op: %d" Implementation.name count_op;
+    update ();
     let sorted, count_op = Implementation.qsort sorted in
     dbg "%s.qsort sorted: count_op: %d" Implementation.name count_op;
+
+    update ();
+    let one_more = 500 :: 400 :: initial_list in
+    let local_one_more = Implementation.of_list transformer one_more in
+    let sorted, count_op = Implementation.qsort local_one_more in
+    update ();
+    dbg "%s.qsort one_more: count_op: %d" Implementation.name count_op;
+
 
     Implementation.to_list sorted
   in
