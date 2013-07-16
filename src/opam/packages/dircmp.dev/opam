@@ -1,0 +1,21 @@
+opam-version: "1"
+maintainer: "agarwal1975@gmail.com"
+
+build: [
+  ["omake"]
+  ["omake" "install" "PREFIX=%{prefix}%"]
+]
+
+remove: [
+  ["ocamlfind" "remove" "dircmp"]
+]
+
+depends: [
+  "ocamlfind"
+  "omake"
+]
+
+build-doc: [
+  ["omake" "doc"]
+  ["omake" "install_doc" "DOCDIR=%{doc}%" ]
+]
