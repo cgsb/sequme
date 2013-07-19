@@ -2,12 +2,9 @@ opam-version: "1"
 maintainer: "agarwal1975@gmail.com"
 
 build: [
+  ["rm" "-f" "configure.om"]
   ["omake"]
-  ["omake" "install" "PREFIX=%{prefix}%"]
-]
-
-remove: [
-  ["ocamlfind" "remove" "dircmp"]
+  ["omake" "dircmp.install"]
 ]
 
 depends: [
