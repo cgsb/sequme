@@ -251,4 +251,33 @@ Still matches
   let () = if_arg "example_1_1" (do_basic_test example_1)
 (*result example_1_1 *)
 
+(*doc
+
+That's really cool, but cannot use functions to construct the parsers:
+
+
+```ocaml
+let apply ~f t = Apply (t, f)
+
+let dsl_grammar =
+  let rec expr_grammar =
+    Try_in_order [
+      apply (Tagged ("tuple", Tuple (expr_grammar, expr_grammar)))
+          ~f:(fun (a, b) -> `tuple (a, b));
+      Apply (Integer, fun i -> `int i);
+      Apply (Identifier, fun s -> `var s);
+  ...
+```
+
+gives me:
+
+     File "src/exp/meta_parsing.ml", line 182, characters 6-230:
+     Error: This kind of expression is not allowed as right-hand side of `let rec'
+
+
+
+*)
+
+
+
 end
