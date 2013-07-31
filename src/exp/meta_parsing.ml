@@ -482,6 +482,8 @@ end
 A Better API, A Better Parsing
 ------------------------------
 
+
+First, a *Result monad* free from *Core*:
 *)
 
 type ('a, 'b) result = [
@@ -496,13 +498,23 @@ let (>>=) x f : (_, _) result =
   | `Error e -> `Error e
 let (>><) x f : (_, _) result = f x
 
+(*doc
+
+The module type `META_PARSER` describes the API.
+
+*)
 module type META_PARSER = sig
 
+(*doc
+The type `t` is partially exposed to make OCaml understand that it is
+a `Lazy.t`.
+*)
   type ('dsl, 'error) grammar
   type ('dsl, 'error) t = ('dsl, 'error) grammar lazy_t
-  (** Base grammar holder *)
 
-  (** {3 Basic Constructors } *)
+(*doc
+Basic Constructors:
+ *)
 
   val keyword : string -> (unit, 'error) t
   val left_and_continue :
@@ -516,14 +528,18 @@ module type META_PARSER = sig
   val apply :
     ('a, 'error) t -> f:('a -> ('c, 'error) result) -> ('c, 'error) t
 
-  (** {3 High-level Constructors } *)
+(*doc
+High-level Constructors:
+ *)
 
   val tagged : ('a, 'b) t -> tag:string -> ('a, 'b) t
   val tuple:
     ('a, 'b) t -> ('c, 'b) t -> ('a * 'c, 'b) t
 
-  (** {3 Parsing function } *)
-
+(*doc
+The errors “added” by the `parse` functions (the user will add it's
+own and they will be merged).
+*)
   type syntax_error =
     [ `not_a_float of string
     | `not_an_integer of string
@@ -537,8 +553,15 @@ module type META_PARSER = sig
 
 end
 
+(*doc
+now the implementation of the module:
+
+*)
 module Meta_parser : META_PARSER = struct
 
+(*doc
+A cleaner version of the previous “*lazy GADT*”:
+*)
   type (_, 'error) grammar =
     | Keyword: string -> (unit, 'error) grammar
     | Left_and_continue:
@@ -552,6 +575,10 @@ module Meta_parser : META_PARSER = struct
 
   type ('dsl, 'error) t = ('dsl, 'error) grammar Lazy.t
 
+(*doc
+A function to display grammars, as they can be recursive, we must set
+a `max_level`:
+*)
 
   let rec to_string_aux: type a. int -> (a, _) grammar -> string  =
     fun level  gram ->
@@ -577,6 +604,11 @@ module Meta_parser : META_PARSER = struct
   let to_string ?(max_level=3) t = (Lazy.force t |> to_string_aux max_level)
 
 
+(*doc
+
+The basic constructors:
+*)
+
   let keyword s = lazy (Keyword s)
   let left_and_continue left continue = lazy (Left_and_continue (left, continue))
   let sequence lg = lazy (Sequence (lg))
@@ -589,6 +621,10 @@ module Meta_parser : META_PARSER = struct
 
   let apply g ~f = lazy (Apply (g, f))
 
+(*doc
+The constructors `tagged` and `tuple` are examples of constructors
+build from the lower-level ones:
+*)
   let tagged lg ~tag =
     apply
       (left_and_continue (keyword tag) lg)
@@ -597,9 +633,11 @@ module Meta_parser : META_PARSER = struct
   let tuple x y = left_and_continue x y
 
 
+  (*doc
+The functions `find_annotated_exn` and `remake_annotated_from_list_exn`
+are useful for manipulating `Sexp.Annotated.t` values.
+  *)
   let find_annotated_exn a t =
-    (*tip Let's hope we are going to call find_annotated_exn only where it
-        makes sense … *)
     match (Sexp.Annotated.find_sexp a t) with
     | Some s -> s
     | None ->
@@ -610,13 +648,17 @@ module Meta_parser : META_PARSER = struct
     let open Sexp in
     (Annotated.List (range, List.map t (find_annotated_exn annotated), List t))
 
+
+(*doc
+
+And finally the parsing:
+*)
   type syntax_error =
     [ `not_a_float of string
     | `not_an_integer of string
     | `no_matching_rule of string
     | `nothing_left_to_try of string ]
   with sexp
-
 
   let parse ~syntax_error grammar sexp =
     let gram_to_string = to_string in
@@ -679,6 +721,11 @@ module Meta_parser : META_PARSER = struct
 
 end
 
+(*doc
+
+we use the same mini-DSL for testing:
+
+*)
 module Test_meta_parser = struct
   open Meta_parser
   type expr = [
@@ -692,6 +739,11 @@ module Test_meta_parser = struct
   ] list
   with sexp
 
+  (*doc
+
+This time the function `identifier` is defined by the “user”: an
+identifier is an alpha-numeric string:
+  *)
   let dsl_grammar () =
     let identifier =
       apply string (fun s ->
@@ -718,7 +770,7 @@ module Test_meta_parser = struct
               ])))
 
   (*doc
-    and the tests:
+and the tests:
   *)
   let do_basic_test sexp  grammar () =
     let syntax_error loc e = `syntax_error (loc, e) in
@@ -736,7 +788,7 @@ module Test_meta_parser = struct
     if_arg "example_2" (do_basic_test "
     (dsl
      (let (x )(42)) ;; some comment
-     (let y ((tuple 2 3)))
+     (let y ((tuple \"string\" 3)))
      (tuple x (tuple y 42))
      x)
 " (dsl_grammar ()))
@@ -761,4 +813,14 @@ module Test_meta_parser = struct
      x)
 " (dsl_grammar ()))
     (*result example_4 *)
+
+  let () =
+    if_arg "example_5" (do_basic_test "
+    (dsl
+     (let (x )(42)) ;; some comment
+     (let \"not alphanum\" ((tuple 2 3)))
+     (tuple x (tuple y 42))
+     x)
+" (dsl_grammar ()))
+    (*result example_5 *)
 end
