@@ -1,7 +1,7 @@
 (*doc
 
-Experimenting With String-Char Functors
-=======================================
+GADTs-based Grammars
+====================
 
 
 Compilation & run:
@@ -48,11 +48,6 @@ A type `'a grammar`, and basic constructors, then functions:
 
 - `parse: Sexp.t -> t grammar -> t`
 
-or, some type `dsl format_t`, and functions:
-
-- `parse: Sexp.t -> dsl format_t -> dsl`
-- `print: dsl format_t -> dsl -> Sexp.t`
-
 
 Implementation(s)
 -----------------
@@ -67,32 +62,19 @@ let if_arg s f =
 
 (*doc
 
-### First Attempt
+What we are going to try to parse:
 
 *)
-
 let example_1 = "
     (dsl
      (let x 42)
      (let y (tuple 2 3))
-     x
-    )
+     x)
 "
-
-type expr =
-  | Dsl_let of string * expr
-  | Dsl_int of int
-  | Dsl_tuple of expr * expr
-  | Dsl of expr list
-
-let var l x = Dsl_let (l, x)
-let int i = Dsl_int i
-let tuple x y = Dsl_tuple (x, y)
-
 (*doc
+### First Attempt: At least “parsing” …
 
-At least “parsing” …
-
+In `Basic_grammar`, we just go through the S-Expression and print stuff.
 *)
 module Basic_grammar = struct
 
@@ -102,19 +84,10 @@ module Basic_grammar = struct
     | Integer
     | Identifier
 
-  let dsl_grammar =
-    let rec expression =
-      Try_best [
-        Keyword_and_list ("tuple", expression);
-        Integer;
-        Identifier;
-      ] in
-    Keyword_and_list ("dsl",
-                      Try_best [
-                        Keyword_and_list ("let", expression);
-                        expression;
-                      ])
+(*doc
 
+Note: in this experiment, all the parsers use `assert false` to fail.
+*)
   let parse_sexp ~grammar sexp =
     let open Sexp in
     let rec go grammar sexp =
@@ -131,77 +104,52 @@ module Basic_grammar = struct
     in
     go grammar sexp
 
+(*doc
+
+and that's how we define the grammar for the DSL in `example_1`:
+
+*)
+  let dsl_grammar =
+    let rec expression =
+      Try_best [
+        Keyword_and_list ("tuple", expression);
+        Integer;
+        Identifier;
+      ] in
+    Keyword_and_list ("dsl",
+                      Try_best [
+                        Keyword_and_list ("let", expression);
+                        expression;
+                      ])
+(*doc
+Testing:
+*)
   let do_basic_test sexp () =
     Sexp.of_string (String.strip sexp) |> parse_sexp ~grammar:dsl_grammar
 
-(*doc
-#### Test
-*)
   let () = if_arg "example_1" (do_basic_test example_1)
 (*result example_1 *)
 
 end
 
-module Not_so_basic_grammmar = struct
+(*doc
 
-  (*doc
-Still matches
+### Second Attempt: A GADT
 
-    (dsl
-     (let x 42)
-     (let y (tuple 2 3))
-     x
-    )
+In `Not_so_basic_grammmar` we use a GADT to implement the desired
+`parse` signature.
 
 *)
-  type expr = [
-    | `int of int
-    | `var of string
-    | `tuple of expr * expr
-  ] with sexp
-  type dsl = [
-    | `let_binding of string * expr
-    | `expr of expr
-  ] list
-  with sexp
+module Not_so_basic_grammmar = struct
 
   type _ grammar =
     | Tagged: string * 'a grammar -> 'a grammar
     | Tuple: 'a grammar * 'b grammar -> ('a * 'b) grammar
     | Sequence: 'a grammar -> 'a list grammar
-    (* | Keyword_and_list:  string * 'a grammar -> 'a list grammar *)
     | Try_in_order: 'a grammar list -> 'a grammar
     | Integer: int grammar
     | Identifier: string grammar
     | Apply: 'a grammar * ('a -> 'b) -> 'b grammar
-
-  let dsl_grammar =
-    let rec expr_grammar =
-      Try_in_order [
-        Apply (
-          Tagged (
-            "tuple", Tuple (expr_grammar, expr_grammar)
-          ),
-          fun (a, b) -> `tuple (a, b)
-        );
-        Apply (Integer, fun i -> `int i);
-        Apply (Identifier, fun s -> `var s);
-      ] in
-    Apply (
-      Tagged (
-        "dsl", Sequence (
-          Try_in_order [
-            Apply (
-              Tagged (
-                "let", Tuple (Identifier, expr_grammar)
-              ),
-              fun (id, expr) -> `let_binding (id, expr));
-            Apply (expr_grammar, fun e -> `expr e);
-          ]
-        )
-      ),
-      fun statements -> (statements: dsl)
-    )
 
   let parse_sexp ~grammar sexp =
     let open Sexp in
@@ -237,20 +185,69 @@ Still matches
     in
     go grammar sexp
 
+  (*doc
+Let's define an AST that matches `example_1`:
 
+    (dsl
+     (let x 42)
+     (let y (tuple 2 3))
+     x)
+
+*)
+  type expr = [
+    | `int of int
+    | `var of string
+    | `tuple of expr * expr
+  ] with sexp
+  type dsl = [
+    | `let_binding of string * expr
+    | `expr of expr
+  ] list
+  with sexp
+(*doc
+
+And we express the grammar with the GADT:
+*)
+  let dsl_grammar =
+    let rec expr_grammar =
+      Try_in_order [
+        Apply (
+          Tagged (
+            "tuple", Tuple (expr_grammar, expr_grammar)
+          ),
+          fun (a, b) -> `tuple (a, b)
+        );
+        Apply (Integer, fun i -> `int i);
+        Apply (Identifier, fun s -> `var s);
+      ] in
+    Apply (
+      Tagged (
+        "dsl", Sequence (
+          Try_in_order [
+            Apply (
+              Tagged (
+                "let", Tuple (Identifier, expr_grammar)
+              ),
+              fun (id, expr) -> `let_binding (id, expr));
+            Apply (expr_grammar, fun e -> `expr e);
+          ]
+        )
+      ),
+      fun statements -> (statements: dsl)
+    )
+
+
+(*doc
+and the test:
+*)
   let do_basic_test sexp  grammar () =
     Sexp.of_string (String.strip sexp)
     |> parse_sexp ~grammar
     |> sexp_of_dsl
     |> Sexp.to_string
     |> say "%s"
-
-(*doc
-#### Test
-*)
   let () = if_arg "example_1_1" (do_basic_test example_1 dsl_grammar)
 (*result example_1_1 *)
-
 (*doc
 
 That's really cool, but cannot use functions to construct the parsers:
@@ -274,11 +271,8 @@ gives me:
      File "src/exp/meta_parsing.ml", line 182, characters 6-230:
      Error: This kind of expression is not allowed as right-hand side of `let rec'
 
-
-
+Let's make it with functions:
 *)
-
-
   let apply g ~f = fun () -> (Apply (g (), f))
   let sequence lg = fun () -> Sequence (lg ())
   let try_in_order l = fun () -> Try_in_order (List.map l ~f:(fun g -> g ()))
@@ -286,13 +280,11 @@ gives me:
   let tuple x y = fun () -> Tuple (x (), y ())
   let integer = fun () -> Integer
   let identifier = fun () -> Identifier
-
 (*doc
-This raises `Stack_overflow` with `let dsl_grammar =`:
+This is an infinite loop, it raises `Stack_overflow`
+(without the `()`, i.e. `let dsl_grammar =`):
  *)
   let dsl_grammar () =
-    (* let rec bouh = apply (Sequence (Lazy.force bouh)) ~f:(fun l -> `list l) in *)
-    (* let rec bouh () = apply (sequence bouh) ~f:(fun l -> `list l) () in *)
     let rec expr_grammar () =
       try_in_order [
         apply (tagged ~tag:"tuple"
@@ -308,17 +300,11 @@ This raises `Stack_overflow` with `let dsl_grammar =`:
                 apply  ~f:(fun (id, expr) -> `let_binding (id, expr))
                   (tagged ~tag:"let" (tuple identifier expr_grammar));
                 apply ~f:(fun e -> `expr e) expr_grammar;
-              ]
-            )
-         )
-      )
+              ])))
       ()
-
-
-
 (*doc
 
-This raises `CamlinternalLazy.Undefined`
+So, let's make it `lazy`:
 *)
   let apply g ~f = lazy (Apply (Lazy.force g, f))
   let sequence lg = lazy (Sequence (Lazy.force lg))
@@ -327,10 +313,11 @@ This raises `CamlinternalLazy.Undefined`
   let tuple x y = lazy (Tuple (Lazy.force x, Lazy.force y))
   let integer = lazy Integer
   let identifier = lazy Identifier
+(*doc
 
+This raises `CamlinternalLazy.Undefined`:
+*)
   let dsl_grammar () =
-    (* let rec bouh = apply (Sequence (Lazy.force bouh)) ~f:(fun l -> `list l) in *)
-    (* let rec bouh () = apply (sequence bouh) ~f:(fun l -> `list l) () in *)
     let rec expr_grammar =
       lazy (
       try_in_order [
@@ -347,31 +334,19 @@ This raises `CamlinternalLazy.Undefined`
                 apply  ~f:(fun (id, expr) -> `let_binding (id, expr))
                   (tagged ~tag:"let" (tuple identifier (Lazy.force expr_grammar)));
                 apply ~f:(fun e -> `expr e) (Lazy.force expr_grammar);
-              ]
-            )
-         )
-      )
+              ])))
     |> Lazy.force
 
 end
 
 (*doc
 
+### Third Attempt: A *Lazy* GADT
+
 Let's put the *lazyness* in the GADT itself:
 
 *)
 module More_complex_grammar = struct
-
-  type expr = [
-    | `int of int
-    | `var of string
-    | `tuple of expr * expr
-  ] with sexp
-  type dsl = [
-    | `let_binding of string * expr
-    | `expr of expr
-  ] list
-  with sexp
 
   type _ grammar =
     | Tagged: string * 'a grammar Lazy.t -> 'a grammar
@@ -392,13 +367,68 @@ module More_complex_grammar = struct
   let identifier = lazy Identifier
 
   (*doc
+The same `parse_sexp` function but with some `lazy` keywords and
+`Lazy.force` calls:
+
+  *)
+  let parse_sexp ~grammar sexp =
+    let open Sexp in
+    let rec go: type b. b grammar Lazy.t -> Sexp.t -> b =
+      fun grammar sexp ->
+        match sexp, Lazy.force grammar with
+        | any, Apply (gram, f) ->
+          f (go gram any)
+        | List (h :: t), Tagged (kwd, subgram) when h = Atom kwd ->
+          (* say "Got kwd: %s" kwd; *)
+          go subgram (List t)
+        | List l, Sequence subgram ->
+          (* say "Sequence!"; *)
+          List.map l (go subgram)
+        | any, Try_in_order subgrams ->
+          let rec loop = function
+          | [] -> assert false
+          | h :: t ->
+            try go h any with e -> loop t
+          in
+          loop subgrams
+        | List (h :: t), Tuple (gramleft, gramright) ->
+          let left = go gramleft h in
+          let right = go gramright (List t) in
+          (left, right)
+        | Atom a, Identifier -> say "Ident: %s" a; a
+        | Atom a, Integer -> say "Int: %s" a; Int.of_string a
+          (* List.iter t ~f:(go subgram); *)
+        | List [one], gram -> go (lazy gram) one
+        | any, _ ->
+          say "%s fails" (Sexp.to_string_hum any);
+          assert false
+    in
+    go grammar sexp
+
+(*doc
+
+This is the same AST as before:
+
+*)
+  type expr = [
+    | `int of int
+    | `var of string
+    | `tuple of expr * expr
+  ] with sexp
+  type dsl = [
+    | `let_binding of string * expr
+    | `expr of expr
+  ] list
+  with sexp
+
+  (*doc
 To make OCaml recursive definitions checker happy, we need to protect them:
 
 ```ocaml
 let rec my_grammar = lazy (Lazy.force ( (* ... use my_grammar ... *) ))
 ```
 
-It we define
+If we define
 
 ```ocaml
 let protect_rec m = lazy (Lazy.force m)
@@ -427,56 +457,17 @@ the explicit `lazy` keyword (c.f. [the manual][ocaml/manual/letrecdef]).
                 apply  ~f:(fun (id, expr) -> `let_binding (id, expr))
                   (tagged ~tag:"let" (tuple identifier (expr_grammar)));
                 apply ~f:(fun e -> `expr e) (expr_grammar);
-              ]
-            )
-         )
-      )
+              ])))
 
-  let parse_sexp ~grammar sexp =
-    let open Sexp in
-    let rec go: type b. b grammar Lazy.t -> Sexp.t -> b =
-      fun grammar sexp ->
-        match sexp, Lazy.force grammar with
-        | any, Apply (gram, f) ->
-          f (go gram any)
-        | List (h :: t), Tagged (kwd, subgram) when h = Atom kwd ->
-          say "Got kwd: %s" kwd;
-          go subgram (List t)
-        | List l, Sequence subgram ->
-          say "Sequence!";
-          List.map l (go subgram)
-        | any, Try_in_order subgrams ->
-          let rec loop = function
-          | [] -> assert false
-          | h :: t ->
-            try go h any with e -> loop t
-          in
-          loop subgrams
-        | List (h :: t), Tuple (gramleft, gramright) ->
-          let left = go gramleft h in
-          let right = go gramright (List t) in
-          (left, right)
-        | Atom a, Identifier -> say "Ident: %s" a; a
-        | Atom a, Integer -> say "Int: %s" a; Int.of_string a
-          (* List.iter t ~f:(go subgram); *)
-        | List [one], gram -> go (lazy gram) one
-        | any, _ ->
-          say "%s fails" (Sexp.to_string_hum any);
-          assert false
-    in
-    go grammar sexp
-
-
+(*doc
+and the test:
+*)
   let do_basic_test sexp  grammar () =
     Sexp.of_string (String.strip sexp)
     |> parse_sexp ~grammar
     |> sexp_of_dsl
     |> Sexp.to_string
     |> say "%s"
-
-(*doc
-#### Test
-*)
   let () = if_arg "example_1_4" (do_basic_test example_1 dsl_grammar)
 (*result example_1_4 *)
 
