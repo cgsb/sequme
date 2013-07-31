@@ -49,13 +49,17 @@ A type `'a grammar`, and basic constructors, then functions:
 - `parse: Sexp.t -> t grammar -> t`
 
 
-Implementation(s)
------------------
+Experimentations
+----------------
 
 Let's define the usual stuff:
 *)
 open Core.Std
-let say fmt = printf ("    " ^^ fmt ^^ "\n%!")
+let indentation = ref 4
+let say fmt = ksprintf (fun s ->
+    let sep = (String.make !indentation ' ') in
+    printf "%s%s\n%!" sep (String.split ~on:'\n' s |> String.concat ~sep:("\n" ^ sep))
+  ) fmt
 let args = Array.to_list Sys.argv
 let if_arg s f =
   if List.mem args "ALL" || List.mem args s then f ()
@@ -471,5 +475,290 @@ and the test:
   let () = if_arg "example_1_4" (do_basic_test example_1 dsl_grammar)
 (*result example_1_4 *)
 
+end
 
+(*doc
+
+A Better API, A Better Parsing
+------------------------------
+
+*)
+
+type ('a, 'b) result = [
+  | `Ok of 'a
+  | `Error of 'b
+]
+let return x : (_, _) result = `Ok x
+let fail x : (_, _) result = `Error x
+let (>>=) x f : (_, _) result =
+  match x with
+  | `Ok o -> f o
+  | `Error e -> `Error e
+let (>><) x f : (_, _) result = f x
+
+module type META_PARSER = sig
+
+  type ('dsl, 'error) grammar
+  type ('dsl, 'error) t = ('dsl, 'error) grammar lazy_t
+  (** Base grammar holder *)
+
+  (** {3 Basic Constructors } *)
+
+  val keyword : string -> (unit, 'error) t
+  val left_and_continue :
+    ('a, 'b) t -> ('c, 'b) t -> ('a * 'c, 'b) t
+  val sequence: ('a, 'b) t -> ('a list, 'b) t
+  val try_in_order: ('a, 'b) t list -> ('a, 'b) t
+
+  val integer : (int, 'a) t
+  val string :  (string, 'a) t
+  val float :  (float, 'a) t
+  val apply :
+    ('a, 'error) t -> f:('a -> ('c, 'error) result) -> ('c, 'error) t
+
+  (** {3 High-level Constructors } *)
+
+  val tagged : ('a, 'b) t -> tag:string -> ('a, 'b) t
+  val tuple:
+    ('a, 'b) t -> ('c, 'b) t -> ('a * 'c, 'b) t
+
+  (** {3 Parsing function } *)
+
+  type syntax_error =
+    [ `not_a_float of string
+    | `not_an_integer of string
+    | `no_matching_rule of string
+    | `nothing_left_to_try of string ]
+  with sexp
+
+  val parse:
+    syntax_error:(string -> [> syntax_error] -> 'error) ->
+    ('dsl, 'error) t -> Sexp.Annotated.t -> ('dsl, 'error) result
+
+end
+
+module Meta_parser : META_PARSER = struct
+
+  type (_, 'error) grammar =
+    | Keyword: string -> (unit, 'error) grammar
+    | Left_and_continue:
+        ('a, 'error) grammar Lazy.t * ('b, 'error) grammar Lazy.t -> ('a * 'b, 'error) grammar
+    | Sequence: ('a, 'error) grammar Lazy.t -> ('a list, 'error) grammar
+    | Try_in_order: ('a, 'error) grammar Lazy.t list -> ('a, 'error) grammar
+    | Integer: (int, 'error) grammar
+    | Float: (float, 'error) grammar
+    | String: (string, 'error) grammar
+    | Apply: ('a, 'error) grammar Lazy.t * ('a -> ('b, 'error) result) -> ('b, 'error) grammar
+
+  type ('dsl, 'error) t = ('dsl, 'error) grammar Lazy.t
+
+
+  let rec to_string_aux: type a. int -> (a, _) grammar -> string  =
+    fun level  gram ->
+      if level < 0 then "..."
+      else
+        let to_string: type a. (a, _) grammar -> string =
+          fun x -> to_string_aux (level - 1) x in
+        match gram with
+        | Keyword s -> sprintf "Kwd %s" s
+        | Left_and_continue (lg, rg) ->
+          sprintf "parse [%s] and continue with [%s]"
+            (Lazy.force lg |> to_string) (Lazy.force rg |> to_string)
+        | Sequence g -> sprintf "sequence [%s]" (Lazy.force g |> to_string)
+        | Try_in_order gl ->
+          sprintf "try %s"
+            (List.map gl (fun g -> Lazy.force g |> to_string |> sprintf "[%s]")
+             |> String.concat ~sep:" then ")
+        | Integer -> "int"
+        | Float -> "float"
+        | String -> "string"
+        | Apply (lg, f) -> sprintf "{%s}" (Lazy.force lg |> to_string)
+
+  let to_string ?(max_level=3) t = (Lazy.force t |> to_string_aux max_level)
+
+
+  let keyword s = lazy (Keyword s)
+  let left_and_continue left continue = lazy (Left_and_continue (left, continue))
+  let sequence lg = lazy (Sequence (lg))
+  let try_in_order l = lazy (Try_in_order l)
+
+  let integer = lazy Integer
+  (* let identifier = lazy Identifier; *)
+  let string = lazy String
+  let float = lazy Float
+
+  let apply g ~f = lazy (Apply (g, f))
+
+  let tagged lg ~tag =
+    apply
+      (left_and_continue (keyword tag) lg)
+      (fun ((), c) -> return c)
+
+  let tuple x y = left_and_continue x y
+
+
+  let find_annotated_exn a t =
+    (*tip Let's hope we are going to call find_annotated_exn only where it
+        makes sense … *)
+    match (Sexp.Annotated.find_sexp a t) with
+    | Some s -> s
+    | None ->
+      failwithf "find_annotated_exn: %s In %s"
+        (Sexp.to_string_hum t) (Sexp.Annotated.get_sexp a |> Sexp.to_string_hum) ()
+
+  let remake_annotated_from_list_exn range annotated t =
+    let open Sexp in
+    (Annotated.List (range, List.map t (find_annotated_exn annotated), List t))
+
+  type syntax_error =
+    [ `not_a_float of string
+    | `not_an_integer of string
+    | `no_matching_rule of string
+    | `nothing_left_to_try of string ]
+  with sexp
+
+
+  let parse ~syntax_error grammar sexp =
+    let gram_to_string = to_string in
+    let parsing_error range e =
+      let open Sexp.Annotated in
+      let loc =
+        sprintf "L%dC%d—L%dC%d" range.start_pos.line
+          range.start_pos.col range.end_pos.line range.end_pos.col in
+      fail (syntax_error loc e)
+    in
+    let open Sexp in
+    let rec go: type b. (b, 'e) grammar Lazy.t -> Sexp.Annotated.t -> (b, 'e) result =
+      fun grammar annotated ->
+        let sexp = Annotated.get_sexp annotated in
+        let range = Annotated.get_range annotated in
+        match sexp, Lazy.force grammar with
+        | any, Apply (gram, f) ->
+          go gram annotated
+          >>= fun r ->
+          f r
+        | Atom a, Keyword k when Atom k = Atom a ->
+          (* say "Kwd: %s" a; return () *)
+          return ()
+        | List (h :: hh :: t), Left_and_continue (gramleft, gramright) ->
+          (* say "go %s Vs %s" (Sexp.to_string_hum sexp) (gram_to_string grammar); *)
+          go gramleft (find_annotated_exn annotated h)
+          >>= fun left ->
+          go gramright (remake_annotated_from_list_exn range annotated (hh :: t))
+          >>= fun right ->
+          return (left, right)
+        | List l, Sequence subgram ->
+          List.fold l ~init:(return []) ~f:(fun prev_m sexp ->
+              prev_m >>= fun l ->
+              go subgram (find_annotated_exn annotated sexp)
+              >>= fun r ->
+              return (l @ [r]))
+        | any, Try_in_order subgrams  ->
+          let rec loop = function
+          | [] ->
+            parsing_error range (`nothing_left_to_try
+                                   (gram_to_string ~max_level:4 grammar))
+          | h :: t ->
+            match go h annotated with
+            | `Ok o -> return o
+            | `Error e -> loop t
+          in
+          loop subgrams
+        | Atom a, String -> (* say "Str: %s" a;  *)return a
+        | Atom a, Integer -> (* say "Int: %s" a; *)
+          (try return (Int.of_string a) with
+           | e -> parsing_error range (`not_an_integer a))
+        | Atom a, Float -> (* say "Int: %s" a; *)
+          (try return (Float.of_string a) with
+           | e -> parsing_error range (`not_a_float a))
+        | List [one], gram -> go (lazy gram) (find_annotated_exn annotated one)
+        | any, _ ->
+          parsing_error range (`no_matching_rule (Sexp.to_string any))
+    in
+    go grammar sexp
+
+end
+
+module Test_meta_parser = struct
+  open Meta_parser
+  type expr = [
+    | `int of int
+    | `var of string
+    | `tuple of expr * expr
+  ] with sexp
+  type dsl = [
+    | `let_binding of string * expr
+    | `expr of expr
+  ] list
+  with sexp
+
+  let dsl_grammar () =
+    let identifier =
+      apply string (fun s ->
+          if String.for_all s Char.is_alphanum
+          then return s else fail (`not_an_identifier s))
+    in
+    let rec expr_grammar =
+      lazy (Lazy.force (
+          try_in_order [
+            apply (tagged ~tag:"tuple"
+                     (tuple (expr_grammar) (expr_grammar)))
+              ~f:(fun (a, b) -> return (`tuple (a, b)));
+            apply integer ~f:(fun i -> return (`int i));
+            apply identifier ~f:(fun s -> return (`var s));
+          ]
+        )) in
+    apply ~f:(fun statements -> return (statements: dsl))
+      (tagged ~tag:"dsl"
+         (sequence
+            (try_in_order [
+                apply  ~f:(fun (id, expr) -> return (`let_binding (id, expr)))
+                  (tagged ~tag:"let" (tuple identifier (expr_grammar)));
+                apply ~f:(fun e -> return (`expr e)) (expr_grammar);
+              ])))
+
+  (*doc
+    and the tests:
+  *)
+  let do_basic_test sexp  grammar () =
+    let syntax_error loc e = `syntax_error (loc, e) in
+    match (Sexp.Annotated.of_string (String.strip sexp) |> parse ~syntax_error grammar) with
+    | `Ok dsl ->
+      dsl |> sexp_of_dsl |> Sexp.to_string_hum |> say "%s"
+    | `Error e ->
+      say "Error: %s"
+        (<:sexp_of<
+           [> `syntax_error of string * [> Meta_parser.syntax_error ]
+           | `not_an_identifier of string]
+         >>  e |> Sexp.to_string_hum);
+      ()
+  let () =
+    if_arg "example_2" (do_basic_test "
+    (dsl
+     (let (x )(42)) ;; some comment
+     (let y ((tuple 2 3)))
+     (tuple x (tuple y 42))
+     x)
+" (dsl_grammar ()))
+    (*result example_2 *)
+
+  let () =
+    if_arg "example_3" (do_basic_test "
+    (dsl
+     (let (x )(42)) ;; some comment
+     (let y ((tuple 2 3)))
+     (tuple x (tuple y 42 error))
+     x)
+" (dsl_grammar ()))
+    (*result example_3 *)
+
+  let () =
+    if_arg "example_4" (do_basic_test "
+    (dsl
+     (let (x )(42)) ;; some comment
+     (leterror y ((tuple 2 3)))
+     (tuple x (tuple y 42))
+     x)
+" (dsl_grammar ()))
+    (*result example_4 *)
 end
