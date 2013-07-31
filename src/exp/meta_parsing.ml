@@ -238,9 +238,9 @@ Still matches
     go grammar sexp
 
 
-  let do_basic_test sexp () =
+  let do_basic_test sexp  grammar () =
     Sexp.of_string (String.strip sexp)
-    |> parse_sexp ~grammar:dsl_grammar
+    |> parse_sexp ~grammar
     |> sexp_of_dsl
     |> Sexp.to_string
     |> say "%s"
@@ -248,7 +248,7 @@ Still matches
 (*doc
 #### Test
 *)
-  let () = if_arg "example_1_1" (do_basic_test example_1)
+  let () = if_arg "example_1_1" (do_basic_test example_1 dsl_grammar)
 (*result example_1_1 *)
 
 (*doc
@@ -278,6 +278,207 @@ gives me:
 
 *)
 
+
+  let apply g ~f = fun () -> (Apply (g (), f))
+  let sequence lg = fun () -> Sequence (lg ())
+  let try_in_order l = fun () -> Try_in_order (List.map l ~f:(fun g -> g ()))
+  let tagged lg ~tag = fun () -> Tagged (tag, lg ())
+  let tuple x y = fun () -> Tuple (x (), y ())
+  let integer = fun () -> Integer
+  let identifier = fun () -> Identifier
+
+(*doc
+This raises `Stack_overflow` with `let dsl_grammar =`:
+ *)
+  let dsl_grammar () =
+    (* let rec bouh = apply (Sequence (Lazy.force bouh)) ~f:(fun l -> `list l) in *)
+    (* let rec bouh () = apply (sequence bouh) ~f:(fun l -> `list l) () in *)
+    let rec expr_grammar () =
+      try_in_order [
+        apply (tagged ~tag:"tuple"
+                 (tuple expr_grammar expr_grammar))
+          ~f:(fun (a, b) -> `tuple (a, b));
+        apply integer ~f:(fun i -> `int i);
+        apply identifier ~f:(fun s -> `var s);
+      ] () in
+    apply ~f:(fun statements -> (statements: dsl))
+      (tagged ~tag:"dsl"
+         (sequence
+            (try_in_order [
+                apply  ~f:(fun (id, expr) -> `let_binding (id, expr))
+                  (tagged ~tag:"let" (tuple identifier expr_grammar));
+                apply ~f:(fun e -> `expr e) expr_grammar;
+              ]
+            )
+         )
+      )
+      ()
+
+
+
+(*doc
+
+This raises `CamlinternalLazy.Undefined`
+*)
+  let apply g ~f = lazy (Apply (Lazy.force g, f))
+  let sequence lg = lazy (Sequence (Lazy.force lg))
+  let try_in_order l = lazy (Try_in_order (List.map l ~f:(fun g -> Lazy.force g)))
+  let tagged lg ~tag = lazy (Tagged (tag, Lazy.force lg))
+  let tuple x y = lazy (Tuple (Lazy.force x, Lazy.force y))
+  let integer = lazy Integer
+  let identifier = lazy Identifier
+
+  let dsl_grammar () =
+    (* let rec bouh = apply (Sequence (Lazy.force bouh)) ~f:(fun l -> `list l) in *)
+    (* let rec bouh () = apply (sequence bouh) ~f:(fun l -> `list l) () in *)
+    let rec expr_grammar =
+      lazy (
+      try_in_order [
+        apply (tagged ~tag:"tuple"
+                 (tuple (Lazy.force expr_grammar) (Lazy.force expr_grammar)))
+          ~f:(fun (a, b) -> `tuple (a, b));
+        apply integer ~f:(fun i -> say "Int!: %d" i; `int i);
+        apply identifier ~f:(fun s -> `var s);
+      ] ) in
+    apply ~f:(fun statements -> (statements: dsl))
+      (tagged ~tag:"dsl"
+         (sequence
+            (try_in_order [
+                apply  ~f:(fun (id, expr) -> `let_binding (id, expr))
+                  (tagged ~tag:"let" (tuple identifier (Lazy.force expr_grammar)));
+                apply ~f:(fun e -> `expr e) (Lazy.force expr_grammar);
+              ]
+            )
+         )
+      )
+    |> Lazy.force
+
+end
+
+(*doc
+
+Let's put the *lazyness* in the GADT itself:
+
+*)
+module More_complex_grammar = struct
+
+  type expr = [
+    | `int of int
+    | `var of string
+    | `tuple of expr * expr
+  ] with sexp
+  type dsl = [
+    | `let_binding of string * expr
+    | `expr of expr
+  ] list
+  with sexp
+
+  type _ grammar =
+    | Tagged: string * 'a grammar Lazy.t -> 'a grammar
+    | Tuple: 'a grammar Lazy.t * 'b grammar Lazy.t -> ('a * 'b) grammar
+    | Sequence: 'a grammar Lazy.t -> 'a list grammar
+    (* | Keyword_and_list:  string * 'a grammar -> 'a list grammar *)
+    | Try_in_order: 'a grammar Lazy.t list -> 'a grammar
+    | Integer: int grammar
+    | Identifier: string grammar
+    | Apply: 'a grammar Lazy.t * ('a -> 'b) -> 'b grammar
+
+  let apply g ~f = lazy (Apply (g, f))
+  let sequence lg = lazy (Sequence (lg))
+  let try_in_order l = lazy (Try_in_order l)
+  let tagged lg ~tag = lazy (Tagged (tag, lg))
+  let tuple x y = lazy (Tuple (x, y))
+  let integer = lazy Integer
+  let identifier = lazy Identifier
+
+  (*doc
+To make OCaml recursive definitions checker happy, we need to protect them:
+
+```ocaml
+let rec my_grammar = lazy (Lazy.force ( (* ... use my_grammar ... *) ))
+```
+
+It we define
+
+```ocaml
+let protect_rec m = lazy (Lazy.force m)
+```
+
+we still get the forbidden recursive definition because it requires
+the explicit `lazy` keyword (c.f. [the manual][ocaml/manual/letrecdef]).
+
+[ocaml/manual/letrecdef]: http://caml.inria.fr/pub/docs/manual-ocaml/manual021.html#toc70
+  *)
+  let dsl_grammar =
+    let rec expr_grammar =
+      lazy (Lazy.force (
+        try_in_order [
+          apply (tagged ~tag:"tuple"
+                   (tuple (expr_grammar) (expr_grammar)))
+            ~f:(fun (a, b) -> `tuple (a, b));
+          apply integer ~f:(fun i -> say "Int!: %d" i; `int i);
+          apply identifier ~f:(fun s -> `var s);
+        ]
+      )) in
+    apply ~f:(fun statements -> (statements: dsl))
+      (tagged ~tag:"dsl"
+         (sequence
+            (try_in_order [
+                apply  ~f:(fun (id, expr) -> `let_binding (id, expr))
+                  (tagged ~tag:"let" (tuple identifier (expr_grammar)));
+                apply ~f:(fun e -> `expr e) (expr_grammar);
+              ]
+            )
+         )
+      )
+
+  let parse_sexp ~grammar sexp =
+    let open Sexp in
+    let rec go: type b. b grammar Lazy.t -> Sexp.t -> b =
+      fun grammar sexp ->
+        match sexp, Lazy.force grammar with
+        | any, Apply (gram, f) ->
+          f (go gram any)
+        | List (h :: t), Tagged (kwd, subgram) when h = Atom kwd ->
+          say "Got kwd: %s" kwd;
+          go subgram (List t)
+        | List l, Sequence subgram ->
+          say "Sequence!";
+          List.map l (go subgram)
+        | any, Try_in_order subgrams ->
+          let rec loop = function
+          | [] -> assert false
+          | h :: t ->
+            try go h any with e -> loop t
+          in
+          loop subgrams
+        | List (h :: t), Tuple (gramleft, gramright) ->
+          let left = go gramleft h in
+          let right = go gramright (List t) in
+          (left, right)
+        | Atom a, Identifier -> say "Ident: %s" a; a
+        | Atom a, Integer -> say "Int: %s" a; Int.of_string a
+          (* List.iter t ~f:(go subgram); *)
+        | List [one], gram -> go (lazy gram) one
+        | any, _ ->
+          say "%s fails" (Sexp.to_string_hum any);
+          assert false
+    in
+    go grammar sexp
+
+
+  let do_basic_test sexp  grammar () =
+    Sexp.of_string (String.strip sexp)
+    |> parse_sexp ~grammar
+    |> sexp_of_dsl
+    |> Sexp.to_string
+    |> say "%s"
+
+(*doc
+#### Test
+*)
+  let () = if_arg "example_1_4" (do_basic_test example_1 dsl_grammar)
+(*result example_1_4 *)
 
 
 end
