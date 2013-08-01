@@ -832,4 +832,41 @@ and the tests:
      x)
 " (dsl_grammar ()))
     (*result example_5 *)
+(*doc
+
+We can also check that some stuff does not type-check:
+
+```ocaml
+let should_not_type () =
+  apply (keyword "boud") (fun s ~loc -> s = 42)
+```
+
+gives:
+
+     Error: This expression has type int but an expression was expected of type
+            unit
+
+Or, if we make a mistake in a return type:
+
+```ocaml
+let dsl_grammar () =
+  ...
+  apply ~f:(fun statements ~loc -> return (statements: dsl))
+  ...
+              apply ~f:(fun e ~loc -> return (`expre e)) (expr_grammar);
+```
+
+```ocaml
+Error: This expression has type
+         [> `expre of
+              [> `int of int | `tuple of 'a * 'a | `var of Core.Std.String.t ]
+              as 'a
+          | `let_binding of Core.Std.String.t * 'a ]
+         list
+       but an expression was expected of type
+         dsl = [ `expr of expr | `let_binding of string * expr ] list
+       The second variant type does not allow tag(s) `expre
+```
+
+*)
 end
