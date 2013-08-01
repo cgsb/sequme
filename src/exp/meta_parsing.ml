@@ -512,6 +512,8 @@ a `Lazy.t`.
   type ('dsl, 'error) grammar
   type ('dsl, 'error) t = ('dsl, 'error) grammar lazy_t
 
+  type location = { start: int * int; stop: int * int } with sexp
+
 (*doc
 Basic Constructors:
  *)
@@ -526,7 +528,7 @@ Basic Constructors:
   val string :  (string, 'a) t
   val float :  (float, 'a) t
   val apply :
-    ('a, 'error) t -> f:('a -> ('c, 'error) result) -> ('c, 'error) t
+    ('a, 'error) t -> f:('a -> loc:location -> ('c, 'error) result) -> ('c, 'error) t
 
 (*doc
 High-level Constructors:
@@ -548,7 +550,7 @@ own and they will be merged).
   with sexp
 
   val parse:
-    syntax_error:(string -> [> syntax_error] -> 'error) ->
+    syntax_error:(location -> [> syntax_error] -> 'error) ->
     ('dsl, 'error) t -> Sexp.Annotated.t -> ('dsl, 'error) result
 
 end
@@ -558,6 +560,8 @@ now the implementation of the module:
 
 *)
 module Meta_parser : META_PARSER = struct
+
+  type location = { start: int * int; stop: int * int } with sexp
 
 (*doc
 A cleaner version of the previous “*lazy GADT*”:
@@ -571,7 +575,7 @@ A cleaner version of the previous “*lazy GADT*”:
     | Integer: (int, 'error) grammar
     | Float: (float, 'error) grammar
     | String: (string, 'error) grammar
-    | Apply: ('a, 'error) grammar Lazy.t * ('a -> ('b, 'error) result) -> ('b, 'error) grammar
+    | Apply: ('a, 'error) grammar Lazy.t * ('a -> loc:location -> ('b, 'error) result) -> ('b, 'error) grammar
 
   type ('dsl, 'error) t = ('dsl, 'error) grammar Lazy.t
 
@@ -628,7 +632,7 @@ build from the lower-level ones:
   let tagged lg ~tag =
     apply
       (left_and_continue (keyword tag) lg)
-      (fun ((), c) -> return c)
+      (fun ((), c) ~loc -> return c)
 
   let tuple x y = left_and_continue x y
 
@@ -662,12 +666,15 @@ And finally the parsing:
 
   let parse ~syntax_error grammar sexp =
     let gram_to_string = to_string in
-    let parsing_error range e =
+    let loc_of_range range =
       let open Sexp.Annotated in
-      let loc =
-        sprintf "L%dC%d—L%dC%d" range.start_pos.line
-          range.start_pos.col range.end_pos.line range.end_pos.col in
-      fail (syntax_error loc e)
+      { start = range.start_pos.line, range.start_pos.col;
+        stop = range.end_pos.line, range.end_pos.col;} in
+    let parsing_error range e =
+      (* let loc = *)
+        (* sprintf "L%dC%d—L%dC%d" range.start_pos.line; *)
+          (* range.start_pos.col range.end_pos.line range.end_pos.col in *)
+      fail (syntax_error (loc_of_range range) e)
     in
     let open Sexp in
     let rec go: type b. (b, 'e) grammar Lazy.t -> Sexp.Annotated.t -> (b, 'e) result =
@@ -678,7 +685,7 @@ And finally the parsing:
         | any, Apply (gram, f) ->
           go gram annotated
           >>= fun r ->
-          f r
+          f ~loc:(loc_of_range range) r
         | Atom a, Keyword k when Atom k = Atom a ->
           (* say "Kwd: %s" a; return () *)
           return ()
@@ -744,44 +751,46 @@ module Test_meta_parser = struct
 This time the function `identifier` is defined by the “user”: an
 identifier is an alpha-numeric string:
   *)
+  let syntax_error loc e = `syntax_error (loc, e)
+
   let dsl_grammar () =
     let identifier =
-      apply string (fun s ->
+      apply string (fun s ~loc ->
           if String.for_all s Char.is_alphanum
-          then return s else fail (`not_an_identifier s))
+          then return s else fail (syntax_error loc (`not_an_identifier s)))
     in
     let rec expr_grammar =
       lazy (Lazy.force (
           try_in_order [
             apply (tagged ~tag:"tuple"
                      (tuple (expr_grammar) (expr_grammar)))
-              ~f:(fun (a, b) -> return (`tuple (a, b)));
-            apply integer ~f:(fun i -> return (`int i));
-            apply identifier ~f:(fun s -> return (`var s));
+              ~f:(fun (a, b) ~loc -> return (`tuple (a, b)));
+            apply integer ~f:(fun i ~loc -> return (`int i));
+            apply identifier ~f:(fun s ~loc -> return (`var s));
           ]
         )) in
-    apply ~f:(fun statements -> return (statements: dsl))
+    apply ~f:(fun statements ~loc -> return (statements: dsl))
       (tagged ~tag:"dsl"
          (sequence
             (try_in_order [
-                apply  ~f:(fun (id, expr) -> return (`let_binding (id, expr)))
+                apply  ~f:(fun (id, expr) ~loc -> return (`let_binding (id, expr)))
                   (tagged ~tag:"let" (tuple identifier (expr_grammar)));
-                apply ~f:(fun e -> return (`expr e)) (expr_grammar);
+                apply ~f:(fun e ~loc -> return (`expr e)) (expr_grammar);
               ])))
 
   (*doc
 and the tests:
   *)
   let do_basic_test sexp  grammar () =
-    let syntax_error loc e = `syntax_error (loc, e) in
     match (Sexp.Annotated.of_string (String.strip sexp) |> parse ~syntax_error grammar) with
     | `Ok dsl ->
       dsl |> sexp_of_dsl |> Sexp.to_string_hum |> say "%s"
     | `Error e ->
       say "Error: %s"
         (<:sexp_of<
-           [> `syntax_error of string * [> Meta_parser.syntax_error ]
-           | `not_an_identifier of string]
+           [> `syntax_error of
+           Meta_parser.location * [> Meta_parser.syntax_error | `not_an_identifier of string]
+           ]
          >>  e |> Sexp.to_string_hum);
       ()
   let () =
