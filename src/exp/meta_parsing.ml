@@ -522,7 +522,7 @@ Basic Constructors:
   val left_and_continue :
     ('a, 'b) t -> ('c, 'b) t -> ('a * 'c, 'b) t
   val sequence: ('a, 'b) t -> ('a list, 'b) t
-  val try_in_order: ('a, 'b) t list -> ('a, 'b) t
+  val try_in_order: ?name:string -> ('a, 'b) t list -> ('a, 'b) t
 
   val integer : (int, 'a) t
   val string :  (string, 'a) t
@@ -546,7 +546,7 @@ own and they will be merged).
     [ `not_a_float of string
     | `not_an_integer of string
     | `no_matching_rule of string
-    | `nothing_left_to_try of string ]
+    | `nothing_left_to_try of string option * string ]
   with sexp
 
   val parse:
@@ -571,7 +571,7 @@ A cleaner version of the previous “*lazy GADT*”:
     | Left_and_continue:
         ('a, 'error) grammar Lazy.t * ('b, 'error) grammar Lazy.t -> ('a * 'b, 'error) grammar
     | Sequence: ('a, 'error) grammar Lazy.t -> ('a list, 'error) grammar
-    | Try_in_order: ('a, 'error) grammar Lazy.t list -> ('a, 'error) grammar
+    | Try_in_order: ('a, 'error) grammar Lazy.t list * string option -> ('a, 'error) grammar
     | Integer: (int, 'error) grammar
     | Float: (float, 'error) grammar
     | String: (string, 'error) grammar
@@ -596,8 +596,9 @@ a `max_level`:
           sprintf "parse [%s] and continue with [%s]"
             (Lazy.force lg |> to_string) (Lazy.force rg |> to_string)
         | Sequence g -> sprintf "sequence [%s]" (Lazy.force g |> to_string)
-        | Try_in_order gl ->
-          sprintf "try %s"
+        | Try_in_order (gl, err) ->
+          sprintf "[%s]: try %s"
+            (Option.value ~default:"NO-NAME" err)
             (List.map gl (fun g -> Lazy.force g |> to_string |> sprintf "[%s]")
              |> String.concat ~sep:" then ")
         | Integer -> "int"
@@ -616,7 +617,7 @@ The basic constructors:
   let keyword s = lazy (Keyword s)
   let left_and_continue left continue = lazy (Left_and_continue (left, continue))
   let sequence lg = lazy (Sequence (lg))
-  let try_in_order l = lazy (Try_in_order l)
+  let try_in_order ?name l = lazy (Try_in_order (l, name))
 
   let integer = lazy Integer
   (* let identifier = lazy Identifier; *)
@@ -661,7 +662,7 @@ And finally the parsing:
     [ `not_a_float of string
     | `not_an_integer of string
     | `no_matching_rule of string
-    | `nothing_left_to_try of string ]
+    | `nothing_left_to_try of string option * string ]
   with sexp
 
   let parse ~syntax_error grammar sexp =
@@ -702,11 +703,12 @@ And finally the parsing:
               go subgram (find_annotated_exn annotated sexp)
               >>= fun r ->
               return (l @ [r]))
-        | any, Try_in_order subgrams  ->
+        | any, Try_in_order (subgrams, error_name)  ->
           let rec loop = function
           | [] ->
             parsing_error range (`nothing_left_to_try
-                                   (gram_to_string ~max_level:4 grammar))
+                                   (error_name,
+                                    gram_to_string ~max_level:4 grammar))
           | h :: t ->
             match go h annotated with
             | `Ok o -> return o
@@ -761,7 +763,7 @@ identifier is an alpha-numeric string:
     in
     let rec expr_grammar =
       lazy (Lazy.force (
-          try_in_order [
+          try_in_order ~name:"DSL Expression" [
             apply (tagged ~tag:"tuple"
                      (tuple (expr_grammar) (expr_grammar)))
               ~f:(fun (a, b) ~loc -> return (`tuple (a, b)));
@@ -772,7 +774,7 @@ identifier is an alpha-numeric string:
     apply ~f:(fun statements ~loc -> return (statements: dsl))
       (tagged ~tag:"dsl"
          (sequence
-            (try_in_order [
+            (try_in_order ~name:"DSL Top-level statements" [
                 apply  ~f:(fun (id, expr) ~loc -> return (`let_binding (id, expr)))
                   (tagged ~tag:"let" (tuple identifier (expr_grammar)));
                 apply ~f:(fun e ~loc -> return (`expr e)) (expr_grammar);
